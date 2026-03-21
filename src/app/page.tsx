@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getAuthUser } from "@/lib/auth";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { Button } from "@/components/ui/button";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
@@ -21,40 +22,8 @@ export default async function LandingPage() {
   const user = await getAuthUser();
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Citeplex" width={32} height={32} />
-            <span className="text-xl font-bold">
-              <span className="text-primary">Cite</span>plex
-            </span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" asChild>
-              <Link href="/pricing">Pricing</Link>
-            </Button>
-            {user ? (
-              <Button asChild>
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" asChild>
-                  <Link href="/login">Sign In</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/login">
-                    Get Started
-                    <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background overflow-hidden pt-16">
+      <SiteHeader authenticated={!!user} />
 
       {/* Hero */}
       <section className="relative">

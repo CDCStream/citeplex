@@ -1,11 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import DOMPurify from "isomorphic-dompurify";
 import { getAuthUser } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { getPublishedPostBySlug } from "@/lib/blog-data";
 import { parseBlogPost } from "@/lib/blog-parser";
 import { BLOG_BRAND_NAME } from "@/lib/blog-brand";
@@ -63,37 +62,8 @@ export default async function BlogPostPage(props: Props) {
     : null;
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
-      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Citeplex" width={32} height={32} />
-            <span className="text-xl font-bold">
-              <span className="text-primary">Cite</span>plex
-            </span>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/blog" className="gap-1.5">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">Blog</span>
-              </Link>
-            </Button>
-            {user ? (
-              <Button size="sm" asChild>
-                <Link href="/dashboard">Dashboard</Link>
-              </Button>
-            ) : (
-              <Button size="sm" asChild>
-                <Link href="/login">
-                  Sign In
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background overflow-hidden pt-16">
+      <SiteHeader authenticated={!!user} />
 
       <article className="relative">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
