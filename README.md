@@ -21,7 +21,7 @@ npm run dev
 |----------|----------|
 | `NEXT_PUBLIC_APP_URL` | Üretimde **`https://www.citeplex.io`** (sitemap, Open Graph, canonical). |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | GA4 Measurement ID (`G-...`). Sadece çerez banner’ında **Accept All** sonrası yüklenir. |
-| `NEXT_PUBLIC_AHREFS_WEB_ANALYTICS_KEY` | Ahrefs Web Analytics `data-key`. Çerez onayı sonrası yüklenir. |
+| `NEXT_PUBLIC_AHREFS_WEB_ANALYTICS_KEY` | Ahrefs Web Analytics `data-key`. `layout` içinde `beforeInteractive` ile yüklenir (Ahrefs doğrulaması için gerekli). |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | GSC HTML etiketi doğrulama **content** değeri (isteğe bağlı). |
 
 ## Google Search Console

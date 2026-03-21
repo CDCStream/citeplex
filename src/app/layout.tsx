@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Script from "next/script";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/cookie-consent";
-import { AhrefsAnalytics } from "@/components/ahrefs-analytics";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { RouteProgress } from "@/components/route-progress";
 import "./globals.css";
@@ -13,6 +13,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const ahrefsKey = process.env.NEXT_PUBLIC_AHREFS_WEB_ANALYTICS_KEY?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -36,12 +37,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${jakarta.className} antialiased`}>
+        {ahrefsKey ? (
+          <Script
+            src="https://analytics.ahrefs.com/analytics.js"
+            strategy="beforeInteractive"
+            {...{ "data-key": ahrefsKey }}
+          />
+        ) : null}
         <Suspense fallback={null}>
           <RouteProgress />
         </Suspense>
         <Suspense fallback={null}>
           <GoogleAnalytics />
-          <AhrefsAnalytics />
         </Suspense>
         {children}
         <CookieConsent />

@@ -63,9 +63,9 @@ export function CookieConsent() {
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
               We use <strong>essential cookies</strong> for authentication and core
-              functionality (these cannot be disabled). <strong>Analytics cookies</strong> help
-              us understand how you use our platform and are only enabled with your
-              consent. See our{" "}
+              functionality (these cannot be disabled). <strong>Google Analytics</strong>{" "}
+              runs only if you accept below. Ahrefs Web Analytics may load for aggregate
+              traffic (see our{" "}
               <Link href="/privacy#cookies" className="font-medium text-primary hover:underline">
                 Cookie Policy
               </Link>{" "}
