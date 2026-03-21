@@ -58,7 +58,11 @@ export async function GET(request: Request) {
         );
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      const redirectUrl = new URL(next, origin);
+      if (isNewUser) {
+        redirectUrl.searchParams.set("welcome", "1");
+      }
+      return NextResponse.redirect(redirectUrl.toString());
     }
   }
 

@@ -1,14 +1,19 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle2, ArrowRight } from "lucide-react";
+import { CheckoutPurchaseConversion } from "./checkout-purchase-conversion";
 
 export default function CheckoutSuccessPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-primary/5 via-background to-primary/10 p-4">
+      <Suspense fallback={null}>
+        <CheckoutPurchaseConversion />
+      </Suspense>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-3">
+        <CardHeader className="space-y-3 text-center">
           <div className="flex justify-center">
             <div className="rounded-full bg-emerald-500/10 p-3">
               <CheckCircle2 className="h-8 w-8 text-emerald-500" />
@@ -25,7 +30,7 @@ export default function CheckoutSuccessPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button className="w-full h-11 text-base" asChild>
+          <Button className="h-11 w-full text-base" asChild>
             <Link href="/dashboard">
               Go to Dashboard
               <ArrowRight className="ml-2 h-4 w-4" />

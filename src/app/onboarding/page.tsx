@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ import { COUNTRIES, countryFlag } from "@/lib/constants/countries";
 import { Favicon } from "@/components/ui/favicon";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { motion } from "framer-motion";
+import { SignupConversion } from "@/app/dashboard/signup-conversion";
 
 const STEPS = [
   { label: "Website", icon: Globe },
@@ -339,6 +340,10 @@ export default function OnboardingPage() {
   }, [step, scanDomainId, scanDone, pollScanStatus]);
 
   return (
+    <>
+      <Suspense fallback={null}>
+        <SignupConversion />
+      </Suspense>
     <div className="min-h-screen bg-linear-to-b from-background to-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Step progress bar */}
@@ -849,5 +854,6 @@ export default function OnboardingPage() {
         </p>
       </div>
     </div>
+    </>
   );
 }

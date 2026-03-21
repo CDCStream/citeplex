@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { SignupConversion } from "@/app/dashboard/signup-conversion";
 import { Button } from "@/components/ui/button";
 import { Globe, Plus, Sparkles, ArrowUpRight, Zap } from "lucide-react";
 import { DomainCards } from "@/components/dashboard/domain-cards";
@@ -48,7 +50,11 @@ export default async function DashboardPage() {
   );
 
   return (
-    <div className="space-y-8">
+    <>
+      <Suspense fallback={null}>
+        <SignupConversion />
+      </Suspense>
+      <div className="space-y-8">
       {plan === "free" && (
         <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
           <div className="flex items-center gap-3">
@@ -110,6 +116,7 @@ export default async function DashboardPage() {
       ) : (
         <DomainCards domains={domains} />
       )}
-    </div>
+      </div>
+    </>
   );
 }
