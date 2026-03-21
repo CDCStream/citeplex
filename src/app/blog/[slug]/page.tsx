@@ -135,7 +135,7 @@ export default async function BlogPostPage(props: Props) {
           </header>
 
           <div
-            className="prose prose-neutral dark:prose-invert mt-12 max-w-none text-[15px] leading-relaxed prose-headings:scroll-mt-24 prose-headings:font-bold prose-h2:text-2xl prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:border prose-img:border-border/60 prose-img:shadow-sm"
+            className="blog-post-content prose prose-neutral dark:prose-invert mt-12 max-w-none text-[15px] leading-relaxed prose-headings:scroll-mt-24 prose-headings:font-bold prose-h2:text-2xl prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:border prose-img:border-border/60 prose-img:shadow-sm prose-table:w-full"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
 
