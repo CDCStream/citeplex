@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// NOTE: Enums removed for SQLite compatibility.
+// Use String fields with app-level validation.
+// Switch back to PostgreSQL + enums for production.
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String?
+  image            String?
+  emailVerified    DateTime?
+  plan             String   @default("free")
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  domains  Domain[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Domain {
+  id              String   @id @default(cuid())
+  userId          String
+  url             String
+  brandName       String
+  industry        String?
+  description     String?
+  primaryCountry  String?
+  targetCountries String?
+  scanStatus        String    @default("idle")
+  firstScanDone     Boolean   @default(false)
+  lastScanStartedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competitors     Competitor[]
+  prompts         Prompt[]
+  scanResults     ScanResult[]
+  recommendations Recommendation[]
+  alerts          Alert[]
+
+  @@index([userId])
+}
+
+model Competitor {
+  id        String   @id @default(cuid())
+  domainId  String
+  url       String
+  brandName String
+  createdAt DateTime @default(now())
+
+  domain      Domain                 @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  scanResults CompetitorScanResult[]
+
+  @@index([domainId])
+}
+
+model Prompt {
+  id           String   @id @default(cuid())
+  domainId     String
+  text         String
+  category     String?
+  language     String?
+  country      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  domain                 Domain                 @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  scanResults            ScanResult[]
+  competitorScanResults  CompetitorScanResult[]
+
+  @@index([domainId])
+}
+
+model ScanResult {
+  id             String   @id @default(cuid())
+  domainId       String
+  promptId       String
+  aiEngine       String
+  runIndex       Int      @default(0)
+  response       String
+  brandMentioned Boolean
+  position       Int?
+  scannedAt      DateTime @default(now())
+
+  domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@index([domainId, scannedAt])
+  @@index([promptId])
+}
+
+model CompetitorScanResult {
+  id             String   @id @default(cuid())
+  competitorId   String
+  promptId       String
+  aiEngine       String
+  runIndex       Int      @default(0)
+  brandMentioned Boolean
+  mentionCount   Int      @default(0)
+  position       Int?
+  scannedAt      DateTime @default(now())
+
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  prompt     Prompt     @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@index([competitorId, scannedAt])
+  @@index([promptId])
+}
+
+model Recommendation {
+  id          String   @id @default(cuid())
+  domainId    String
+  title       String
+  description String
+  priority    String   @default("medium")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@index([domainId])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  domainId  String
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  domain Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@index([domainId])
+}

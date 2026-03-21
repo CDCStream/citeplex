@@ -1,0 +1,182 @@
+-- Citeplex.io: Supabase Migration
+-- Converts Prisma/SQLite schema to PostgreSQL
+
+-- Users table (linked to Supabase auth.users)
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  auth_id uuid unique references auth.users(id) on delete cascade,
+  email text unique not null,
+  name text,
+  image text,
+  plan text not null default 'free',
+  stripe_customer_id text unique,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Domains
+create table if not exists public.domains (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  url text not null,
+  brand_name text not null,
+  industry text,
+  description text,
+  primary_country text,
+  target_countries text,
+  scan_status text not null default 'idle',
+  first_scan_done boolean not null default false,
+  last_scan_started_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_domains_user_id on public.domains(user_id);
+
+-- Competitors
+create table if not exists public.competitors (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  url text not null,
+  brand_name text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_competitors_domain_id on public.competitors(domain_id);
+
+-- Prompts
+create table if not exists public.prompts (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  text text not null,
+  category text,
+  language text,
+  country text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_prompts_domain_id on public.prompts(domain_id);
+
+-- Scan Results
+create table if not exists public.scan_results (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  prompt_id uuid not null references public.prompts(id) on delete cascade,
+  ai_engine text not null,
+  run_index integer not null default 0,
+  response text not null,
+  brand_mentioned boolean not null,
+  position integer,
+  scanned_at timestamptz not null default now()
+);
+create index if not exists idx_scan_results_domain_scanned on public.scan_results(domain_id, scanned_at);
+create index if not exists idx_scan_results_prompt on public.scan_results(prompt_id);
+
+-- Competitor Scan Results
+create table if not exists public.competitor_scan_results (
+  id uuid primary key default gen_random_uuid(),
+  competitor_id uuid not null references public.competitors(id) on delete cascade,
+  prompt_id uuid not null references public.prompts(id) on delete cascade,
+  ai_engine text not null,
+  run_index integer not null default 0,
+  brand_mentioned boolean not null,
+  mention_count integer not null default 0,
+  position integer,
+  scanned_at timestamptz not null default now()
+);
+create index if not exists idx_comp_scan_results_comp_scanned on public.competitor_scan_results(competitor_id, scanned_at);
+create index if not exists idx_comp_scan_results_prompt on public.competitor_scan_results(prompt_id);
+
+-- Recommendations
+create table if not exists public.recommendations (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  title text not null,
+  description text not null,
+  priority text not null default 'medium',
+  status text not null default 'pending',
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_recommendations_domain_id on public.recommendations(domain_id);
+
+-- Alerts
+create table if not exists public.alerts (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  type text not null,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_alerts_domain_id on public.alerts(domain_id);
+
+-- Auto-update updated_at trigger
+create or replace function public.handle_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger set_updated_at_users
+  before update on public.users
+  for each row execute function public.handle_updated_at();
+
+create trigger set_updated_at_domains
+  before update on public.domains
+  for each row execute function public.handle_updated_at();
+
+-- Auto-create user profile on auth signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (auth_id, email, name, image)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
+    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture')
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- User Activities (activity log)
+create table if not exists public.user_activities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete cascade,
+  action text not null,
+  resource_type text,
+  resource_id text,
+  metadata jsonb default '{}',
+  ip_address text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_user_activities_user on public.user_activities(user_id, created_at desc);
+create index if not exists idx_user_activities_action on public.user_activities(action);
+
+-- Billing History
+create table if not exists public.billing_history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete cascade,
+  type text not null,              -- 'subscription_created', 'subscription_updated', 'subscription_canceled', 'payment_success', 'payment_failed'
+  plan text not null,              -- 'starter', 'growth', 'pro', 'business', 'enterprise', 'free'
+  amount integer not null default 0, -- cents
+  currency text not null default 'usd',
+  status text not null default 'completed', -- 'completed', 'pending', 'failed', 'refunded'
+  polar_subscription_id text,
+  polar_customer_id text,
+  description text,
+  metadata jsonb default '{}',
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_billing_history_user on public.billing_history(user_id, created_at desc);
+
+-- Insert demo user for development
+insert into public.users (email, name, plan)
+values ('demo@citeplex.io', 'Demo User', 'free')
+on conflict (email) do nothing;
