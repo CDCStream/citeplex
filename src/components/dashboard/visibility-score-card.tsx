@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Eye, MapPin } from "lucide-react";
 import { EngineIcon } from "@/components/ui/engine-icon";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import CountUp from "react-countup";
 
 interface EngineBreakdown {
@@ -58,9 +58,13 @@ const containerVariants = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0, 0, 0.58, 1] as const },
+  },
 };
 
 export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engineBreakdown }: Props) {
@@ -104,7 +108,7 @@ export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engine
                   className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
                   initial={{ width: 0 }}
                   animate={{ width: `${mentionRate}%` }}
-                  transition={{ duration: 1.5, ease: "easeOut", delay: 0.3 }}
+                  transition={{ duration: 1.5, ease: [0, 0, 0.58, 1], delay: 0.3 }}
                 />
               </div>
             </CardContent>
@@ -182,7 +186,7 @@ export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engine
                     className={`h-full rounded-full bg-gradient-to-r ${ENGINE_GRADIENT[eng.engine] || "from-gray-500 to-gray-400"}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${eng.mentionRate}%` }}
-                    transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 + i * 0.1 }}
+                    transition={{ duration: 1.2, ease: [0, 0, 0.58, 1], delay: 0.5 + i * 0.1 }}
                   />
                 </div>
               </CardContent>

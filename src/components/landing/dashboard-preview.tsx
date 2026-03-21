@@ -342,10 +342,13 @@ export function DashboardPreview() {
                       borderRadius: 8,
                       border: "1px solid hsl(var(--border))",
                     }}
-                    formatter={(value: number, name: string) => [
-                      name === "mentionRate" ? `${value}%` : `#${value}`,
-                      name === "mentionRate" ? "Mention Rate" : "Avg Position",
-                    ]}
+                    formatter={(value, name) => {
+                      const v = typeof value === "number" ? value : Number(value ?? 0);
+                      return [
+                        name === "mentionRate" ? `${v}%` : `#${v}`,
+                        name === "mentionRate" ? "Mention Rate" : "Avg Position",
+                      ];
+                    }}
                   />
                   <Area
                     type="monotone"

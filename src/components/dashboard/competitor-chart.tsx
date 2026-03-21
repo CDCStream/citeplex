@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Favicon } from "@/components/ui/favicon";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 interface CompetitorData {
   name: string;
@@ -18,9 +18,13 @@ const containerVariants = {
   visible: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
 };
 
-const rowVariants = {
+const rowVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.4, ease: [0, 0, 0.58, 1] as const },
+  },
 };
 
 export function CompetitorChart({ data }: { data: CompetitorData[] }) {
