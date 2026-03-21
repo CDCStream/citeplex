@@ -19,4 +19,12 @@ npm run dev
 
 | Değişken | Açıklama |
 |----------|----------|
+| `NEXT_PUBLIC_APP_URL` | Üretimde **`https://www.citeplex.io`** (sitemap, Open Graph, canonical). |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | GA4 Measurement ID (`G-...`). Sadece çerez banner’ında **Accept All** sonrası yüklenir. |
+| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | GSC HTML etiketi doğrulama **content** değeri (isteğe bağlı). |
+
+## Google Search Console
+
+1. Özellik URL: **`https://www.citeplex.io`**
+2. Doğrulama: **HTML etiketi** → `content` kodunu kopyala → Vercel’e `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` olarak ekle → redeploy.
+3. GSC’de **Sitemap**: `https://www.citeplex.io/sitemap.xml`
