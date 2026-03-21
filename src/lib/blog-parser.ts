@@ -5,6 +5,29 @@ import {
   normalizeArticle,
 } from "@/lib/outrank-normalize";
 
+/** Supabase/PostgREST may return tags as string[] or occasionally a single string / JSON. */
+export function normalizeTags(raw: unknown): string[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    return raw.map((t) => String(t)).filter(Boolean);
+  }
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (s.startsWith("[") || s.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(s) as unknown;
+        if (Array.isArray(parsed)) {
+          return parsed.map((t) => String(t)).filter(Boolean);
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return s.split(/[,;|]/).map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&lt;/g, "<")
@@ -44,7 +67,7 @@ export function parseBlogPost(row: BlogPostRow): ParsedBlogPost {
   const description = row.description ?? null;
   let author = row.author ?? getDefaultBlogAuthor();
   let image = row.image ?? null;
-  let tags = row.tags ?? [];
+  let tags = normalizeTags(row.tags as unknown);
   let publishedAt = row.published_at ?? null;
 
   const looksDebug =
@@ -67,7 +90,9 @@ export function parseBlogPost(row: BlogPostRow): ParsedBlogPost {
           content,
           author: normalized.author || author,
           image: normalized.image ?? image,
-          tags: normalized.tags.length ? normalized.tags : tags,
+          tags: normalized.tags.length
+          ? normalizeTags(normalized.tags)
+          : tags,
           published_at: normalized.published_at ?? publishedAt,
         };
       }

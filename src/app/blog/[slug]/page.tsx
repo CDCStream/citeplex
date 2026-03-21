@@ -2,11 +2,11 @@ import Link from "next/link";
 import { Calendar } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import DOMPurify from "isomorphic-dompurify";
 import { getAuthUser } from "@/lib/auth";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { getPublishedPostBySlug } from "@/lib/blog-data";
 import { parseBlogPost } from "@/lib/blog-parser";
+import { sanitizeBlogHtml } from "@/lib/sanitize-blog-html";
 import { BLOG_BRAND_NAME } from "@/lib/blog-brand";
 import { getSiteUrl } from "@/lib/site";
 
@@ -20,7 +20,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   if (!row) {
     return { title: `Not found — ${BLOG_BRAND_NAME}` };
   }
-  const p = parseBlogPost(row);
+  let p;
+  try {
+    p = parseBlogPost(row);
+  } catch {
+    return { title: `Blog — ${BLOG_BRAND_NAME}` };
+  }
   const canonical = `${getSiteUrl()}/blog/${p.slug}`;
   const ogImage =
     p.image &&
@@ -44,14 +49,24 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function BlogPostPage(props: Props) {
   const { slug } = await props.params;
-  const user = await getAuthUser();
+  let user = null;
+  try {
+    user = await getAuthUser();
+  } catch {
+    user = null;
+  }
+
   const row = await getPublishedPostBySlug(slug).catch(() => null);
   if (!row) notFound();
 
-  const p = parseBlogPost(row);
-  const safeHtml = DOMPurify.sanitize(p.content, {
-    USE_PROFILES: { html: true },
-  });
+  let p;
+  try {
+    p = parseBlogPost(row);
+  } catch {
+    notFound();
+  }
+
+  const safeHtml = sanitizeBlogHtml(p.content);
 
   const date = p.published_at
     ? new Date(p.published_at).toLocaleDateString("en-US", {
