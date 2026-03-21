@@ -1,9 +1,12 @@
 import { Resend } from "resend";
+import { getPublicLogoUrl, getSiteUrl } from "@/lib/site";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendWelcomeEmail(email: string, name?: string | null) {
   const displayName = name || "there";
+  const logoUrl = getPublicLogoUrl();
+  const siteUrl = getSiteUrl();
 
   const { error } = await resend.emails.send({
     from: "Citeplex <noreply@citeplex.io>",
@@ -18,6 +21,7 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
     body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .container { max-width: 480px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .header { padding: 40px 32px 24px; text-align: center; }
+    .logo-img { display: block; margin: 0 auto 16px; width: 64px; height: 64px; border-radius: 12px; }
     .logo-text { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #18181b; }
     .logo-blue { color: #2563eb; }
     .body-content { padding: 0 32px 32px; }
@@ -35,6 +39,7 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
 <body>
   <div class="container">
     <div class="header">
+      <img src="${logoUrl}" alt="Citeplex" class="logo-img" width="64" height="64" />
       <div class="logo-text"><span class="logo-blue">Cite</span>plex</div>
     </div>
     <div class="body-content">
@@ -48,7 +53,7 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
         <div class="feature"><span class="check">&#10003;</span> Get AI-powered recommendations</div>
       </div>
       <div style="text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" class="btn" target="_blank">Go to Dashboard</a>
+        <a href="${siteUrl}/dashboard" class="btn" target="_blank">Go to Dashboard</a>
       </div>
       <div class="divider"></div>
       <p style="font-size:13px; color:#a1a1aa; margin:0;">

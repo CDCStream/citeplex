@@ -3,3 +3,8 @@ export function getSiteUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://www.citeplex.io";
   return raw.replace(/\/$/, "");
 }
+
+/** Absolute URL for `public/logo.png` (emails, OG). */
+export function getPublicLogoUrl(): string {
+  return `${getSiteUrl()}/logo.png`;
+}
