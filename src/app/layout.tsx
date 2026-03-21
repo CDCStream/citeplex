@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/cookie-consent";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import { RouteProgress } from "@/components/route-progress";
 import "./globals.css";
 
@@ -29,6 +30,9 @@ export default function RootLayout({
       <body className={`${jakarta.className} antialiased`}>
         <Suspense fallback={null}>
           <RouteProgress />
+        </Suspense>
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
         </Suspense>
         {children}
         <CookieConsent />

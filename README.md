@@ -16,3 +16,7 @@ npm run dev
 ## Ortam değişkenleri
 
 `.env` dosyasını yerelde oluşturun (repoya commit edilmez). Üretimde Vercel **Environment Variables** kullanın.
+
+| Değişken | Açıklama |
+|----------|----------|
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | GA4 Measurement ID (`G-...`). Sadece çerez banner’ında **Accept All** sonrası yüklenir. |

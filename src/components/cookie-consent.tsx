@@ -34,6 +34,7 @@ export function CookieConsent() {
   const accept = () => {
     localStorage.setItem(CONSENT_KEY, "accepted");
     setVisible(false);
+    window.dispatchEvent(new Event("citeplex:cookie-accepted"));
   };
 
   const decline = () => {
