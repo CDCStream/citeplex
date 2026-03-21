@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import DOMPurify from "isomorphic-dompurify";
+import { getAuthUser } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 import { getPublishedPostBySlug } from "@/lib/blog-data";
 import { parseBlogPost } from "@/lib/blog-parser";
 import { BLOG_BRAND_NAME } from "@/lib/blog-brand";
@@ -42,6 +45,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function BlogPostPage(props: Props) {
   const { slug } = await props.params;
+  const user = await getAuthUser();
   const row = await getPublishedPostBySlug(slug).catch(() => null);
   if (!row) notFound();
 
@@ -59,58 +63,98 @@ export default async function BlogPostPage(props: Props) {
     : null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:py-16">
-      <Link
-        href="/blog"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Blog
-      </Link>
-
-      <article>
-        {p.image ? (
-          <div className="relative mb-8 aspect-2/1 w-full overflow-hidden rounded-xl border bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element -- remote Outrank/CDN URLs */}
-            <img
-              src={p.image}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
-        ) : null}
-
-        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {p.title}
-        </h1>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span>{p.author}</span>
-          {date ? (
-            <span className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              {date}
+    <div className="min-h-screen bg-background overflow-hidden">
+      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Citeplex" width={32} height={32} />
+            <span className="text-xl font-bold">
+              <span className="text-primary">Cite</span>plex
             </span>
-          ) : null}
+          </Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/blog" className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Blog</span>
+              </Link>
+            </Button>
+            {user ? (
+              <Button size="sm" asChild>
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+            ) : (
+              <Button size="sm" asChild>
+                <Link href="/login">
+                  Sign In
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
+      </nav>
 
-        {p.tags.length > 0 ? (
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {p.tags.map((t) => (
-              <li
-                key={t}
-                className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
-              >
-                {t}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      <article className="relative">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute top-20 right-1/3 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
 
-        <div
-          className="prose prose-neutral dark:prose-invert mt-10 max-w-none text-[15px] leading-relaxed prose-headings:font-bold prose-a:text-primary prose-img:rounded-lg"
-          dangerouslySetInnerHTML={{ __html: safeHtml }}
-        />
+        <div className="relative mx-auto max-w-3xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14 lg:pb-28">
+          {p.image ? (
+            <div className="relative mb-10 aspect-2/1 w-full overflow-hidden rounded-2xl border border-border/80 bg-muted shadow-lg shadow-primary/5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- remote Outrank/CDN URLs */}
+              <img
+                src={p.image}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : null}
+
+          <header>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
+              {p.title}
+            </h1>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 pb-8 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{p.author}</span>
+              {date ? (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-primary/80" />
+                  {date}
+                </span>
+              ) : null}
+            </div>
+
+            {p.tags.length > 0 ? (
+              <ul className="mt-6 flex flex-wrap gap-2">
+                {p.tags.map((t) => (
+                  <li
+                    key={t}
+                    className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-medium text-primary"
+                  >
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </header>
+
+          <div
+            className="prose prose-neutral dark:prose-invert mt-12 max-w-none text-[15px] leading-relaxed prose-headings:scroll-mt-24 prose-headings:font-bold prose-h2:text-2xl prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:border prose-img:border-border/60 prose-img:shadow-sm"
+            dangerouslySetInnerHTML={{ __html: safeHtml }}
+          />
+
+          <div className="mt-16 rounded-2xl border border-border/80 bg-muted/30 p-6 sm:p-8">
+            <p className="text-center text-sm text-muted-foreground">
+              Track how AI engines mention your brand —{" "}
+              <Link href="/" className="font-semibold text-primary hover:underline">
+                try Citeplex
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
       </article>
     </div>
   );
