@@ -111,8 +111,11 @@ export default function PrivacyPage() {
 
           <h3 className="mt-4 text-lg font-semibold">5.2 Analytics Cookies (Requires Consent)</h3>
           <p>
-            These cookies are only set when you click &quot;Accept All&quot; on the cookie
-            banner. They help us understand usage patterns to improve the platform.
+            These tools load only when you click &quot;Accept All&quot; on the cookie
+            banner. We use <strong>Google Analytics 4</strong> and{" "}
+            <strong>Ahrefs Web Analytics</strong> to understand traffic and improve the
+            platform. They may set cookies or use local storage as described by each
+            provider.
           </p>
           <div className="mt-2 overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
@@ -126,8 +129,13 @@ export default function PrivacyPage() {
               <tbody>
                 <tr className="border-b">
                   <td className="px-4 py-2 font-mono text-xs">_ga, _ga_*</td>
-                  <td className="px-4 py-2">Google Analytics (if enabled in the future)</td>
+                  <td className="px-4 py-2">Google Analytics 4</td>
                   <td className="px-4 py-2">2 years</td>
+                </tr>
+                <tr className="border-b">
+                  <td className="px-4 py-2 font-mono text-xs">Ahrefs (script)</td>
+                  <td className="px-4 py-2">Ahrefs Web Analytics (analytics.ahrefs.com)</td>
+                  <td className="px-4 py-2">Per Ahrefs policy</td>
                 </tr>
               </tbody>
             </table>

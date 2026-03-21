@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/cookie-consent";
+import { AhrefsAnalytics } from "@/components/ahrefs-analytics";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { RouteProgress } from "@/components/route-progress";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({
         </Suspense>
         <Suspense fallback={null}>
           <GoogleAnalytics />
+          <AhrefsAnalytics />
         </Suspense>
         {children}
         <CookieConsent />
