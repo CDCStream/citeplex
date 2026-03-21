@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { runDomainScan } from "@/lib/scan/scan-service";
@@ -62,8 +63,16 @@ export async function POST(req: NextRequest) {
 
     logActivity({ userId: user.id, action: "onboarding.complete", resourceType: "domain", resourceId: domain.id, metadata: { brand_name: brandName, url, prompts: prompts?.length ?? 0, competitors: competitors?.length ?? 0 } });
 
-    runDomainScan(domain.id).catch((err) => {
-      console.error("Initial scan error:", err);
+    /**
+     * Fire-and-forget scans are frozen/killed on Vercel once the HTTP response is sent.
+     * `after()` keeps this work tied to the invocation until the scan finishes (within maxDuration).
+     */
+    after(async () => {
+      try {
+        await runDomainScan(domain.id);
+      } catch (err) {
+        console.error("Initial scan error:", err);
+      }
     });
 
     return NextResponse.json({ domainId: domain.id, scanning: true });

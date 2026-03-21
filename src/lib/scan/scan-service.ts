@@ -175,6 +175,7 @@ export async function runDomainScan(
 
   await setScanStatus(domainId, "scanning");
 
+  try {
   const totalCalls = activePrompts.length * engines.length * RUNS_PER_PROMPT;
   const progress: ScanProgress = {
     total: totalCalls,
@@ -279,4 +280,8 @@ export async function runDomainScan(
     .eq("id", domainId);
 
   return { analyses, progress };
+  } catch (err) {
+    await setScanStatus(domainId, "idle");
+    throw err;
+  }
 }

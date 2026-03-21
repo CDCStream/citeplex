@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { engines } from "@/lib/ai-engines";
 import { supabaseAdmin } from "@/lib/supabase/server";
+
+const ENGINES = engines.length;
 
 export async function GET(
   _req: Request,
@@ -23,11 +26,22 @@ export async function GET(
     .eq("domain_id", domainId)
     .eq("is_active", true);
 
-  const ENGINES = 7;
   const total = (activePromptCount ?? 0) * ENGINES;
 
-  if (total === 0 || !domain.last_scan_started_at) {
+  if (total === 0) {
     return NextResponse.json({ status: domain.scan_status, progress: null });
+  }
+
+  /**
+   * Race: scan may not have written `last_scan_started_at` yet, or legacy rows.
+   * Still return 0/total so the UI doesn't sit on a fake "0 / 1" placeholder.
+   */
+  if (!domain.last_scan_started_at) {
+    const progress =
+      domain.scan_status === "scanning"
+        ? { completed: 0, total }
+        : null;
+    return NextResponse.json({ status: domain.scan_status, progress });
   }
 
   const { count: completedScans } = await supabaseAdmin

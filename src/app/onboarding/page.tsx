@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +57,6 @@ function flag(code: string) {
 }
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -249,19 +247,23 @@ export default function OnboardingPage() {
   }
 
   const [scanDomainId, setScanDomainId] = useState<string | null>(null);
-  const [scanProgress, setScanProgress] = useState({ completed: 0, total: 1 });
+  const [scanProgress, setScanProgress] = useState({
+    completed: 0,
+    total: SCAN_ENGINES.length,
+  });
   const [scanDone, setScanDone] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("citeplex_scanning");
     if (!saved) return;
 
-    fetch(`/api/scan-status/${saved}`)
+    fetch(`/api/scan-status/${saved}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (data.status === "scanning") {
           setScanDomainId(saved);
           setStep(4);
+          if (data.progress) setScanProgress(data.progress);
         } else {
           localStorage.removeItem("citeplex_scanning");
         }
@@ -293,6 +295,11 @@ export default function OnboardingPage() {
         localStorage.setItem("citeplex_scanning", data.domainId);
         setScanDomainId(data.domainId);
         setStep(4);
+        const promptCount = prompts.filter((p) => p.text?.trim()).length;
+        setScanProgress({
+          completed: 0,
+          total: Math.max(1, promptCount) * SCAN_ENGINES.length,
+        });
       }
     } catch {
       // stay on page
@@ -304,7 +311,9 @@ export default function OnboardingPage() {
   const pollScanStatus = useCallback(async () => {
     if (!scanDomainId) return;
     try {
-      const res = await fetch(`/api/scan-status/${scanDomainId}`);
+      const res = await fetch(`/api/scan-status/${scanDomainId}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.progress) {
         setScanProgress(data.progress);
@@ -320,7 +329,7 @@ export default function OnboardingPage() {
         }, 2500);
       }
     } catch { /* ignore */ }
-  }, [scanDomainId, router]);
+  }, [scanDomainId]);
 
   useEffect(() => {
     if (step !== 4 || !scanDomainId || scanDone) return;
