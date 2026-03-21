@@ -4,6 +4,7 @@ Bu klasörde kampanya kurulumu için hazır listeler ve operasyon notları var.
 
 | Dosya | İçerik |
 |-------|--------|
+| [CAMPAIGN_LAUNCH_CHECKLIST.md](./CAMPAIGN_LAUNCH_CHECKLIST.md) | İlk Search kampanyası — panel kontrol listesi (dönüşüm, kampanya, teklif, hafta 2) |
 | [CONVERSION_SETUP.md](./CONVERSION_SETUP.md) | GA4 / Google Ads dönüşüm, env değişkenleri, test |
 | [keywords-and-campaign.md](./keywords-and-campaign.md) | Faz 1 ülkeler, Tier A/B kelimeler, negatifler (içe aktarma) |
 | [search-terms-iteration.md](./search-terms-iteration.md) | 7–14 gün sonra arama terimleri döngüsü |
