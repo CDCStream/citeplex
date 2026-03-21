@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 import { getPublishedPostBySlug } from "@/lib/blog-data";
 import { parseBlogPost } from "@/lib/blog-parser";
 import { sanitizeBlogHtml } from "@/lib/sanitize-blog-html";
+import { safeOgDate } from "@/lib/blog-metadata";
 import { BLOG_BRAND_NAME } from "@/lib/blog-brand";
 import { getSiteUrl } from "@/lib/site";
 
@@ -15,40 +16,48 @@ export const revalidate = 60;
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const { slug } = await props.params;
-  const row = await getPublishedPostBySlug(slug).catch(() => null);
-  if (!row) {
-    return { title: `Not found — ${BLOG_BRAND_NAME}` };
-  }
-  let p;
   try {
-    p = parseBlogPost(row);
-  } catch {
+    const { slug } = await props.params;
+    const decodedSlug = decodeURIComponent(slug);
+    const row = await getPublishedPostBySlug(decodedSlug).catch(() => null);
+    if (!row) {
+      return { title: `Not found — ${BLOG_BRAND_NAME}` };
+    }
+    let p;
+    try {
+      p = parseBlogPost(row);
+    } catch {
+      return { title: `Blog — ${BLOG_BRAND_NAME}` };
+    }
+    const canonical = `${getSiteUrl()}/blog/${encodeURIComponent(p.slug)}`;
+    const ogImage =
+      p.image &&
+      (p.image.startsWith("http://") || p.image.startsWith("https://")
+        ? p.image
+        : `${getSiteUrl()}${p.image.startsWith("/") ? "" : "/"}${p.image}`);
+    return {
+      title: `${p.title} — ${BLOG_BRAND_NAME}`,
+      description: p.description ?? undefined,
+      alternates: { canonical },
+      openGraph: {
+        title: p.title,
+        description: p.description ?? undefined,
+        url: canonical,
+        type: "article",
+        publishedTime: safeOgDate(p.published_at),
+        images: ogImage ? [{ url: ogImage }] : undefined,
+      },
+    };
+  } catch (e) {
+    console.error("[blog generateMetadata]", e);
     return { title: `Blog — ${BLOG_BRAND_NAME}` };
   }
-  const canonical = `${getSiteUrl()}/blog/${p.slug}`;
-  const ogImage =
-    p.image &&
-    (p.image.startsWith("http://") || p.image.startsWith("https://")
-      ? p.image
-      : `${getSiteUrl()}${p.image.startsWith("/") ? "" : "/"}${p.image}`);
-  return {
-    title: `${p.title} — ${BLOG_BRAND_NAME}`,
-    description: p.description ?? undefined,
-    alternates: { canonical },
-    openGraph: {
-      title: p.title,
-      description: p.description ?? undefined,
-      url: canonical,
-      type: "article",
-      publishedTime: p.published_at ?? undefined,
-      images: ogImage ? [{ url: ogImage }] : undefined,
-    },
-  };
 }
 
 export default async function BlogPostPage(props: Props) {
   const { slug } = await props.params;
+  const decodedSlug = decodeURIComponent(slug);
+
   let user = null;
   try {
     user = await getAuthUser();
@@ -56,7 +65,7 @@ export default async function BlogPostPage(props: Props) {
     user = null;
   }
 
-  const row = await getPublishedPostBySlug(slug).catch(() => null);
+  const row = await getPublishedPostBySlug(decodedSlug).catch(() => null);
   if (!row) notFound();
 
   let p;
@@ -66,7 +75,7 @@ export default async function BlogPostPage(props: Props) {
     notFound();
   }
 
-  const safeHtml = sanitizeBlogHtml(p.content);
+  const safeHtml = await sanitizeBlogHtml(p.content);
 
   const date = p.published_at
     ? new Date(p.published_at).toLocaleDateString("en-US", {

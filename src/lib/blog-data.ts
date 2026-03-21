@@ -23,11 +23,14 @@ export async function getPublishedBlogPosts(): Promise<BlogPostRow[]> {
 export async function getPublishedPostBySlug(
   slug: string,
 ): Promise<BlogPostRow | null> {
+  const clean = slug.trim();
+  if (!clean) return null;
+
   const supabase = getAnonClient();
   const { data, error } = await supabase
     .from("blog_posts")
     .select("*")
-    .eq("slug", slug)
+    .eq("slug", clean)
     .eq("status", "published")
     .maybeSingle();
 
