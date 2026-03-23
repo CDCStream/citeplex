@@ -34,17 +34,9 @@ export default async function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-24 lg:pt-20">
           <div className="mx-auto max-w-4xl text-center">
             <h1 className="text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">
-              <span className="block">
-                Track brand performance on AI search platforms
-              </span>
-              <span className="mt-3 block text-2xl font-semibold text-muted-foreground sm:text-3xl lg:text-4xl">
-                through key metrics like
-              </span>
-              <span className="mt-2 block bg-linear-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent sm:mt-3 sm:text-5xl lg:text-6xl">
-                Visibility
-              </span>
-              <span className="block bg-linear-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent sm:text-5xl lg:text-6xl">
-                Position
+              Track brand performance on AI platforms via{" "}
+              <span className="bg-linear-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent">
+                Visibility and Position
               </span>
             </h1>
 
