@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Skip SEO / crawler files — no auth cookies needed; avoids edge cases with Googlebot
+    "/((?!_next/static|_next/image|favicon.ico|sitemap\\.xml|robots\\.txt|llms\\.txt|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

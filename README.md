@@ -44,3 +44,14 @@ Auth → Email Templates içinde **Confirm signup** ve **Reset password** için 
    - **HTML etiketi:** `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` = meta `content` değeri → Vercel’de ayarla → redeploy (`layout` otomatik ekler).
    - **HTML dosyası:** `public/google1150acf395a74ffc.html` — canlıda `https://www.citeplex.io/google1150acf395a74ffc.html` açılmalı.
 3. GSC’de **Sitemap**: `https://www.citeplex.io/sitemap.xml`
+
+## SEO & tarayıcı dosyaları
+
+| Dosya | URL |
+|--------|-----|
+| `robots.ts` → `robots.txt` | `https://www.citeplex.io/robots.txt` |
+| `sitemap.ts` → `sitemap.xml` | `https://www.citeplex.io/sitemap.xml` |
+| `llms.txt` (AI özet / tarama notları) | `https://www.citeplex.io/llms.txt` |
+| `security.txt` (RFC 9116) | `https://www.citeplex.io/.well-known/security.txt` |
+
+Canonical taban `NEXT_PUBLIC_APP_URL` ile üretilir (`src/lib/site.ts`).
