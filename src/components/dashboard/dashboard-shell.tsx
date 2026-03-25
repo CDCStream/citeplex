@@ -74,7 +74,7 @@ function SidebarContent({
 
       <Separator />
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 overflow-y-auto space-y-1 p-3">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -225,8 +225,8 @@ export function DashboardShell({ user, domains, children }: DashboardShellProps)
 
   return (
     <div className="flex min-h-screen">
-      {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r bg-sidebar-background lg:block">
+      {/* Desktop sidebar — sticky, full viewport height, scrollable nav */}
+      <aside className="hidden w-64 shrink-0 border-r bg-sidebar-background lg:block sticky top-0 h-screen overflow-hidden">
         <SidebarContent user={user} domains={domains} pathname={pathname} />
       </aside>
 
