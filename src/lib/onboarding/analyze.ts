@@ -1,20 +1,29 @@
 const OPENAI_API_KEY = () => process.env.OPENAI_API_KEY || "";
 
-async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<string> {
+interface CallOpenAIOptions {
+  webSearch?: boolean;
+}
+
+async function callOpenAI(systemPrompt: string, userPrompt: string, options?: CallOpenAIOptions): Promise<string> {
+  const body: Record<string, unknown> = {
+    model: "gpt-4.1-mini",
+    input: [
+      { role: "developer", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  };
+
+  if (options?.webSearch) {
+    body.tools = [{ type: "web_search_preview" }];
+  }
+
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${OPENAI_API_KEY()}`,
     },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      tools: [{ type: "web_search_preview" }],
-      input: [
-        { role: "developer", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(60000),
   });
 
@@ -32,6 +41,54 @@ async function callOpenAI(systemPrompt: string, userPrompt: string): Promise<str
       )
       .join("\n") ?? ""
   );
+}
+
+interface ScrapedMeta {
+  title: string;
+  description: string;
+  ogSiteName: string;
+  ogDescription: string;
+  lang: string;
+  headingText: string;
+}
+
+async function scrapeWebsite(url: string): Promise<ScrapedMeta> {
+  const empty: ScrapedMeta = { title: "", description: "", ogSiteName: "", ogDescription: "", lang: "", headingText: "" };
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Citeplex/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return empty;
+
+    const html = await res.text();
+    const head = html.slice(0, 30000);
+
+    const match = (pattern: RegExp): string => {
+      const m = head.match(pattern);
+      return m?.[1]?.trim() || "";
+    };
+
+    const title = match(/<title[^>]*>([^<]+)<\/title>/i);
+    const description =
+      match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
+      match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+    const ogSiteName =
+      match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) ||
+      match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+    const ogDescription =
+      match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
+      match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
+    const lang = match(/<html[^>]*lang=["']([^"']+)["']/i);
+
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    const headingText = h1Match?.[1]?.replace(/<[^>]+>/g, "").trim().slice(0, 200) || "";
+
+    return { title, description: description.slice(0, 500), ogSiteName, ogDescription: ogDescription.slice(0, 500), lang, headingText };
+  } catch {
+    return empty;
+  }
 }
 
 export interface WebsiteAnalysis {
@@ -67,27 +124,75 @@ function detectCountryFromTLD(url: string): string | null {
   return null;
 }
 
+function extractBrandHint(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    const name = hostname.split(".")[0];
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    return url.replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[./]/)[0];
+  }
+}
+
 export async function analyzeWebsite(url: string): Promise<WebsiteAnalysis> {
   const tldCountry = detectCountryFromTLD(url);
+  const brandHint = extractBrandHint(url);
+  const meta = await scrapeWebsite(url);
 
-  const systemPrompt = `You analyze websites and extract brand information. Always respond with valid JSON only, no markdown.`;
-  const userPrompt = `Analyze this website: ${url}
+  const hasContent = !!(meta.title || meta.description || meta.ogDescription);
 
-Return a JSON object with these fields:
+  if (!hasContent) {
+    return {
+      brandName: meta.ogSiteName || brandHint,
+      description: "",
+      industry: "",
+      primaryCountry: tldCountry || "US",
+    };
+  }
+
+  const systemPrompt = `You extract structured brand information from website metadata. Only use the data provided — do NOT invent, guess, or hallucinate any information. Always respond with valid JSON only, no markdown.`;
+  const userPrompt = `URL: ${url}
+Domain name: ${brandHint}
+
+Here is the actual data scraped from this website:
+- Page title: "${meta.title}"
+- Meta description: "${meta.description || meta.ogDescription}"
+- OG site name: "${meta.ogSiteName}"
+- Page language: "${meta.lang}"
+- H1 heading: "${meta.headingText}"
+
+Based ONLY on the data above, return a JSON object:
 {
-  "brandName": "the brand/company name",
-  "description": "1-2 sentence description of what they sell/offer, focusing on the product/service, no brand name",
+  "brandName": "the brand name (use og:site_name if available, otherwise use '${brandHint}')",
+  "description": "1-2 sentence description of what they offer based on the meta description, no brand name",
   "industry": "the industry category (e.g. SaaS, E-commerce, Marketing, Developer Tools, etc.)",
-  "primaryCountry": "ISO 3166-1 alpha-2 country code of the brand's primary market (e.g. US, TR, DE, FR). Detect from website language, content, TLD, and target audience."
+  "primaryCountry": "ISO 3166-1 alpha-2 country code based on the page language and content (e.g. US, TR, DE)"
 }
+
+RULES:
+- For brandName: prefer og:site_name > page title > domain name "${brandHint}". Do NOT invent a name.
+- For description: rephrase the meta description. If empty, write a short description based on the title.
+- For industry: infer from the description/title.
+- For primaryCountry: infer from page language "${meta.lang}" and content.
 
 Only return the JSON, nothing else.`;
 
   const response = await callOpenAI(systemPrompt, userPrompt);
   const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-  
+
   try {
     const result = JSON.parse(cleaned);
+
+    if (!result.brandName) {
+      result.brandName = meta.ogSiteName || brandHint;
+    }
+
+    const hintLower = brandHint.toLowerCase();
+    const resultLower = (result.brandName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (resultLower && !resultLower.includes(hintLower) && !hintLower.includes(resultLower)) {
+      result.brandName = meta.ogSiteName || brandHint;
+    }
+
     if (!result.primaryCountry && tldCountry) {
       result.primaryCountry = tldCountry;
     }
@@ -97,8 +202,8 @@ Only return the JSON, nothing else.`;
     return result;
   } catch {
     return {
-      brandName: new URL(url).hostname.replace("www.", "").split(".")[0],
-      description: "",
+      brandName: meta.ogSiteName || brandHint,
+      description: meta.description || meta.ogDescription || "",
       industry: "",
       primaryCountry: tldCountry || "US",
     };
@@ -259,7 +364,7 @@ Return a JSON array:
 
 Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
 
-  const response = await callOpenAI(systemPrompt, userPrompt);
+  const response = await callOpenAI(systemPrompt, userPrompt, { webSearch: true });
   const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   try {
