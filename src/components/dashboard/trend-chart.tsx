@@ -211,12 +211,14 @@ function TrendAreaChart({
   selectedCompList,
   height,
   gradientPrefix = "",
+  metric,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   chartData: any[];
   selectedCompList: { id: string; name: string }[];
   height: number;
   gradientPrefix?: string;
+  metric: "avgPosition" | "mentionRate";
 }) {
   const mGrad = `${gradientPrefix}mentionGradient`;
   const pGrad = `${gradientPrefix}positionGradient`;
@@ -249,6 +251,7 @@ function TrendAreaChart({
         />
         <YAxis
           yAxisId="left"
+          hide={metric !== "mentionRate"}
           domain={[0, 100]}
           tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           axisLine={false}
@@ -257,8 +260,9 @@ function TrendAreaChart({
         />
         <YAxis
           yAxisId="right"
-          orientation="right"
+          orientation={metric === "avgPosition" ? "left" : "right"}
           reversed
+          hide={metric !== "avgPosition"}
           domain={[1, 10]}
           tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
           axisLine={false}
@@ -266,46 +270,55 @@ function TrendAreaChart({
           tickFormatter={(v) => `#${v}`}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Area
-          yAxisId="left"
-          type="monotone"
-          dataKey="mentionRate"
-          stroke="#22c55e"
-          strokeWidth={2}
-          fill={`url(#${mGrad})`}
-          name="Your Mention Rate"
-          dot={false}
-          activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(var(--card))" }}
-        />
-        <Area
-          yAxisId="right"
-          type="monotone"
-          dataKey="avgPosition"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          fill={`url(#${pGrad})`}
-          name="Your Avg Position"
-          dot={false}
-          activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(var(--card))" }}
-          connectNulls
-        />
+        {metric === "mentionRate" && (
+          <Area
+            yAxisId="left"
+            type="monotone"
+            dataKey="mentionRate"
+            stroke="#22c55e"
+            strokeWidth={2}
+            fill={`url(#${mGrad})`}
+            name="Your Mention Rate"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(var(--card))" }}
+          />
+        )}
+        {metric === "avgPosition" && (
+          <Area
+            yAxisId="right"
+            type="monotone"
+            dataKey="avgPosition"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            fill={`url(#${pGrad})`}
+            name="Your Avg Position"
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(var(--card))" }}
+            connectNulls
+            baseValue="dataMax"
+          />
+        )}
         {selectedCompList.map((comp, i) => {
           const color = COMPETITOR_COLORS[i % COMPETITOR_COLORS.length];
-          return [
-            <Area
-              key={`${comp.id}_m`}
-              yAxisId="left"
-              type="monotone"
-              dataKey={`${comp.id}_mention`}
-              stroke={color}
-              strokeWidth={2}
-              strokeDasharray="5 3"
-              fill={`url(#${gradientPrefix}compGradient_${comp.id})`}
-              name={`${comp.name} Mention`}
-              dot={{ r: 4, fill: color, stroke: "hsl(var(--card))", strokeWidth: 2 }}
-              activeDot={{ r: 6, fill: color, stroke: "hsl(var(--card))", strokeWidth: 2 }}
-              connectNulls
-            />,
+          if (metric === "mentionRate") {
+            return (
+              <Area
+                key={`${comp.id}_m`}
+                yAxisId="left"
+                type="monotone"
+                dataKey={`${comp.id}_mention`}
+                stroke={color}
+                strokeWidth={2}
+                strokeDasharray="5 3"
+                fill={`url(#${gradientPrefix}compGradient_${comp.id})`}
+                name={`${comp.name} Mention`}
+                dot={{ r: 4, fill: color, stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: color, stroke: "hsl(var(--card))", strokeWidth: 2 }}
+                connectNulls
+              />
+            );
+          }
+          return (
             <Area
               key={`${comp.id}_p`}
               yAxisId="right"
@@ -319,24 +332,28 @@ function TrendAreaChart({
               dot={{ r: 3, fill: "hsl(var(--card))", stroke: color, strokeWidth: 2 }}
               activeDot={{ r: 5, fill: color, stroke: "hsl(var(--card))", strokeWidth: 2 }}
               connectNulls
-            />,
-          ];
+            />
+          );
         })}
       </AreaChart>
     </ResponsiveContainer>
   );
 }
 
-function ChartLegend({ selectedCompList }: { selectedCompList: { id: string; name: string }[] }) {
+function ChartLegend({
+  selectedCompList,
+  metric,
+}: {
+  selectedCompList: { id: string; name: string }[];
+  metric: "avgPosition" | "mentionRate";
+}) {
   return (
     <div className="flex flex-wrap gap-3">
       <div className="flex items-center gap-1.5">
-        <div className="h-3 w-3 rounded-sm bg-[#22c55e]" />
-        <span className="text-xs text-muted-foreground">Mention Rate</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <div className="h-3 w-3 rounded-sm bg-[#3b82f6]" />
-        <span className="text-xs text-muted-foreground">Avg Position</span>
+        <div className={`h-3 w-3 rounded-sm ${metric === "mentionRate" ? "bg-[#22c55e]" : "bg-[#3b82f6]"}`} />
+        <span className="text-xs text-muted-foreground">
+          {metric === "mentionRate" ? "Mention Rate" : "Avg Position"}
+        </span>
       </div>
       {selectedCompList.map((comp, i) => (
         <div key={comp.id} className="flex items-center gap-1.5">
@@ -361,6 +378,7 @@ export function TrendChart({
   competitorTrendRaw?: CompetitorTrendRawPoint[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [metric, setMetric] = useState<"avgPosition" | "mentionRate">("avgPosition");
 
   const availableEngines = useMemo(
     () => ALL_ENGINES.filter((e) => trendRaw.some((r) => r.engine === e)),
@@ -615,9 +633,25 @@ export function TrendChart({
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="text-base">Daily Trend</CardTitle>
               <div className="flex items-center gap-3">
-                <ChartLegend selectedCompList={selectedCompList} />
+                <CardTitle className="text-base">Daily Trend</CardTitle>
+                <div className="flex rounded-lg border p-0.5">
+                  <button
+                    onClick={() => setMetric("avgPosition")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${metric === "avgPosition" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Avg Position
+                  </button>
+                  <button
+                    onClick={() => setMetric("mentionRate")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${metric === "mentionRate" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Mention Rate
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <ChartLegend selectedCompList={selectedCompList} metric={metric} />
                 <button
                   onClick={() => setModalOpen(true)}
                   className="rounded-lg border p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
@@ -635,6 +669,7 @@ export function TrendChart({
               selectedCompList={selectedCompList}
               height={340}
               gradientPrefix="inline_"
+              metric={metric}
             />
           </CardContent>
         </Card>
@@ -644,8 +679,24 @@ export function TrendChart({
         <DialogContent className="sm:max-w-[95vw] max-h-[95vh] w-full">
           <DialogHeader>
             <div className="flex items-center justify-between flex-wrap gap-2 pr-8">
-              <DialogTitle>Daily Trend</DialogTitle>
-              <ChartLegend selectedCompList={selectedCompList} />
+              <div className="flex items-center gap-3">
+                <DialogTitle>Daily Trend</DialogTitle>
+                <div className="flex rounded-lg border p-0.5">
+                  <button
+                    onClick={() => setMetric("avgPosition")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${metric === "avgPosition" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Avg Position
+                  </button>
+                  <button
+                    onClick={() => setMetric("mentionRate")}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${metric === "mentionRate" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Mention Rate
+                  </button>
+                </div>
+              </div>
+              <ChartLegend selectedCompList={selectedCompList} metric={metric} />
             </div>
             {filtersBar}
           </DialogHeader>
@@ -655,6 +706,7 @@ export function TrendChart({
               selectedCompList={selectedCompList}
               height={550}
               gradientPrefix="modal_"
+              metric={metric}
             />
           </div>
         </DialogContent>

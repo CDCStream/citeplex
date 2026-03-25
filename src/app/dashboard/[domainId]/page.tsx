@@ -56,12 +56,20 @@ async function DomainDashboardContent({ domainId }: { domainId: string }) {
             <p className="text-sm text-muted-foreground">{domain.url}</p>
           </div>
         </div>
-        {domain.scanStatus === "scanning" && (
-          <Badge variant="secondary" className="gap-1.5">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Scanning
-          </Badge>
-        )}
+        <div className="flex items-center gap-3">
+          {stats?.lastScan && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Last scan: {stats.lastScan}
+            </span>
+          )}
+          {domain.scanStatus === "scanning" && (
+            <Badge variant="secondary" className="gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Scanning
+            </Badge>
+          )}
+        </div>
       </div>
 
       <ScanStatusBanner
