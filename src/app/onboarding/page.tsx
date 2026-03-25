@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Globe,
+  ShieldCheck,
   Building2,
   MessageSquare,
   Users,
@@ -21,6 +22,8 @@ import {
   Search,
   Radio,
   CheckCircle2,
+  Mail,
+  RefreshCw,
 } from "lucide-react";
 import { COUNTRIES, countryFlag } from "@/lib/constants/countries";
 import { Favicon } from "@/components/ui/favicon";
@@ -30,12 +33,22 @@ import { SignupConversion } from "@/app/dashboard/signup-conversion";
 
 const STEPS = [
   { label: "Website", icon: Globe },
+  { label: "Verify", icon: ShieldCheck },
   { label: "Brand", icon: Building2 },
   { label: "Prompts", icon: MessageSquare },
   { label: "Competitors", icon: Users },
 ];
 
 const SCAN_ENGINES = ["chatgpt", "perplexity", "gemini", "claude", "deepseek", "grok", "mistral"];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  best: "Best & Top",
+  howto: "How-To",
+  comparison: "Comparison",
+  recommendation: "Recommendation",
+  problem: "Problem Solving",
+  general: "General",
+};
 
 interface PromptItem {
   text: string;
@@ -62,8 +75,32 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Step 1: URL
+  // Step 0: URL
   const [url, setUrl] = useState("");
+
+  // Step 1: Domain verification
+  const [emailLocal, setEmailLocal] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [domainVerified, setDomainVerified] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [verifyError, setVerifyError] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+
+  const domainHostname = useMemo(() => {
+    try {
+      return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  }, [url]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Step 2: Brand details + Country
   const [brandName, setBrandName] = useState("");
@@ -73,13 +110,34 @@ export default function OnboardingPage() {
   const [targetCountries, setTargetCountries] = useState<string[]>(["US"]);
 
   // Step 3: Prompts
-  const [prompts, setPrompts] = useState<PromptItem[]>([]);
+  const [suggestions, setSuggestions] = useState<PromptItem[]>([]);
+  const [selectedIndexes, setSelectedIndexes] = useState<Set<number>>(new Set());
+  const [customPrompts, setCustomPrompts] = useState<PromptItem[]>([]);
   const [newPrompt, setNewPrompt] = useState("");
   const [promptLimit, setPromptLimit] = useState(3);
   const [promptsUsedElsewhere, setPromptsUsedElsewhere] = useState(0);
 
-  const remainingPrompts = Math.max(0, promptLimit - promptsUsedElsewhere - prompts.length);
+  const totalSelected = selectedIndexes.size + customPrompts.length;
+  const maxSelectable = Math.max(0, promptLimit - promptsUsedElsewhere);
+  const remainingPrompts = Math.max(0, maxSelectable - totalSelected);
   const isAtLimit = remainingPrompts <= 0;
+
+  const selectedPrompts: PromptItem[] = useMemo(() => {
+    const fromSuggestions = [...selectedIndexes]
+      .sort((a, b) => a - b)
+      .map((i) => suggestions[i]);
+    return [...fromSuggestions, ...customPrompts];
+  }, [suggestions, selectedIndexes, customPrompts]);
+
+  const groupedSuggestions = useMemo(() => {
+    const groups: Record<string, { item: PromptItem; index: number }[]> = {};
+    suggestions.forEach((item, index) => {
+      const cat = item.category || "general";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push({ item, index });
+    });
+    return groups;
+  }, [suggestions]);
 
   useEffect(() => {
     fetch("/api/user/prompt-usage")
@@ -142,6 +200,56 @@ export default function OnboardingPage() {
     }
   }
 
+  async function handleSendVerification() {
+    if (!emailLocal.trim() || !domainHostname) return;
+    setSendingCode(true);
+    setVerifyError("");
+    try {
+      const email = `${emailLocal.trim()}@${domainHostname}`;
+      const res = await fetch("/api/onboarding/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainUrl: url, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.error || "Failed to send code");
+        return;
+      }
+      setVerificationSent(true);
+      setResendCooldown(60);
+    } catch {
+      setVerifyError("Failed to send verification code");
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleVerifyCode() {
+    if (verificationCode.length !== 6) return;
+    setVerifyingCode(true);
+    setVerifyError("");
+    try {
+      const email = `${emailLocal.trim()}@${domainHostname}`;
+      const res = await fetch("/api/onboarding/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domainUrl: url, email, code: verificationCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyError(data.error || "Verification failed");
+        return;
+      }
+      setDomainVerified(true);
+      setTimeout(() => setStep(2), 800);
+    } catch {
+      setVerifyError("Verification failed");
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
   async function handleGeneratePrompts() {
     setLoading(true);
     try {
@@ -156,12 +264,16 @@ export default function OnboardingPage() {
         body: JSON.stringify({ brandName, description, industry, countries }),
       });
       const data = await res.json();
-      if (res.ok && data.prompts) {
-        setPrompts(data.prompts);
+      if (res.ok && data.suggestions) {
+        setSuggestions(data.suggestions);
+        setSelectedIndexes(new Set());
+        setCustomPrompts([]);
+        if (data.promptLimit) setPromptLimit(data.promptLimit);
+        if (data.promptsUsed !== undefined) setPromptsUsedElsewhere(data.promptsUsed);
       }
-      setStep(2);
+      setStep(3);
     } catch {
-      setStep(2);
+      setStep(3);
     } finally {
       setLoading(false);
     }
@@ -179,9 +291,9 @@ export default function OnboardingPage() {
       if (res.ok && data.competitors) {
         setCompetitors(data.competitors);
       }
-      setStep(3);
+      setStep(4);
     } catch {
-      setStep(3);
+      setStep(4);
     } finally {
       setLoading(false);
     }
@@ -189,7 +301,20 @@ export default function OnboardingPage() {
 
   const [analyzingPrompt, setAnalyzingPrompt] = useState(false);
 
-  async function addPrompt() {
+  function toggleSuggestion(index: number) {
+    setSelectedIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        if (totalSelected >= maxSelectable) return prev;
+        next.add(index);
+      }
+      return next;
+    });
+  }
+
+  async function addCustomPrompt() {
     const text = newPrompt.trim();
     if (!text || isAtLimit) return;
 
@@ -202,7 +327,7 @@ export default function OnboardingPage() {
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
-      setPrompts((prev) => [
+      setCustomPrompts((prev) => [
         ...prev,
         {
           text,
@@ -212,14 +337,14 @@ export default function OnboardingPage() {
         },
       ]);
     } catch {
-      setPrompts((prev) => [...prev, { text, category: "general" }]);
+      setCustomPrompts((prev) => [...prev, { text, category: "general" }]);
     } finally {
       setAnalyzingPrompt(false);
     }
   }
 
-  function removePrompt(index: number) {
-    setPrompts(prompts.filter((_, i) => i !== index));
+  function removeCustomPrompt(index: number) {
+    setCustomPrompts((prev) => prev.filter((_, i) => i !== index));
   }
 
   function extractBrandFromUrl(rawUrl: string): string {
@@ -263,7 +388,7 @@ export default function OnboardingPage() {
       .then((data) => {
         if (data.status === "scanning") {
           setScanDomainId(saved);
-          setStep(4);
+          setStep(5);
           if (data.progress) setScanProgress(data.progress);
         } else {
           localStorage.removeItem("citeplex_scanning");
@@ -287,7 +412,7 @@ export default function OnboardingPage() {
           industry,
           primaryCountry,
           targetCountries,
-          prompts,
+          prompts: selectedPrompts,
           competitors,
         }),
       });
@@ -295,8 +420,8 @@ export default function OnboardingPage() {
       if (res.ok && data.domainId) {
         localStorage.setItem("citeplex_scanning", data.domainId);
         setScanDomainId(data.domainId);
-        setStep(4);
-        const promptCount = prompts.filter((p) => p.text?.trim()).length;
+        setStep(5);
+        const promptCount = selectedPrompts.filter((p) => p.text?.trim()).length;
         setScanProgress({
           completed: 0,
           total: Math.max(1, promptCount) * SCAN_ENGINES.length,
@@ -333,7 +458,7 @@ export default function OnboardingPage() {
   }, [scanDomainId]);
 
   useEffect(() => {
-    if (step !== 4 || !scanDomainId || scanDone) return;
+    if (step !== 5 || !scanDomainId || scanDone) return;
     const interval = setInterval(pollScanStatus, 2000);
     pollScanStatus();
     return () => clearInterval(interval);
@@ -347,7 +472,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-linear-to-b from-background to-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Step progress bar */}
-        {step < 4 ? (
+        {step < 5 ? (
           <div className="flex gap-2 mb-8">
             {STEPS.map((s, i) => (
               <div
@@ -413,8 +538,142 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 1: Confirm brand details + Country selection */}
+            {/* Step 1: Verify domain ownership */}
             {step === 1 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  {url && <Favicon url={url} size={32} />}
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Verify domain ownership</h1>
+                    <p className="text-muted-foreground mt-0.5 text-sm">
+                      We&apos;ll send a verification code to your domain email.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Your email at this domain</Label>
+                    <div className="flex items-center gap-0">
+                      <Input
+                        placeholder="name"
+                        value={emailLocal}
+                        onChange={(e) => {
+                          setEmailLocal(e.target.value);
+                          setVerifyError("");
+                        }}
+                        disabled={domainVerified}
+                        className="rounded-r-none border-r-0"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !verificationSent) handleSendVerification();
+                        }}
+                      />
+                      <div className="flex h-10 items-center rounded-r-md border border-input bg-muted px-3 text-sm text-muted-foreground whitespace-nowrap">
+                        @{domainHostname}
+                      </div>
+                    </div>
+                  </div>
+
+                  {!verificationSent && !domainVerified && (
+                    <Button
+                      onClick={handleSendVerification}
+                      disabled={!emailLocal.trim() || sendingCode}
+                      className="w-full"
+                    >
+                      {sendingCode ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send Verification Code
+                        </>
+                      )}
+                    </Button>
+                  )}
+
+                  {verificationSent && !domainVerified && (
+                    <div className="space-y-4">
+                      <div className="rounded-lg border bg-muted/50 p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Code sent to <span className="font-semibold text-foreground">{emailLocal}@{domainHostname}</span>
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Enter 6-digit code</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="000000"
+                            value={verificationCode}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                              setVerificationCode(val);
+                              setVerifyError("");
+                            }}
+                            maxLength={6}
+                            className="text-center text-lg font-mono tracking-[0.3em]"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && verificationCode.length === 6) handleVerifyCode();
+                            }}
+                          />
+                          <Button
+                            onClick={handleVerifyCode}
+                            disabled={verificationCode.length !== 6 || verifyingCode}
+                            className="shrink-0"
+                          >
+                            {verifyingCode ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSendVerification}
+                        disabled={resendCooldown > 0 || sendingCode}
+                        className="w-full text-xs"
+                      >
+                        <RefreshCw className="mr-1.5 h-3 w-3" />
+                        {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {domainVerified && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 p-4 flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
+                          Domain verified!
+                        </p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                          Proceeding to the next step...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {verifyError && (
+                    <p className="text-sm text-destructive text-center">{verifyError}</p>
+                  )}
+                </div>
+
+                <Button variant="outline" onClick={() => setStep(0)} className="w-full">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Confirm brand details + Country selection */}
+            {step === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   {url && <Favicon url={url} size={32} />}
@@ -545,7 +804,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(0)} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
@@ -570,22 +829,22 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 2: Review prompts */}
-            {step === 2 && (
+            {/* Step 3: Select prompts */}
+            {step === 3 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   {url && <Favicon url={url} size={28} />}
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Tracking prompts</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Select tracking prompts</h1>
                     <p className="text-muted-foreground mt-0.5 text-sm">
-                      These are queries people ask AI assistants. We&apos;ll track if your brand appears.
+                      Pick the queries you want to track across AI engines.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-2.5">
                   <span className="text-sm text-muted-foreground">
-                    Prompts used: <span className="font-semibold text-foreground">{promptsUsedElsewhere + prompts.length}</span> / {promptLimit}
+                    Selected: <span className="font-semibold text-foreground">{totalSelected}</span> / {maxSelectable}
                   </span>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                     remainingPrompts === 0
@@ -598,46 +857,88 @@ export default function OnboardingPage() {
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                  {prompts.map((prompt, i) => {
-                    return (
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                  {Object.entries(groupedSuggestions).map(([category, items]) => (
+                    <div key={category} className="space-y-1.5">
+                      <div className="flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-1 z-10">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {CATEGORY_LABELS[category] || category}
+                        </span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                      {items.map(({ item, index }) => {
+                        const isSelected = selectedIndexes.has(index);
+                        const isDisabled = !isSelected && isAtLimit;
+                        return (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => toggleSuggestion(index)}
+                            disabled={isDisabled}
+                            className={`flex items-center gap-3 w-full rounded-lg border p-3 text-sm text-left transition-colors ${
+                              isSelected
+                                ? "border-primary/50 bg-primary/5"
+                                : isDisabled
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "hover:bg-muted/50"
+                            }`}
+                          >
+                            <div className={`shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? "border-primary bg-primary"
+                                : "border-muted-foreground/30"
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                            </div>
+                            {item.country && (
+                              <span className="shrink-0 inline-flex items-center justify-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground leading-none">
+                                {item.country}
+                              </span>
+                            )}
+                            <span className="flex-1 min-w-0">{item.text}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+
+                {customPrompts.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Custom
+                    </span>
+                    {customPrompts.map((p, i) => (
                       <div
-                        key={i}
-                        className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                        key={`custom-${i}`}
+                        className="flex items-center gap-3 rounded-lg border border-primary/50 bg-primary/5 p-3 text-sm"
                       >
-                        {prompt.country && (
-                          <span className="shrink-0 inline-flex items-center justify-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground leading-none mt-1">
-                            {prompt.country}
-                          </span>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div>{prompt.text}</div>
+                        <div className="shrink-0 h-5 w-5 rounded border-2 border-primary bg-primary flex items-center justify-center">
+                          <Check className="h-3 w-3 text-primary-foreground" />
                         </div>
-                        <Badge variant="secondary" className="text-xs shrink-0 mt-0.5">
-                          {prompt.category}
-                        </Badge>
+                        <span className="flex-1 min-w-0">{p.text}</span>
                         <button
-                          onClick={() => removePrompt(i)}
-                          className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
+                          onClick={() => removeCustomPrompt(i)}
+                          className="text-muted-foreground hover:text-destructive shrink-0"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {isAtLimit ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/5 p-4 text-center space-y-2">
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                      You&apos;ve reached your prompt limit ({promptLimit} prompts)
+                      You&apos;ve reached your prompt limit ({maxSelectable} prompts)
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-500">
-                      Remove some prompts or{" "}
+                      Deselect some prompts or{" "}
                       <a href="/pricing" className="underline font-semibold hover:text-amber-800 dark:hover:text-amber-300">
                         upgrade your plan
                       </a>{" "}
-                      to add more.
+                      to select more.
                     </p>
                   </div>
                 ) : (
@@ -649,14 +950,14 @@ export default function OnboardingPage() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          addPrompt();
+                          addCustomPrompt();
                         }
                       }}
                       rows={2}
                       disabled={analyzingPrompt}
                       className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                     />
-                    <Button variant="outline" size="icon" onClick={addPrompt} disabled={!newPrompt.trim() || analyzingPrompt} className="shrink-0 h-10 w-10">
+                    <Button variant="outline" size="icon" onClick={addCustomPrompt} disabled={!newPrompt.trim() || analyzingPrompt} className="shrink-0 h-10 w-10">
                       {analyzingPrompt ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -669,13 +970,13 @@ export default function OnboardingPage() {
                 )}
 
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
                   <Button
                     onClick={handleFindCompetitors}
-                    disabled={prompts.length === 0 || loading}
+                    disabled={selectedPrompts.length === 0 || loading}
                     className="flex-1"
                   >
                     {loading ? (
@@ -694,8 +995,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 3: Review competitors */}
-            {step === 3 && (
+            {/* Step 4: Review competitors */}
+            {step === 4 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   {url && <Favicon url={url} size={28} />}
@@ -747,7 +1048,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
@@ -771,8 +1072,8 @@ export default function OnboardingPage() {
                 </div>
               </div>
             )}
-            {/* Step 4: Scanning progress */}
-            {step === 4 && (
+            {/* Step 5: Scanning progress */}
+            {step === 5 && (
               <div className="space-y-8 py-4">
                 <div className="text-center space-y-2">
                   {!scanDone ? (

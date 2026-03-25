@@ -12,10 +12,11 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await getAuthUser();
-    let maxPrompts = 10;
+    let promptLimit = 10;
+    let promptsUsed = 0;
 
     if (user) {
-      const limit = getPromptLimit(user.plan || "free");
+      promptLimit = getPromptLimit(user.plan || "free");
       const { count } = await supabaseAdmin
         .from("prompts")
         .select("id", { count: "exact", head: true })
@@ -28,14 +29,18 @@ export async function POST(req: NextRequest) {
               .eq("user_id", user.id)
           ).data?.map((d) => d.id) || []
         );
-      const used = count || 0;
-      maxPrompts = Math.max(1, limit - used);
+      promptsUsed = count || 0;
     }
 
+    const SUGGESTION_COUNT = 30;
     const countryInputs: CountryInput[] | undefined = countries;
-    const prompts = await generatePrompts(brandName, description || "", industry || "", countryInputs, maxPrompts);
+    const suggestions = await generatePrompts(brandName, description || "", industry || "", countryInputs, SUGGESTION_COUNT);
 
-    return NextResponse.json({ prompts, promptLimit: maxPrompts });
+    return NextResponse.json({
+      suggestions,
+      promptLimit,
+      promptsUsed,
+    });
   } catch (err) {
     console.error("Prompt generation error:", err);
     return NextResponse.json(

@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         industry: industry || null,
         primary_country: primaryCountry || null,
         target_countries: targetCountries ? JSON.stringify(targetCountries) : null,
+        verified: true,
       })
       .select()
       .single();

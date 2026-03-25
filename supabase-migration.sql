@@ -176,6 +176,26 @@ create table if not exists public.billing_history (
 );
 create index if not exists idx_billing_history_user on public.billing_history(user_id, created_at desc);
 
+-- Domain Verifications (email-based ownership proof)
+create table if not exists public.domain_verifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  domain_url text not null,
+  email text not null,
+  code text not null,
+  attempts integer not null default 0,
+  expires_at timestamptz not null,
+  verified_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_domain_verifications_lookup
+  on public.domain_verifications(domain_url, email, code);
+
+alter table public.domains
+  add column if not exists verified boolean not null default false;
+
+update public.domains set verified = true where verified = false;
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'free')

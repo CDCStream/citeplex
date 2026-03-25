@@ -72,3 +72,64 @@ export async function sendWelcomeEmail(email: string, name?: string | null) {
     console.error("[WelcomeEmail] Failed to send:", error);
   }
 }
+
+export async function sendVerificationCode(email: string, code: string, domainUrl: string) {
+  const logoUrl = getPublicLogoUrl();
+
+  const { error } = await resend.emails.send({
+    from: "Citeplex <noreply@citeplex.io>",
+    to: email,
+    subject: "Verify your domain - Citeplex",
+    html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .container { max-width: 480px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .header { padding: 40px 32px 24px; text-align: center; }
+    .logo-img { display: block; margin: 0 auto 16px; width: 64px; height: 64px; border-radius: 12px; }
+    .logo-text { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #18181b; }
+    .logo-blue { color: #2563eb; }
+    .body-content { padding: 0 32px 32px; }
+    .title { font-size: 20px; font-weight: 600; color: #18181b; margin: 0 0 8px; }
+    .message { font-size: 15px; line-height: 1.7; color: #52525b; margin: 0 0 28px; }
+    .code-box { text-align: center; padding: 24px; background: #f4f4f5; border-radius: 8px; margin: 0 0 24px; }
+    .code { font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2563eb; font-family: monospace; }
+    .domain { font-size: 14px; color: #71717a; margin-top: 8px; }
+    .note { font-size: 13px; color: #a1a1aa; margin: 0; }
+    .footer { padding: 24px 32px; text-align: center; }
+    .footer p { font-size: 12px; color: #a1a1aa; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="${logoUrl}" alt="Citeplex" class="logo-img" width="64" height="64" />
+      <div class="logo-text"><span class="logo-blue">Cite</span>plex</div>
+    </div>
+    <div class="body-content">
+      <p class="title">Domain Verification</p>
+      <p class="message">
+        Enter this code in Citeplex to verify ownership of your domain.
+      </p>
+      <div class="code-box">
+        <div class="code">${code}</div>
+        <div class="domain">${domainUrl}</div>
+      </div>
+      <p class="note">This code expires in 30 minutes. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 Citeplex. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+
+  if (error) {
+    console.error("[VerificationEmail] Failed to send:", error);
+    throw new Error("Failed to send verification email");
+  }
+}
