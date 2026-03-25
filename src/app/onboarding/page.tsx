@@ -554,7 +554,7 @@ export default function OnboardingPage() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Your email at this domain</Label>
-                    <div className="flex items-center gap-0">
+                    <div className="flex items-stretch">
                       <Input
                         placeholder="name"
                         value={emailLocal}
@@ -563,12 +563,12 @@ export default function OnboardingPage() {
                           setVerifyError("");
                         }}
                         disabled={domainVerified}
-                        className="rounded-r-none border-r-0"
+                        className="min-w-0 flex-1 rounded-r-none border-r-0"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !verificationSent) handleSendVerification();
                         }}
                       />
-                      <div className="flex h-10 items-center rounded-r-md border border-input bg-muted px-3 text-sm text-muted-foreground whitespace-nowrap">
+                      <div className="flex shrink-0 items-center rounded-r-md border border-l-0 border-input bg-muted px-3 text-sm text-muted-foreground whitespace-nowrap">
                         @{domainHostname}
                       </div>
                     </div>
