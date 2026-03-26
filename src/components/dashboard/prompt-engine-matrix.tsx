@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X } from "lucide-react";
+import { Check, X, Info } from "lucide-react";
 import { countryFlag } from "@/lib/constants/countries";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { motion } from "framer-motion";
@@ -173,44 +173,50 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
                       }
                       const hasInsight = !!result.scanResultId;
                       return (
-                        <TableCell
-                          key={eng}
-                          className={`text-center ${hasInsight ? "cursor-pointer hover:bg-muted/60" : ""}`}
-                          onClick={() => {
-                            if (!result.scanResultId) return;
-                            setSelectedCell({
-                              scanResultId: result.scanResultId,
-                              promptText: row.promptText,
-                              engine: eng,
-                              mentioned: result.mentioned,
-                              position: result.position,
-                              sentiment: result.sentiment ?? null,
-                            });
-                            setModalOpen(true);
-                          }}
-                        >
-                          <div className="flex flex-col items-center gap-0.5">
-                            {result.mentioned ? (
-                              <div className="h-6 w-6 rounded-full bg-green-500/15 flex items-center justify-center">
-                                <Check className="h-3.5 w-3.5 text-green-500" />
-                              </div>
-                            ) : (
-                              <div className="h-6 w-6 rounded-full bg-red-500/10 flex items-center justify-center">
-                                <X className="h-3.5 w-3.5 text-red-400" />
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-muted-foreground">
-                                {result.position !== null ? `#${result.position}` : ""}
-                              </span>
-                              {result.sentiment && (
-                                <span className={`inline-block h-2 w-2 rounded-full ${
-                                  result.sentiment === "positive" ? "bg-green-500" :
-                                  result.sentiment === "negative" ? "bg-red-500" :
-                                  "bg-gray-400"
-                                }`} title={result.sentiment} />
+                        <TableCell key={eng} className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <div className="flex flex-col items-center gap-0.5">
+                              {result.mentioned ? (
+                                <div className="h-6 w-6 rounded-full bg-green-500/15 flex items-center justify-center">
+                                  <Check className="h-3.5 w-3.5 text-green-500" />
+                                </div>
+                              ) : (
+                                <div className="h-6 w-6 rounded-full bg-red-500/10 flex items-center justify-center">
+                                  <X className="h-3.5 w-3.5 text-red-400" />
+                                </div>
                               )}
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground">
+                                  {result.position !== null ? `#${result.position}` : ""}
+                                </span>
+                                {result.sentiment && (
+                                  <span className={`inline-block h-2 w-2 rounded-full ${
+                                    result.sentiment === "positive" ? "bg-green-500" :
+                                    result.sentiment === "negative" ? "bg-red-500" :
+                                    "bg-gray-400"
+                                  }`} title={result.sentiment} />
+                                )}
+                              </div>
                             </div>
+                            {hasInsight && (
+                              <button
+                                onClick={() => {
+                                  setSelectedCell({
+                                    scanResultId: result.scanResultId!,
+                                    promptText: row.promptText,
+                                    engine: eng,
+                                    mentioned: result.mentioned,
+                                    position: result.position,
+                                    sentiment: result.sentiment ?? null,
+                                  });
+                                  setModalOpen(true);
+                                }}
+                                className="h-4 w-4 rounded-full bg-muted hover:bg-primary/15 flex items-center justify-center transition-colors shrink-0"
+                                title="View insight"
+                              >
+                                <Info className="h-2.5 w-2.5 text-muted-foreground" />
+                              </button>
+                            )}
                           </div>
                         </TableCell>
                       );

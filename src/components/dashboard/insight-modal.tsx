@@ -138,7 +138,9 @@ export function InsightModal({
               </Badge>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{promptText}</p>
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+            <span className="font-medium text-foreground">Prompt:</span> {promptText}
+          </p>
         </DialogHeader>
 
         {loading && (
@@ -161,7 +163,9 @@ export function InsightModal({
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Why did this AI engine rank your brand?</h3>
+                  <h3 className="font-semibold text-sm">
+                    {mentioned ? "Why did this AI engine rank your brand?" : "Why did this AI engine not rank your brand?"}
+                  </h3>
                   {ctx && (
                     <Badge className={`text-[10px] ${ctx.color}`}>{ctx.label}</Badge>
                   )}
