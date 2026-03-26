@@ -11,19 +11,26 @@ interface ActivityLog {
 export function logActivity(log: ActivityLog) {
   if (!log.userId) return;
 
-  Promise.resolve(
-    supabaseAdmin.from("user_activities").insert({
-      user_id: log.userId,
-      action: log.action,
-      resource_type: log.resourceType ?? null,
-      resource_id: log.resourceId ?? null,
-      metadata: log.metadata ?? {},
-    }),
-  )
-    .then(({ error }) => {
+  (async () => {
+    try {
+      const { count } = await supabaseAdmin
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("id", log.userId!);
+
+      if (!count || count === 0) return;
+
+      const { error } = await supabaseAdmin.from("user_activities").insert({
+        user_id: log.userId,
+        action: log.action,
+        resource_type: log.resourceType ?? null,
+        resource_id: log.resourceId ?? null,
+        metadata: log.metadata ?? {},
+      });
+
       if (error) console.error("[ActivityLog] Failed:", error.message);
-    })
-    .catch((e: unknown) => {
+    } catch (e) {
       console.error("[ActivityLog] Failed:", e);
-    });
+    }
+  })();
 }
