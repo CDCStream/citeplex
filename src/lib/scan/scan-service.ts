@@ -285,9 +285,11 @@ export async function runDomainScan(
     .update({ scan_status: "completed", first_scan_done: true })
     .eq("id", domainId);
 
-  generateScanInsights(domainId).catch((err) =>
-    console.error("[Insights] generation failed:", err)
-  );
+  try {
+    await generateScanInsights(domainId);
+  } catch (err) {
+    console.error("[Insights] generation failed:", err);
+  }
 
   return { analyses, progress };
   } catch (err) {
