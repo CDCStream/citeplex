@@ -196,6 +196,28 @@ alter table public.domains
 
 update public.domains set verified = true where verified = false;
 
+-- Sentiment column on scan_results
+alter table public.scan_results
+  add column if not exists sentiment text
+  check (sentiment in ('positive', 'negative', 'neutral'));
+
+-- Citations column on scan_results
+alter table public.scan_results
+  add column if not exists citations jsonb not null default '[]';
+
+-- Scan Insights (LLM-generated analysis per scan result)
+create table if not exists public.scan_insights (
+  id uuid primary key default gen_random_uuid(),
+  scan_result_id uuid not null references public.scan_results(id) on delete cascade,
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  prompt_id uuid not null references public.prompts(id) on delete cascade,
+  ai_engine text not null,
+  insight jsonb not null default '{}',
+  created_at timestamptz not null default now(),
+  unique(scan_result_id)
+);
+create index if not exists idx_scan_insights_domain on public.scan_insights(domain_id);
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'free')

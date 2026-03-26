@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { engines, type BrandAnalysis } from "@/lib/ai-engines";
 import { buildScanPrompt } from "./prompt-builder";
 import { parseResponse } from "./response-parser";
+import { generateScanInsights } from "@/lib/insights/generate-scan-insights";
 
 const ENGINE_NAME_MAP: Record<string, string> = {
   chatgpt: "chatgpt",
@@ -71,6 +72,8 @@ export async function runSinglePromptScan(domainId: string, promptId: string) {
             response: result.response,
             brand_mentioned: parsed.brandMentioned,
             position: parsed.position,
+            sentiment: parsed.sentiment,
+            citations: result.citations ?? [],
           });
         })
       );
@@ -216,6 +219,7 @@ export async function runDomainScan(
             response: result.response,
             brandMentioned: brandParsed.brandMentioned,
             position: brandParsed.position,
+            sentiment: brandParsed.sentiment,
           };
 
           await supabaseAdmin.from("scan_results").insert({
@@ -226,6 +230,8 @@ export async function runDomainScan(
             response: result.response,
             brand_mentioned: brandParsed.brandMentioned,
             position: brandParsed.position,
+            sentiment: brandParsed.sentiment,
+            citations: result.citations ?? [],
           });
 
           for (const comp of activeCompetitors) {
@@ -278,6 +284,10 @@ export async function runDomainScan(
     .from("domains")
     .update({ scan_status: "completed", first_scan_done: true })
     .eq("id", domainId);
+
+  generateScanInsights(domainId).catch((err) =>
+    console.error("[Insights] generation failed:", err)
+  );
 
   return { analyses, progress };
   } catch (err) {

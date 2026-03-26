@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Eye, MapPin } from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, MapPin, ThumbsUp } from "lucide-react";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { motion, type Variants } from "framer-motion";
 import CountUp from "react-countup";
@@ -13,9 +13,16 @@ interface EngineBreakdown {
   avgPosition: number | null;
 }
 
+interface SentimentBreakdown {
+  positive: number;
+  negative: number;
+  neutral: number;
+}
+
 interface Props {
   mentionRate: number;
   avgPosition: number | null;
+  sentimentBreakdown?: SentimentBreakdown;
   lastScan: string | null;
   engineBreakdown: EngineBreakdown[];
 }
@@ -67,7 +74,16 @@ const itemVariants: Variants = {
   },
 };
 
-export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engineBreakdown }: Props) {
+function getDominantLabel(s: SentimentBreakdown): { label: string; color: string } {
+  if (s.positive >= 60) return { label: "Mostly Positive", color: "bg-green-500/15 text-green-600" };
+  if (s.negative >= 60) return { label: "Mostly Negative", color: "bg-red-500/15 text-red-600" };
+  return { label: "Mixed", color: "bg-amber-500/15 text-amber-600" };
+}
+
+export function VisibilityScoreCard({ mentionRate, avgPosition, sentimentBreakdown, lastScan, engineBreakdown }: Props) {
+  const sentiment = sentimentBreakdown ?? { positive: 0, negative: 0, neutral: 0 };
+  const hasSentiment = sentiment.positive + sentiment.negative + sentiment.neutral > 0;
+  const dominant = getDominantLabel(sentiment);
   return (
     <motion.div
       variants={containerVariants}
@@ -76,7 +92,7 @@ export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engine
       className="space-y-4"
     >
       {/* Hero Metrics */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <motion.div variants={itemVariants}>
           <Card className="overflow-hidden">
             <CardContent className="pt-6 pb-6">
@@ -155,6 +171,72 @@ export function VisibilityScoreCard({ mentionRate, avgPosition, lastScan, engine
                 <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
                   Last scan: {lastScan}
                 </p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <ThumbsUp className="h-4 w-4" />
+                  Sentiment
+                </div>
+                {hasSentiment && (
+                  <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${dominant.color}`}>
+                    {dominant.label}
+                  </div>
+                )}
+              </div>
+              {hasSentiment ? (
+                <div className="space-y-3 mt-1">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-600 font-semibold">{sentiment.positive}%</span>
+                      <span className="text-xs text-muted-foreground">Positive</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-green-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${sentiment.positive}%` }}
+                        transition={{ duration: 1.2, ease: [0, 0, 0.58, 1], delay: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-amber-500 font-semibold">{sentiment.neutral}%</span>
+                      <span className="text-xs text-muted-foreground">Neutral</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-amber-400"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${sentiment.neutral}%` }}
+                        transition={{ duration: 1.2, ease: [0, 0, 0.58, 1], delay: 0.5 }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-red-500 font-semibold">{sentiment.negative}%</span>
+                      <span className="text-xs text-muted-foreground">Negative</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-red-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${sentiment.negative}%` }}
+                        transition={{ duration: 1.2, ease: [0, 0, 0.58, 1], delay: 0.7 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-muted-foreground mt-2">—</div>
               )}
             </CardContent>
           </Card>

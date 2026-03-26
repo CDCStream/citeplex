@@ -39,6 +39,7 @@ export class PerplexityEngine implements AiEngine {
         response: text,
         inputTokens: data.usage?.prompt_tokens,
         outputTokens: data.usage?.completion_tokens,
+        citations: data.citations ?? [],
       };
     } catch (err) {
       return { engine: this.name, response: "", error: `Perplexity error: ${(err as Error).message}` };

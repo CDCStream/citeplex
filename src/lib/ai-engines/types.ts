@@ -6,6 +6,7 @@ export interface AiQueryResult {
   error?: string;
   inputTokens?: number;
   outputTokens?: number;
+  citations?: string[];
 }
 
 export interface BrandAnalysis {
@@ -13,6 +14,7 @@ export interface BrandAnalysis {
   response: string;
   brandMentioned: boolean;
   position: number | null;
+  sentiment: "positive" | "negative" | "neutral" | null;
 }
 
 export interface AiEngine {

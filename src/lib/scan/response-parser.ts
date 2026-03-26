@@ -1,8 +1,11 @@
+export type Sentiment = "positive" | "negative" | "neutral";
+
 export interface ParseResult {
   brandMentioned: boolean;
   urlMentioned: boolean;
   mentionCount: number;
   position: number | null;
+  sentiment: Sentiment | null;
 }
 
 function escapeRegex(str: string): string {
@@ -148,13 +151,68 @@ function detectPosition(
   return null;
 }
 
+const POSITIVE_KEYWORDS = [
+  "best", "top", "excellent", "leading", "recommended", "highly recommended",
+  "popular", "reliable", "outstanding", "superior", "impressive", "innovative",
+  "powerful", "comprehensive", "standout", "trusted", "preferred", "award-winning",
+  "well-regarded", "strong", "great", "notable", "robust", "versatile", "efficient",
+];
+
+const NEGATIVE_KEYWORDS = [
+  "worst", "avoid", "poor", "expensive", "limited", "lacks", "issues",
+  "problems", "drawback", "weakness", "concern", "disadvantage", "overpriced",
+  "outdated", "complicated", "frustrating", "inferior", "criticized", "downside",
+  "not recommended", "lacking", "mediocre", "unreliable",
+];
+
+export function detectSentiment(
+  response: string,
+  brandName: string,
+  domainUrl: string
+): Sentiment {
+  const lower = response.toLowerCase();
+  const brandLower = brandName.toLowerCase();
+  const normalizedUrl = domainUrl
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/+$/, "");
+
+  const sentences = lower.split(/[.!?\n]+/).filter((s) => s.trim().length > 10);
+  const brandSentences = sentences.filter(
+    (s) => s.includes(brandLower) || (normalizedUrl && s.includes(normalizedUrl))
+  );
+
+  const contextText = brandSentences.length > 0 ? brandSentences.join(" ") : lower;
+
+  let positiveCount = 0;
+  let negativeCount = 0;
+
+  for (const kw of POSITIVE_KEYWORDS) {
+    const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    const matches = contextText.match(regex);
+    if (matches) positiveCount += matches.length;
+  }
+
+  for (const kw of NEGATIVE_KEYWORDS) {
+    const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    const matches = contextText.match(regex);
+    if (matches) negativeCount += matches.length;
+  }
+
+  const score = positiveCount - negativeCount;
+  if (score > 0) return "positive";
+  if (score < 0) return "negative";
+  return "neutral";
+}
+
 export function parseResponse(
   response: string,
   brandName: string,
   domainUrl: string
 ): ParseResult {
   if (!response || !brandName) {
-    return { brandMentioned: false, urlMentioned: false, mentionCount: 0, position: null };
+    return { brandMentioned: false, urlMentioned: false, mentionCount: 0, position: null, sentiment: null };
   }
 
   const plainText = stripMarkdown(response);
@@ -186,5 +244,7 @@ export function parseResponse(
   // Position detection (only if brand is mentioned)
   const position = brandMentioned ? detectPosition(response, brandName, domainUrl) : null;
 
-  return { brandMentioned, urlMentioned, mentionCount, position };
+  const sentiment = brandMentioned ? detectSentiment(response, brandName, domainUrl) : null;
+
+  return { brandMentioned, urlMentioned, mentionCount, position, sentiment };
 }

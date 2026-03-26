@@ -32,11 +32,18 @@ export class GeminiEngine implements AiEngine {
           ?.map((p: { text?: string }) => p.text ?? "")
           .join("") ?? "";
 
+      const groundingChunks =
+        data.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+      const citations = groundingChunks
+        .filter((c: { web?: { uri?: string } }) => c.web?.uri)
+        .map((c: { web: { uri: string } }) => c.web.uri);
+
       return {
         engine: this.name,
         response: text,
         inputTokens: data.usageMetadata?.promptTokenCount,
         outputTokens: data.usageMetadata?.candidatesTokenCount,
+        citations,
       };
     } catch (err) {
       return { engine: this.name, response: "", error: `Gemini error: ${(err as Error).message}` };

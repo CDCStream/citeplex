@@ -109,6 +109,7 @@ async function DomainDashboardContent({ domainId }: { domainId: string }) {
           <VisibilityScoreCard
             mentionRate={stats.mentionRate}
             avgPosition={stats.avgPosition}
+            sentimentBreakdown={stats.sentimentBreakdown}
             lastScan={stats.lastScan}
             engineBreakdown={stats.engineBreakdown}
           />

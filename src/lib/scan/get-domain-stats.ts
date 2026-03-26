@@ -13,6 +13,7 @@ export async function getDomainStats(domainId: string) {
     return {
       mentionRate: 0,
       avgPosition: null as number | null,
+      sentimentBreakdown: { positive: 0, negative: 0, neutral: 0 },
       lastScan: null as string | null,
       engineBreakdown: [] as { engine: string; mentionRate: number; avgPosition: number | null }[],
       promptResults: [] as {
@@ -36,7 +37,7 @@ export async function getDomainStats(domainId: string) {
 
   const { data: latestRows } = await supabaseAdmin
     .from("scan_results")
-    .select("id, domain_id, prompt_id, ai_engine, run_index, response, brand_mentioned, position, scanned_at")
+    .select("id, domain_id, prompt_id, ai_engine, run_index, response, brand_mentioned, position, sentiment, scanned_at")
     .eq("domain_id", domainId)
     .gte("scanned_at", batchStart.toISOString())
     .order("scanned_at", { ascending: false });
@@ -55,10 +56,12 @@ export async function getDomainStats(domainId: string) {
   }
 
   const latestResults = latestResultsRaw.map((r) => ({
+    id: r.id,
     promptId: r.prompt_id,
     aiEngine: r.ai_engine,
     brandMentioned: r.brand_mentioned,
     position: r.position,
+    sentiment: r.sentiment as "positive" | "negative" | "neutral" | null,
     scannedAt: r.scanned_at,
     prompt: promptMap[r.prompt_id] ?? { text: "", language: null, country: null },
   }));
@@ -72,6 +75,14 @@ export async function getDomainStats(domainId: string) {
     positionResults.length > 0
       ? Math.round((positionResults.reduce((s, r) => s + (r.position ?? 0), 0) / positionResults.length) * 10) / 10
       : null;
+
+  const mentionedWithSentiment = latestResults.filter((r) => r.sentiment);
+  const sentimentTotal = mentionedWithSentiment.length || 1;
+  const sentimentBreakdown = {
+    positive: Math.round((mentionedWithSentiment.filter((r) => r.sentiment === "positive").length / sentimentTotal) * 100),
+    negative: Math.round((mentionedWithSentiment.filter((r) => r.sentiment === "negative").length / sentimentTotal) * 100),
+    neutral: Math.round((mentionedWithSentiment.filter((r) => r.sentiment === "neutral").length / sentimentTotal) * 100),
+  };
 
   const engineGroups: Record<string, typeof latestResults> = {};
   for (const r of latestResults) {
@@ -117,20 +128,51 @@ export async function getDomainStats(domainId: string) {
         withPos.length > 0
           ? Math.round((withPos.reduce((s, i) => s + (i.position ?? 0), 0) / withPos.length) * 10) / 10
           : null,
-      engines: Object.entries(perEngine).map(([engine, runs]) => ({
-        engine,
-        mentioned: runs.some((r) => r.brandMentioned),
-        position: (() => {
-          const p = runs.filter((r) => r.position !== null);
-          return p.length > 0
-            ? Math.round((p.reduce((s, r) => s + (r.position ?? 0), 0) / p.length) * 10) / 10
-            : null;
-        })(),
-        runs: runs.length,
-        mentionedRuns: runs.filter((r) => r.brandMentioned).length,
-      })),
+      engines: Object.entries(perEngine).map(([engine, runs]) => {
+        const mentionedItems = runs.filter((r) => r.sentiment);
+        const majorSentiment = mentionedItems.length > 0
+          ? (() => {
+              const counts = { positive: 0, negative: 0, neutral: 0 };
+              for (const r of mentionedItems) counts[r.sentiment!]++;
+              return (Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]) as "positive" | "negative" | "neutral";
+            })()
+          : null;
+        return {
+          engine,
+          mentioned: runs.some((r) => r.brandMentioned),
+          position: (() => {
+            const p = runs.filter((r) => r.position !== null);
+            return p.length > 0
+              ? Math.round((p.reduce((s, r) => s + (r.position ?? 0), 0) / p.length) * 10) / 10
+              : null;
+          })(),
+          runs: runs.length,
+          mentionedRuns: runs.filter((r) => r.brandMentioned).length,
+          sentiment: majorSentiment,
+          scanResultId: runs[0]?.id ?? null,
+        };
+      }),
     };
   });
+
+  const scanResultIds = latestResultsRaw.map((r) => r.id);
+  const { data: insightRows } = scanResultIds.length > 0
+    ? await supabaseAdmin
+        .from("scan_insights")
+        .select("id, scan_result_id")
+        .in("scan_result_id", scanResultIds)
+    : { data: [] };
+
+  const insightMap: Record<string, string> = {};
+  for (const ins of insightRows ?? []) {
+    insightMap[ins.scan_result_id] = ins.id;
+  }
+
+  for (const pr of promptResults) {
+    for (const eng of pr.engines) {
+      (eng as typeof eng & { insightId: string | null }).insightId = insightMap[eng.scanResultId] ?? null;
+    }
+  }
 
   const { data: allScanRows } = await supabaseAdmin
     .from("scan_results")
@@ -267,6 +309,7 @@ export async function getDomainStats(domainId: string) {
   return {
     mentionRate,
     avgPosition,
+    sentimentBreakdown,
     lastScan: latestScannedAt.toLocaleDateString(),
     engineBreakdown,
     promptResults,

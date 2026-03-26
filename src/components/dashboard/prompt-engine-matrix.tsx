@@ -15,6 +15,7 @@ import { Check, X } from "lucide-react";
 import { countryFlag } from "@/lib/constants/countries";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { motion } from "framer-motion";
+import { InsightModal } from "./insight-modal";
 
 const ENGINE_LABELS: Record<string, string> = {
   chatgpt: "ChatGPT",
@@ -32,6 +33,9 @@ interface EngineResult {
   position: number | null;
   runs: number;
   mentionedRuns: number;
+  sentiment?: "positive" | "negative" | "neutral" | null;
+  scanResultId?: string | null;
+  insightId?: string | null;
 }
 
 interface PromptResult {
@@ -68,6 +72,15 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
   const hasMultipleCountries = uniqueCountries.length > 1;
 
   const [filterCountry, setFilterCountry] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCell, setSelectedCell] = useState<{
+    scanResultId: string;
+    promptText: string;
+    engine: string;
+    mentioned: boolean;
+    position: number | null;
+    sentiment: "positive" | "negative" | "neutral" | null;
+  } | null>(null);
   const filteredRows = filterCountry
     ? rows.filter((r) => r.country === filterCountry)
     : rows;
@@ -158,8 +171,24 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
                       if (!result) {
                         return <TableCell key={eng} className="text-center text-muted-foreground text-xs">—</TableCell>;
                       }
+                      const hasInsight = !!result.scanResultId;
                       return (
-                        <TableCell key={eng} className="text-center">
+                        <TableCell
+                          key={eng}
+                          className={`text-center ${hasInsight ? "cursor-pointer hover:bg-muted/60" : ""}`}
+                          onClick={() => {
+                            if (!result.scanResultId) return;
+                            setSelectedCell({
+                              scanResultId: result.scanResultId,
+                              promptText: row.promptText,
+                              engine: eng,
+                              mentioned: result.mentioned,
+                              position: result.position,
+                              sentiment: result.sentiment ?? null,
+                            });
+                            setModalOpen(true);
+                          }}
+                        >
                           <div className="flex flex-col items-center gap-0.5">
                             {result.mentioned ? (
                               <div className="h-6 w-6 rounded-full bg-green-500/15 flex items-center justify-center">
@@ -170,9 +199,18 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
                                 <X className="h-3.5 w-3.5 text-red-400" />
                               </div>
                             )}
-                            <span className="text-[10px] text-muted-foreground">
-                              {result.position !== null ? `#${result.position}` : ""}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {result.position !== null ? `#${result.position}` : ""}
+                              </span>
+                              {result.sentiment && (
+                                <span className={`inline-block h-2 w-2 rounded-full ${
+                                  result.sentiment === "positive" ? "bg-green-500" :
+                                  result.sentiment === "negative" ? "bg-red-500" :
+                                  "bg-gray-400"
+                                }`} title={result.sentiment} />
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                       );
@@ -184,6 +222,17 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
           </div>
         </CardContent>
       </Card>
+
+      <InsightModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        scanResultId={selectedCell?.scanResultId ?? null}
+        promptText={selectedCell?.promptText ?? ""}
+        engine={selectedCell?.engine ?? ""}
+        mentioned={selectedCell?.mentioned ?? false}
+        position={selectedCell?.position ?? null}
+        sentiment={selectedCell?.sentiment ?? null}
+      />
     </motion.div>
   );
 }
