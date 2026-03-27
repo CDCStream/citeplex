@@ -52,6 +52,17 @@ export default function RootLayout({
         </Suspense>
         {children}
         <CookieConsent />
+        <Script
+          src="https://seo-fixer.writesonic.com/site-audit/fixer-script/index.js"
+          id="wsAiSeoMb"
+          strategy="afterInteractive"
+        />
+        <Script id="wsAiSeoInitScript" strategy="afterInteractive">
+          {`wsSEOfixer.configure({
+            hostURL: 'https://seo-fixer.writesonic.com',
+            siteID: '69c695c155b8ec7751502a36'
+          });`}
+        </Script>
       </body>
     </html>
   );
