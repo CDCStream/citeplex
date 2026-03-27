@@ -192,9 +192,9 @@ export default function OnboardingPage() {
           setTargetCountries([data.primaryCountry]);
         }
       }
-      setStep(2); // TODO: revert to setStep(1) after demo — skips domain verification
+      setStep(1);
     } catch {
-      setStep(2); // TODO: revert to setStep(1) after demo
+      setStep(1);
     } finally {
       setLoading(false);
     }
@@ -804,7 +804,7 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(0)} className="flex-1">{/* TODO: revert to setStep(1) after demo */}
+                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
