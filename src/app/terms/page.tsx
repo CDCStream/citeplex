@@ -29,35 +29,32 @@ export default function TermsPage() {
         <section>
           <h2 className="text-xl font-bold">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Citeplex (&quot;the Service&quot;), you agree to be bound
-            by these Terms of Service. If you do not agree to these terms, please do not
-            use the Service.
+            By using Citeplex, you agree to these terms. If you do not agree,
+            please do not use the service.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">2. Description of Service</h2>
+          <h2 className="text-xl font-bold">2. What Citeplex Does</h2>
           <p>
-            Citeplex is an AI search visibility tracking platform that monitors your
-            brand&apos;s presence across 7 AI search engines (ChatGPT, Perplexity, Gemini,
-            Claude, DeepSeek, Grok, and Mistral). The Service provides daily scans,
-            visibility scores, competitor comparisons, and actionable insights.
+            Citeplex tracks how 7 AI engines (ChatGPT, Perplexity, Gemini, Claude,
+            DeepSeek, Grok, and Mistral) talk about your brand. We run daily scans,
+            show scores, and compare you with competitors.
           </p>
           <p className="mt-3">
-            Citeplex reserves the right to modify, add, or remove features and supported
-            AI engines at any time without prior notice — for example, if a third-party
-            AI provider discontinues its API or changes its terms of service. We will make
-            reasonable efforts to notify users of significant changes.
+            We may add, change, or remove features at any time. For example, if an
+            AI provider shuts down its API, we may drop that engine. We will try to
+            let you know about big changes.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">3. Account Registration</h2>
+          <h2 className="text-xl font-bold">3. Your Account</h2>
           <ul className="list-disc space-y-1 pl-6">
-            <li>You must provide accurate and complete registration information</li>
-            <li>You are responsible for maintaining the security of your account credentials</li>
-            <li>You must be at least 18 years old to create an account</li>
-            <li>One person or entity per account; sharing accounts is not permitted</li>
+            <li>Give us correct info when you sign up</li>
+            <li>Keep your password safe</li>
+            <li>You must be at least 18 years old</li>
+            <li>One account per person — do not share accounts</li>
           </ul>
         </section>
 
@@ -77,9 +74,7 @@ export default function TermsPage() {
             30 days&apos; notice.
           </p>
           <p className="mt-3">
-            For Enterprise customers or organizations requiring more than 250 prompts,
-            custom agreements may be arranged. Custom agreements supersede these Terms
-            where applicable. Contact{" "}
+            Need more than 250 prompts? We can set up a custom deal. Contact{" "}
             <a href="mailto:enterprise@citeplex.io" className="text-primary hover:underline">
               enterprise@citeplex.io
             </a>{" "}
@@ -90,107 +85,94 @@ export default function TermsPage() {
         <section>
           <h2 className="text-xl font-bold">5. Payment and Billing</h2>
           <ul className="list-disc space-y-1 pl-6">
-            <li>Payments are processed securely through Polar.sh</li>
-            <li>Subscriptions auto-renew monthly unless cancelled</li>
-            <li>You can cancel your subscription at any time from your billing settings</li>
-            <li>No refunds for partial months; service continues until the end of the billing period</li>
+            <li>We use Polar.sh to handle payments</li>
+            <li>Plans renew each month unless you cancel</li>
+            <li>You can cancel at any time from your billing page</li>
+            <li>No refunds for partial months — you keep access until the period ends</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">6. Acceptable Use &amp; Fair Use</h2>
-          <p>You agree not to:</p>
+          <h2 className="text-xl font-bold">6. Rules &amp; Fair Use</h2>
+          <p>Please do not:</p>
           <ul className="list-disc space-y-1 pl-6">
-            <li>Use the Service for any unlawful purpose</li>
-            <li>Attempt to gain unauthorized access to our systems</li>
-            <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
-            <li>Use automated tools, bots, or scripts to scrape, extract data, or
-                interact with the Service beyond normal human usage</li>
-            <li>Resell or redistribute the Service without authorization</li>
-            <li>Submit malicious or misleading content</li>
-            <li>Generate excessive load on our infrastructure through automated or
-                rapid-fire queries that exceed reasonable usage patterns</li>
+            <li>Use Citeplex for anything illegal</li>
+            <li>Try to hack or break into our systems</li>
+            <li>Copy, reverse-engineer, or take apart our code</li>
+            <li>Use bots or scripts to scrape data</li>
+            <li>Resell our service without permission</li>
+            <li>Send harmful or fake content</li>
+            <li>Overload our servers with rapid-fire requests</li>
           </ul>
           <p className="mt-3">
-            <strong>Fair Use Policy:</strong> All plans are subject to fair use. We reserve
-            the right to throttle or suspend accounts that place disproportionate load on
-            our systems, such as using automated tools to consume prompt allocations in
-            bulk within short timeframes. We will attempt to contact you before taking
-            action.
+            <strong>Fair Use:</strong> All plans have fair use limits. If your account
+            puts too much load on our systems, we may slow it down or pause it. We
+            will try to reach out to you first.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">7. Intellectual Property</h2>
+          <h2 className="text-xl font-bold">7. Who Owns What</h2>
           <p>
-            All content, features, and functionality of Citeplex — including the design,
-            code, algorithms, and branding — are owned by Citeplex and protected by
-            intellectual property laws. You retain ownership of the data you submit to the
-            Service.
+            We own the Citeplex design, code, and brand. You own the data you put
+            into Citeplex. We do not claim rights over your data.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-bold">8. Data and Privacy</h2>
           <p>
-            Your use of the Service is also governed by our{" "}
+            Our{" "}
             <Link href="/privacy" className="text-primary hover:underline">
               Privacy Policy
             </Link>
-            . By using the Service, you consent to the collection and use of your data
-            as described therein.
+            {" "}explains how we handle your data. By using Citeplex, you agree to it.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">9. Service Availability</h2>
+          <h2 className="text-xl font-bold">9. Uptime</h2>
           <p>
-            We strive for high availability but do not guarantee uninterrupted access.
-            AI engine responses depend on third-party APIs (OpenAI, Google, Anthropic,
-            etc.) and may vary. We are not liable for third-party service outages or
-            changes in AI engine behavior.
+            We aim for high uptime but cannot promise it will never go down. AI
+            engines run on third-party APIs. If they have issues, our scans may
+            be affected. We are not responsible for third-party outages.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">10. Limitation of Liability</h2>
+          <h2 className="text-xl font-bold">10. Limits on Our Liability</h2>
           <p>
-            To the maximum extent permitted by law, Citeplex shall not be liable for any
-            indirect, incidental, special, or consequential damages arising from your use
-            of the Service. Our total liability shall not exceed the amount you paid us in
-            the 12 months preceding the claim.
+            We are not liable for indirect or special damages from using Citeplex.
+            The most we owe you is the amount you paid us in the last 12 months.
           </p>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">11. Termination</h2>
+          <h2 className="text-xl font-bold">11. Closing Your Account</h2>
           <p>
-            We reserve the right to suspend or terminate your account if you violate these
-            terms. You may delete your account at any time. Upon termination, your data
-            will be handled in accordance with our Privacy Policy.
+            We can suspend or close your account if you break these rules. You can
+            also delete your account at any time. We handle your data as described
+            in our Privacy Policy.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-bold">12. Changes to Terms</h2>
           <p>
-            We may modify these terms at any time. We will notify you of material changes
-            by email or through a notice on our platform at least 30 days before they take
-            effect. Continued use after changes constitutes acceptance.
+            We may update these terms. If we make big changes, we will email you or
+            post a notice at least 30 days before. If you keep using Citeplex after
+            that, you accept the new terms.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-bold">13. Governing Law</h2>
           <p>
-            These Terms shall be governed by and construed in accordance with the laws of
-            the Republic of T&uuml;rkiye. Any disputes arising from or relating to these
-            Terms shall be subject to the exclusive jurisdiction of the courts of Istanbul,
-            T&uuml;rkiye.
+            These terms follow the laws of the Republic of T&uuml;rkiye. Any legal
+            disputes will be handled by the courts of Istanbul, T&uuml;rkiye.
           </p>
           <p className="mt-3">
-            If any provision of these Terms is found to be unenforceable, the remaining
-            provisions shall continue in full force and effect.
+            If one part of these terms is found invalid, the rest still apply.
           </p>
         </section>
 

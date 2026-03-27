@@ -139,17 +139,17 @@ export default async function LandingPage() {
             <TimelineStep
               step={1}
               title="Add your brand"
-              description="Enter your domain and brand name. We auto-detect your industry and suggest relevant prompts and competitors."
+              description="Type your website URL. We find your industry, suggest prompts, and detect competitors for you."
             />
             <TimelineStep
               step={2}
               title="We query AI engines"
-              description="Our system sends your prompts to all 7 engines, analyzes responses, and detects brand mentions and positioning."
+              description="We send your prompts to all 7 AI engines every day. Then we check each response for your brand."
             />
             <TimelineStep
               step={3}
               title="Track & improve"
-              description="See your visibility score, daily trends, competitor gaps, and actionable insights to grow your presence."
+              description="See your score, daily trends, and competitor gaps. Get clear tips to grow your presence."
             />
           </div>
         </div>
@@ -176,7 +176,7 @@ export default async function LandingPage() {
                 </div>
                 <h3 className="mt-6 text-2xl font-bold">Mention Rate</h3>
                 <p className="mt-3 text-muted-foreground leading-relaxed">
-                  See what percentage of AI responses mention your brand. Tracked across all engines, updated with every scan.
+                  How often do AI engines mention your brand? See the percentage across all 7 engines, updated daily.
                 </p>
               </div>
               <div className="mt-8 flex items-end gap-1">
@@ -193,17 +193,17 @@ export default async function LandingPage() {
             <BentoCard
               icon={Search}
               title="7 AI Engines"
-              description="Query ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral simultaneously."
+              description="We scan ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral — all at once."
             />
             <BentoCard
               icon={Users}
               title="Competitor Intel"
-              description="See exactly where competitors appear and you don't. Find the gaps, close them."
+              description="See where your competitors show up and you don't. Find the gaps and close them."
             />
             <BentoCard
               icon={TrendingUp}
               title="Daily Trends"
-              description="Automated daily scans show how your visibility changes over time."
+              description="Daily scans show how your visibility changes over time. Spot trends at a glance."
             />
             {/* Wide card */}
             <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border bg-card p-8 flex flex-col sm:flex-row items-center gap-8">
@@ -213,7 +213,7 @@ export default async function LandingPage() {
                 </div>
                 <h3 className="mt-4 text-2xl font-bold">Prompt-Level Analysis</h3>
                 <p className="mt-2 text-muted-foreground leading-relaxed">
-                  Track custom prompts across all engines. See which queries mention you, which don&apos;t, and at what position — broken down by engine, language, and category.
+                  Pick any question your customers might ask. We show which AI engines mention you, your rank, and how the answer feels — by engine, language, and topic.
                 </p>
               </div>
               <div className="grid shrink-0 grid-cols-3 gap-2">
@@ -264,43 +264,43 @@ export default async function LandingPage() {
           <div className="mt-14 space-y-4">
             <FaqItem
               question="What is AI search visibility?"
-              answer="AI search visibility measures how often and how prominently your brand appears in AI-generated responses. When users ask ChatGPT, Gemini, Claude, or other AI engines about topics related to your business, AI search visibility tracks whether your brand is mentioned, at what position, and how frequently compared to competitors."
+              answer="It shows how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — how often, at what rank, and compared to your competitors."
             />
             <FaqItem
               question="What is AEO (Answer Engine Optimization)?"
-              answer="AEO stands for Answer Engine Optimization — the practice of optimizing your brand's presence in AI-powered answer engines like ChatGPT, Perplexity, and Google Gemini. Unlike traditional SEO which focuses on search engine rankings, AEO focuses on getting your brand mentioned and recommended in AI-generated answers. Citeplex helps you track and improve your AEO performance."
+              answer="AEO means Answer Engine Optimization. It is like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI answers from ChatGPT, Perplexity, and Gemini. Citeplex helps you track and improve your AEO results."
             />
             <FaqItem
               question="What is GEO (Generative Engine Optimization)?"
-              answer="GEO (Generative Engine Optimization) is the process of optimizing your online presence so that generative AI models reference and recommend your brand. As AI search engines like ChatGPT, Claude, and Gemini become primary information sources, GEO ensures your brand is part of the conversation. Citeplex monitors your GEO performance across 7 major AI engines."
+              answer="GEO stands for Generative Engine Optimization. The goal is simple: make AI models mention and recommend your brand. As more people use AI to search, GEO makes sure you are part of the answer. Citeplex tracks your GEO score across 7 AI engines."
             />
             <FaqItem
               question="How does Citeplex track AI mentions?"
-              answer="Citeplex sends your custom prompts to 7 AI engines (ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral) daily. We analyze each response to detect if your brand is mentioned, at what position, and in what context. Results are tracked over time so you can see trends and measure the impact of your optimization efforts."
+              answer="Every day, we send your prompts to 7 AI engines. Then we read each answer and check if your brand is there. We note the rank, the tone, and the context. You can see the results on your dashboard and track changes over time."
             />
             <FaqItem
               question="Which AI engines does Citeplex support?"
-              answer="Citeplex tracks your visibility across 7 major AI engines: OpenAI ChatGPT, Google Gemini, Anthropic Claude, Perplexity AI, DeepSeek, xAI Grok, and Mistral AI. These engines cover the vast majority of the AI search market, giving you comprehensive visibility data."
+              answer="We support 7 engines: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market."
             />
             <FaqItem
               question="How is Citeplex different from traditional SEO tools?"
-              answer="Traditional SEO tools track Google search rankings. Citeplex tracks something entirely different — how AI engines talk about your brand. AI engines don't show ranked links; they generate conversational answers. Citeplex monitors whether your brand is mentioned in those answers, your position among competitors, and your mention rate across all major AI platforms."
+              answer="SEO tools track Google rankings. Citeplex tracks AI answers. AI engines do not show a list of links — they write full responses. We check if your brand appears in those responses, where it ranks, and how often it comes up."
             />
             <FaqItem
               question="What is a prompt in Citeplex?"
-              answer="A prompt is a search query that Citeplex sends to AI engines on your behalf. For example, 'What is the best resume builder?' is one prompt. Each prompt is sent to all 7 AI engines daily, and the responses are analyzed for brand mentions and positioning. You can customize prompts to match the queries your potential customers might ask."
+              answer="A prompt is a question we ask AI engines for you. For example: 'What is the best resume builder?' We send it to all 7 engines daily and check if they mention your brand. You can add any question your customers might ask."
             />
             <FaqItem
               question="How often are scans performed?"
-              answer="All plans include daily automated scans. Every day, Citeplex sends your prompts to all 7 AI engines, collects responses, and updates your dashboard with fresh data. This daily frequency lets you spot trends, measure changes, and react quickly to shifts in AI search visibility."
+              answer="Every day. We send your prompts to all 7 AI engines once a day. Your dashboard updates with fresh data each morning. This helps you spot trends and act fast."
             />
             <FaqItem
               question="Can I track my competitors?"
-              answer="Yes. Citeplex automatically discovers and tracks your competitors across AI engines. You can see which competitors are mentioned more frequently, compare mention rates and positions side by side, and identify opportunities where competitors appear but you don't."
+              answer="Yes. We find your competitors and track them too. You can compare mention rates side by side. When a competitor shows up and you do not, we flag that as a gap you can close."
             />
             <FaqItem
               question="Why is AI search visibility important for my brand?"
-              answer="AI engines are rapidly becoming the primary way people search for information, products, and services. Studies show that AI-generated recommendations significantly influence purchasing decisions. If your brand isn't appearing in AI responses, you're missing a growing source of traffic, credibility, and revenue. Citeplex helps you monitor and improve this critical new channel."
+              answer="More people now use AI to search for products and services. If AI engines do not mention your brand, you lose traffic and trust. Citeplex helps you see where you stand and what to do about it."
             />
           </div>
         </div>
@@ -317,7 +317,7 @@ export default async function LandingPage() {
                   name: "What is AI search visibility?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "AI search visibility measures how often and how prominently your brand appears in AI-generated responses. When users ask ChatGPT, Gemini, Claude, or other AI engines about topics related to your business, AI search visibility tracks whether your brand is mentioned, at what position, and how frequently compared to competitors.",
+                    text: "It shows how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — how often, at what rank, and compared to your competitors.",
                   },
                 },
                 {
@@ -325,7 +325,7 @@ export default async function LandingPage() {
                   name: "What is AEO (Answer Engine Optimization)?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "AEO stands for Answer Engine Optimization — the practice of optimizing your brand's presence in AI-powered answer engines like ChatGPT, Perplexity, and Google Gemini. Unlike traditional SEO which focuses on search engine rankings, AEO focuses on getting your brand mentioned and recommended in AI-generated answers.",
+                    text: "AEO means Answer Engine Optimization. It is like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI answers from ChatGPT, Perplexity, and Gemini. Citeplex helps you track and improve your AEO results.",
                   },
                 },
                 {
@@ -333,7 +333,7 @@ export default async function LandingPage() {
                   name: "What is GEO (Generative Engine Optimization)?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "GEO (Generative Engine Optimization) is the process of optimizing your online presence so that generative AI models reference and recommend your brand. As AI search engines like ChatGPT, Claude, and Gemini become primary information sources, GEO ensures your brand is part of the conversation.",
+                    text: "GEO stands for Generative Engine Optimization. The goal is simple: make AI models mention and recommend your brand. As more people use AI to search, GEO makes sure you are part of the answer. Citeplex tracks your GEO score across 7 AI engines.",
                   },
                 },
                 {
@@ -341,7 +341,7 @@ export default async function LandingPage() {
                   name: "How does Citeplex track AI mentions?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Citeplex sends your custom prompts to 7 AI engines (ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral) daily. We analyze each response to detect if your brand is mentioned, at what position, and in what context.",
+                    text: "Every day, we send your prompts to 7 AI engines. Then we read each answer and check if your brand is there. We note the rank, the tone, and the context. You can see the results on your dashboard.",
                   },
                 },
                 {
@@ -349,7 +349,7 @@ export default async function LandingPage() {
                   name: "Which AI engines does Citeplex support?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Citeplex tracks your visibility across 7 major AI engines: OpenAI ChatGPT, Google Gemini, Anthropic Claude, Perplexity AI, DeepSeek, xAI Grok, and Mistral AI.",
+                    text: "We support 7 engines: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market.",
                   },
                 },
                 {
@@ -357,7 +357,7 @@ export default async function LandingPage() {
                   name: "How is Citeplex different from traditional SEO tools?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Traditional SEO tools track Google search rankings. Citeplex tracks how AI engines talk about your brand. AI engines generate conversational answers, and Citeplex monitors whether your brand is mentioned in those answers.",
+                    text: "SEO tools track Google rankings. Citeplex tracks AI answers. AI engines do not show a list of links — they write full responses. We check if your brand appears in those responses, where it ranks, and how often it comes up.",
                   },
                 },
                 {
@@ -365,7 +365,7 @@ export default async function LandingPage() {
                   name: "What is a prompt in Citeplex?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "A prompt is a search query that Citeplex sends to AI engines on your behalf. Each prompt is sent to all 7 AI engines daily, and the responses are analyzed for brand mentions and positioning.",
+                    text: "A prompt is a question we ask AI engines for you. For example: 'What is the best resume builder?' We send it to all 7 engines daily and check if they mention your brand.",
                   },
                 },
                 {
@@ -373,7 +373,7 @@ export default async function LandingPage() {
                   name: "How often are scans performed?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "All plans include daily automated scans. Every day, Citeplex sends your prompts to all 7 AI engines, collects responses, and updates your dashboard with fresh data.",
+                    text: "Every day. We send your prompts to all 7 AI engines once a day. Your dashboard updates with fresh data each morning.",
                   },
                 },
                 {
@@ -381,7 +381,7 @@ export default async function LandingPage() {
                   name: "Can I track my competitors?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes. Citeplex automatically discovers and tracks your competitors across AI engines. You can compare mention rates and positions side by side, and identify opportunities where competitors appear but you don't.",
+                    text: "Yes. We find your competitors and track them too. You can compare mention rates side by side. When a competitor shows up and you do not, we flag that gap.",
                   },
                 },
                 {
@@ -389,7 +389,7 @@ export default async function LandingPage() {
                   name: "Why is AI search visibility important for my brand?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "AI engines are rapidly becoming the primary way people search for information, products, and services. If your brand isn't appearing in AI responses, you're missing a growing source of traffic, credibility, and revenue.",
+                    text: "More people now use AI to search for products and services. If AI engines do not mention your brand, you lose traffic and trust. Citeplex helps you see where you stand and what to do about it.",
                   },
                 },
               ],
@@ -409,8 +409,8 @@ export default async function LandingPage() {
                 Ready to own your AI narrative?
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-                Join brands that actively track and improve their visibility
-                across AI search engines. Start free, upgrade when you&apos;re ready.
+                Track your brand across 7 AI engines. Start free today.
+                Upgrade when you need more prompts.
               </p>
               <Button
                 size="lg"

@@ -29,14 +29,13 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-bold">1. Introduction</h2>
           <p>
-            Citeplex (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) operates the citeplex.io
-            website and platform. This Privacy Policy explains how we collect, use,
-            disclose, and safeguard your information when you use our service.
+            Citeplex (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) runs the citeplex.io
+            website. This page explains what data we collect, how we use it, and how
+            we keep it safe.
           </p>
           <p>
-            We are committed to protecting your personal data in accordance with the
-            General Data Protection Regulation (GDPR), the California Consumer Privacy
-            Act (CCPA), and other applicable data protection laws.
+            We follow the GDPR, CCPA, and other data protection laws to protect
+            your personal data.
           </p>
         </section>
 
@@ -61,21 +60,21 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-bold">3. How We Use Your Information</h2>
           <ul className="list-disc space-y-1 pl-6">
-            <li>To provide and maintain our AI search visibility tracking service</li>
-            <li>To process your subscription and payments</li>
-            <li>To send transactional emails (welcome, password reset, billing)</li>
-            <li>To improve our platform and user experience</li>
-            <li>To comply with legal obligations</li>
+            <li>To run our AI visibility tracking service</li>
+            <li>To handle your payments</li>
+            <li>To send you emails (welcome, password reset, billing)</li>
+            <li>To make our platform better</li>
+            <li>To follow the law</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">4. Legal Basis for Processing (GDPR)</h2>
+          <h2 className="text-xl font-bold">4. Legal Basis (GDPR)</h2>
           <ul className="list-disc space-y-1 pl-6">
-            <li><strong>Contractual necessity:</strong> To provide the service you signed up for</li>
-            <li><strong>Legitimate interest:</strong> To improve our service and prevent fraud</li>
-            <li><strong>Consent:</strong> For optional analytics and marketing cookies</li>
-            <li><strong>Legal obligation:</strong> To comply with applicable laws</li>
+            <li><strong>Contract:</strong> We need your data to give you the service you signed up for</li>
+            <li><strong>Our interest:</strong> We use data to improve our product and stop fraud</li>
+            <li><strong>Your consent:</strong> We ask before using analytics or marketing cookies</li>
+            <li><strong>Law:</strong> Sometimes the law requires us to keep certain data</li>
           </ul>
         </section>
 
@@ -111,10 +110,9 @@ export default function PrivacyPage() {
 
           <h3 className="mt-4 text-lg font-semibold">5.2 Analytics</h3>
           <p>
-            <strong>Google Analytics 4</strong> loads only when you click &quot;Accept
-            All&quot; on the cookie banner. <strong>Ahrefs Web Analytics</strong> is
-            embedded in our pages for aggregate traffic and SEO insights; its script is
-            served from Ahrefs and may set cookies or similar technologies per{" "}
+            <strong>Google Analytics 4</strong> only loads if you click &quot;Accept
+            All&quot; on the cookie banner. <strong>Ahrefs Web Analytics</strong> runs
+            on our pages for traffic data. It may set cookies as described in{" "}
             <a
               href="https://ahrefs.com/privacy-policy"
               className="text-primary hover:underline"
@@ -170,26 +168,20 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold">7. International Data Transfers</h2>
+          <h2 className="text-xl font-bold">7. Data Transfers</h2>
           <p>
-            Some of our third-party service providers (Supabase, Vercel, Polar.sh, Resend)
-            are based in the United States. When your data is transferred outside the
-            European Economic Area (EEA), we ensure appropriate safeguards are in place,
-            including:
+            Some of our tools (Supabase, Vercel, Polar.sh, Resend) are based in the US.
+            When data leaves the EU, we protect it with:
           </p>
           <ul className="list-disc space-y-1 pl-6">
             <li>
-              <strong>Standard Contractual Clauses (SCCs)</strong> approved by the European
-              Commission, which contractually obligate recipients to protect your data to
-              EU standards
+              <strong>Standard Contractual Clauses (SCCs)</strong> approved by the EU
             </li>
             <li>
-              Selecting providers that maintain <strong>SOC 2</strong> compliance and
-              equivalent security certifications
+              Providers with <strong>SOC 2</strong> security certifications
             </li>
             <li>
-              Ensuring data processing agreements (DPAs) are in place with all
-              sub-processors
+              Data processing agreements with all our partners
             </li>
           </ul>
         </section>
@@ -197,9 +189,8 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-bold">8. Data Retention</h2>
           <p>
-            We retain your data for as long as your account is active. If you delete your
-            account, we will remove your personal data within 30 days, except where
-            retention is required by law.
+            We keep your data while your account is active. If you delete your account,
+            we remove your data within 30 days, unless the law says we must keep it.
           </p>
         </section>
 
@@ -225,31 +216,28 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-xl font-bold">10. Children&apos;s Privacy</h2>
           <p>
-            Citeplex is not directed to individuals under the age of 16. We do not
-            knowingly collect personal data from children. If you are a parent or
-            guardian and believe your child has provided us with personal data, please
-            contact us at{" "}
+            Citeplex is not for anyone under 16. We do not collect data from children.
+            If you think a child shared data with us, please contact us at{" "}
             <a href="mailto:privacy@citeplex.io" className="text-primary hover:underline">
               privacy@citeplex.io
             </a>
-            {" "}and we will promptly delete such information.
+            {" "}and we will delete it right away.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-bold">11. Security</h2>
           <p>
-            We implement industry-standard security measures including encryption in
-            transit (TLS), secure authentication via Supabase Auth, and regular security
-            reviews to protect your data.
+            We use encryption (TLS), secure login via Supabase Auth, and regular
+            security checks to keep your data safe.
           </p>
         </section>
 
         <section>
           <h2 className="text-xl font-bold">12. Changes to This Policy</h2>
           <p>
-            We may update this policy from time to time. We will notify you of significant
-            changes by email or through a notice on our platform.
+            We may update this page. If we make big changes, we will let you know
+            by email or a notice on our site.
           </p>
         </section>
 

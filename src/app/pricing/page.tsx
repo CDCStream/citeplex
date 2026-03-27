@@ -55,23 +55,23 @@ export default async function PricingPage() {
             {[
               {
                 q: "What is a prompt?",
-                a: "A prompt is a search query that we send to AI engines on your behalf. For example, \"What is the best resume builder?\" is one prompt. Each prompt is scanned across all 7 AI engines daily.",
+                a: "A prompt is a question we send to AI engines for you. Example: \"What is the best resume builder?\" We send it to all 7 engines every day.",
               },
               {
                 q: "Can I change my plan later?",
-                a: "Yes, you can upgrade or downgrade your plan at any time. Changes take effect on your next billing cycle.",
+                a: "Yes. You can upgrade or downgrade at any time. Changes start on your next billing date.",
               },
               {
                 q: "What AI engines do you support?",
-                a: "We scan ChatGPT, Google Gemini, Anthropic Claude, Perplexity, DeepSeek, Grok (xAI), and Mistral — covering over 95% of the AI search market.",
+                a: "We scan ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. That covers most of the AI search market.",
               },
               {
                 q: "How often are scans performed?",
-                a: "Every plan includes daily automated scans. Your prompts are sent to all 7 engines once per day, and results are tracked over time.",
+                a: "Every day. We send your prompts to all 7 engines once a day and track the results over time.",
               },
               {
                 q: "Is there a free plan?",
-                a: "Yes! We offer a permanent Free plan with 3 prompts scanned daily across all 7 AI engines. No credit card required — sign up and start tracking your AI visibility right away.",
+                a: "Yes! The Free plan gives you 3 prompts scanned daily across all 7 AI engines. No credit card needed.",
               },
             ].map((item) => (
               <div key={item.q} className="rounded-xl border bg-card p-6">
