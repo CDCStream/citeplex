@@ -33,7 +33,7 @@ export default async function LandingPage() {
 
       {/* Hero */}
       <section className="relative">
-        <ParticleCanvas className="pointer-events-auto" />
+        <ParticleCanvas />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
         <div className="absolute top-20 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute top-40 right-1/4 h-56 w-56 rounded-full bg-blue-400/5 blur-3xl" />
@@ -133,9 +133,6 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <p className="mt-8 text-center text-sm font-semibold tracking-wide text-muted-foreground">
-            7 AI Engines · Daily Tracking · <span className="text-primary">Half the Price</span>
-          </p>
         </div>
       </section>
 

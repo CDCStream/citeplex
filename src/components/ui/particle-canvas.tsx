@@ -132,8 +132,15 @@ export function ParticleCanvas({ className = "" }: ParticleCanvasProps) {
 
     const handleMouseMove = (event: MouseEvent) => {
       const rect = canvas!.getBoundingClientRect();
-      mouse.x = event.clientX - rect.left;
-      mouse.y = event.clientY - rect.top;
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+        mouse.x = x;
+        mouse.y = y;
+      } else {
+        mouse.x = null;
+        mouse.y = null;
+      }
     };
 
     const handleMouseOut = () => {
@@ -141,16 +148,16 @@ export function ParticleCanvas({ className = "" }: ParticleCanvasProps) {
       mouse.y = null;
     };
 
-    canvas!.addEventListener("mousemove", handleMouseMove);
-    canvas!.addEventListener("mouseout", handleMouseOut);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseout", handleMouseOut);
 
     init();
     animate();
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
-      canvas!.removeEventListener("mousemove", handleMouseMove);
-      canvas!.removeEventListener("mouseout", handleMouseOut);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseout", handleMouseOut);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
