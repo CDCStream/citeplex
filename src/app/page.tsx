@@ -4,7 +4,6 @@ import { getAuthUser } from "@/lib/auth";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { Button } from "@/components/ui/button";
 import { EngineIcon } from "@/components/ui/engine-icon";
-import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { SquishyPricing } from "@/components/ui/squishy-pricing";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
 import {
@@ -45,8 +44,15 @@ export default async function LandingPage() {
               and 4 more talk about your brand — and shape the conversation.
             </p>
 
-            <div className="mt-8">
-              <DashboardPreview />
+            <div className="mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
+              <iframe
+                src="https://app.supademo.com/embed/cmn8n50co10xkmbsix4q1as7d?embed_v=2"
+                loading="lazy"
+                title="Citeplex Interactive Demo"
+                allow="clipboard-write"
+                className="w-full"
+                style={{ height: "500px", border: "none" }}
+              />
             </div>
 
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
