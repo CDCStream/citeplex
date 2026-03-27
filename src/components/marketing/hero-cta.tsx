@@ -190,7 +190,7 @@ export function HeroCta() {
         </Button>
         <Button
           size="lg"
-          className="h-13 rounded-full bg-linear-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 text-base font-semibold text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 transition-shadow"
+          className="h-13 rounded-full bg-linear-to-r from-blue-600 via-blue-500 to-blue-400 px-8 text-base font-semibold text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-shadow"
           asChild
         >
           <Link href="/login">

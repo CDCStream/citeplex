@@ -85,7 +85,7 @@ export default async function LandingPage() {
           </div>
 
           {/* Engine Marquee */}
-          <p className="mt-20 mb-4 text-center text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="mt-8 mb-4 text-center text-sm font-semibold uppercase tracking-widest text-muted-foreground">
             Supported 7 AI Engines
           </p>
           <div className="relative overflow-hidden">
