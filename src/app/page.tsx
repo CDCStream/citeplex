@@ -8,6 +8,7 @@ import { EngineIcon } from "@/components/ui/engine-icon";
 import { SquishyPricing } from "@/components/ui/squishy-pricing";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
 import { ParticleCanvas } from "@/components/ui/particle-canvas";
+import { HeroCta } from "@/components/marketing/hero-cta";
 import {
   Search,
   BarChart3,
@@ -80,25 +81,7 @@ export default async function LandingPage() {
               />
             </div>
 
-            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" className="h-13 rounded-xl px-8 text-base font-semibold shadow-lg shadow-primary/25" asChild>
-                <Link href="/login">
-                  Start Free
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-13 rounded-xl px-8 text-base font-semibold"
-                asChild
-              >
-                <Link href="#how-it-works">
-                  How it works
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
+            <HeroCta />
           </div>
 
           {/* Engine Marquee */}
