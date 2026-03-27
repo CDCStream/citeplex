@@ -69,14 +69,14 @@ export function ParticleCanvas({ className = "" }: ParticleCanvasProps) {
 
     function init() {
       particles = [];
-      const numberOfParticles = (canvas!.height * canvas!.width) / 12000;
+      const numberOfParticles = (canvas!.height * canvas!.width) / 6000;
       for (let i = 0; i < numberOfParticles; i++) {
         const size = Math.random() * 1.5 + 0.5;
         const x = Math.random() * (canvas!.width - size * 4) + size * 2;
         const y = Math.random() * (canvas!.height - size * 4) + size * 2;
         const directionX = Math.random() * 0.3 - 0.15;
         const directionY = Math.random() * 0.3 - 0.15;
-        const color = `rgba(59, 130, 246, ${Math.random() * 0.4 + 0.2})`;
+        const color = `rgba(59, 130, 246, ${Math.random() * 0.5 + 0.3})`;
         particles.push(new Particle(x, y, directionX, directionY, size, color));
       }
     }
@@ -96,7 +96,7 @@ export function ParticleCanvas({ className = "" }: ParticleCanvasProps) {
           const dy = particles[a].y - particles[b].y;
           const distance = dx * dx + dy * dy;
 
-          if (distance < (canvas!.width / 8) * (canvas!.height / 8)) {
+          if (distance < (canvas!.width / 6) * (canvas!.height / 6)) {
             const opacity = 1 - distance / 20000;
 
             if (mouse.x !== null && mouse.y !== null) {
