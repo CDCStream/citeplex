@@ -62,6 +62,7 @@ export async function createPrompt(domainId: string, formData: FormData) {
   logActivity({ userId: user.id, action: "prompt.create", resourceType: "prompt", resourceId: prompt.id, metadata: { text: prompt.text, domain_id: domainId } });
 
   revalidatePath(`/dashboard/${domainId}/prompts`);
+  revalidatePath(`/dashboard/${domainId}/ai-visibility`);
 
   runSinglePromptScan(domainId, prompt.id).catch((err) => {
     console.error("Auto-scan for new prompt failed:", err);
@@ -91,6 +92,7 @@ export async function deletePrompt(promptId: string, domainId: string) {
   logActivity({ userId: user.id, action: "prompt.delete", resourceType: "prompt", resourceId: promptId, metadata: { text: prompt.text, domain_id: domainId } });
 
   revalidatePath(`/dashboard/${domainId}/prompts`);
+  revalidatePath(`/dashboard/${domainId}/ai-visibility`);
 }
 
 export async function togglePrompt(promptId: string, domainId: string) {
@@ -119,4 +121,5 @@ export async function togglePrompt(promptId: string, domainId: string) {
   logActivity({ userId: user.id, action: "prompt.toggle", resourceType: "prompt", resourceId: promptId, metadata: { is_active: !prompt.is_active, domain_id: domainId } });
 
   revalidatePath(`/dashboard/${domainId}/prompts`);
+  revalidatePath(`/dashboard/${domainId}/ai-visibility`);
 }

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { after } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { runDomainScan } from "@/lib/scan/scan-service";
 import { logActivity } from "@/lib/activity-logger";
-
-export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { url, brandName, description, industry, prompts, competitors, primaryCountry, targetCountries } = await req.json();
+    const { url, brandName, description, industry, competitors, primaryCountry, targetCountries } = await req.json();
 
     if (!url || !brandName) {
       return NextResponse.json({ error: "URL and brand name are required" }, { status: 400 });
@@ -39,19 +35,6 @@ export async function POST(req: NextRequest) {
       throw domainError || new Error("Failed to create domain");
     }
 
-    if (prompts?.length > 0) {
-      const promptRows = prompts.map((p: { text: string; category?: string; language?: string; country?: string }) => ({
-        domain_id: domain.id,
-        text: p.text,
-        category: p.category || null,
-        language: p.language || null,
-        country: p.country || null,
-        is_active: true,
-      }));
-
-      await supabaseAdmin.from("prompts").insert(promptRows);
-    }
-
     if (competitors?.length > 0) {
       const competitorRows = competitors.map((c: { brandName: string; url: string }) => ({
         domain_id: domain.id,
@@ -62,21 +45,9 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from("competitors").insert(competitorRows);
     }
 
-    logActivity({ userId: user.id, action: "onboarding.complete", resourceType: "domain", resourceId: domain.id, metadata: { brand_name: brandName, url, prompts: prompts?.length ?? 0, competitors: competitors?.length ?? 0 } });
+    logActivity({ userId: user.id, action: "onboarding.complete", resourceType: "domain", resourceId: domain.id, metadata: { brand_name: brandName, url, competitors: competitors?.length ?? 0 } });
 
-    /**
-     * Fire-and-forget scans are frozen/killed on Vercel once the HTTP response is sent.
-     * `after()` keeps this work tied to the invocation until the scan finishes (within maxDuration).
-     */
-    after(async () => {
-      try {
-        await runDomainScan(domain.id);
-      } catch (err) {
-        console.error("Initial scan error:", err);
-      }
-    });
-
-    return NextResponse.json({ domainId: domain.id, scanning: true });
+    return NextResponse.json({ domainId: domain.id });
   } catch (err) {
     console.error("Onboarding complete error:", err);
     return NextResponse.json(

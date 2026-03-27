@@ -7,6 +7,15 @@ export const PLAN_LIMITS: Record<string, number> = {
   enterprise: 250,
 };
 
+export const ARTICLE_LIMITS: Record<string, number> = {
+  free: 1,
+  starter: 5,
+  growth: 15,
+  pro: 30,
+  business: 60,
+  enterprise: 150,
+};
+
 export const PLAN_PRODUCT_IDS: Record<string, string> = {
   starter: "8c1cef75-3105-4d35-8325-9386b6a9810a",
   growth: "c6fed737-e41c-4cee-9178-48db10b459ec",
@@ -39,6 +48,10 @@ export const PLAN_LABELS: Record<string, string> = {
 
 export function getPromptLimit(plan: string): number {
   return PLAN_LIMITS[plan] ?? 3;
+}
+
+export function getArticleLimit(plan: string): number {
+  return ARTICLE_LIMITS[plan] ?? 1;
 }
 
 export function getPlanByProductId(productId: string): string {

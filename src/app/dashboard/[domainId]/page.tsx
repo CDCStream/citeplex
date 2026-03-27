@@ -4,7 +4,8 @@ import { getAuthUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Clock, Eye, ArrowRight } from "lucide-react";
 import { getDomainStats } from "@/lib/scan/get-domain-stats";
 import { Favicon } from "@/components/ui/favicon";
 import { VisibilityScoreCard } from "@/components/dashboard/visibility-score-card";
@@ -14,6 +15,7 @@ import { PromptEngineMatrix } from "@/components/dashboard/prompt-engine-matrix"
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { ScanStatusBanner } from "@/components/dashboard/scan-status-banner";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
+import Link from "next/link";
 
 async function DomainDashboardContent({ domainId }: { domainId: string }) {
   const user = await getAuthUser();
@@ -83,11 +85,20 @@ async function DomainDashboardContent({ domainId }: { domainId: string }) {
       {!hasPrompts && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Clock className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">No prompts added yet</h3>
+            <div className="rounded-2xl bg-primary/10 p-4 mb-4">
+              <Eye className="h-10 w-10 text-primary" />
+            </div>
+            <h3 className="mt-2 text-lg font-semibold">Set up AI Visibility Tracking</h3>
             <p className="mt-1 text-sm text-muted-foreground text-center max-w-md">
-              Add prompts to start scanning AI search engines for your brand mentions.
+              Choose prompts to track how AI engines mention your brand. Get daily visibility scores, sentiment analysis, and actionable insights.
             </p>
+            <Button asChild size="lg" className="mt-6">
+              <Link href={`/dashboard/${domainId}/ai-visibility`}>
+                <Eye className="mr-2 h-4 w-4" />
+                Set Up AI Visibility
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -98,7 +109,7 @@ async function DomainDashboardContent({ domainId }: { domainId: string }) {
             <Clock className="h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-semibold">No scan results yet</h3>
             <p className="mt-1 text-sm text-muted-foreground text-center max-w-md">
-              Click the &quot;Run Scan&quot; button to start scanning AI engines.
+              Your first scan will run shortly. Check back soon for results.
             </p>
           </CardContent>
         </Card>

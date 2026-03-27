@@ -11,11 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, X, Info } from "lucide-react";
+import { Check, X, Info, Pencil } from "lucide-react";
 import { countryFlag } from "@/lib/constants/countries";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { motion } from "framer-motion";
 import { InsightModal } from "./insight-modal";
+import Link from "next/link";
 
 const ENGINE_LABELS: Record<string, string> = {
   chatgpt: "ChatGPT",
@@ -54,7 +55,7 @@ function getMentionBadge(rate: number) {
   return "bg-secondary text-secondary-foreground";
 }
 
-export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
+export function PromptEngineMatrix({ rows, domainId }: { rows: PromptResult[]; domainId?: string }) {
   if (rows.length === 0) return null;
 
   const ALL_ENGINES = ["chatgpt", "perplexity", "gemini", "claude", "deepseek", "grok", "mistral"];
@@ -137,6 +138,7 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
                       </div>
                     </TableHead>
                   ))}
+                  {domainId && <TableHead className="w-[40px]"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -221,6 +223,20 @@ export function PromptEngineMatrix({ rows }: { rows: PromptResult[] }) {
                         </TableCell>
                       );
                     })}
+                    {domainId && row.mentionRate < 50 && (
+                      <TableCell className="text-center">
+                        <Link
+                          href={`/dashboard/${domainId}/content/write?title=${encodeURIComponent(`How to rank for: ${row.promptText}`)}&keyword=${encodeURIComponent(row.promptText)}`}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+                          title="Write article to improve visibility"
+                        >
+                          <Pencil className="h-3 w-3 text-primary" />
+                        </Link>
+                      </TableCell>
+                    )}
+                    {domainId && row.mentionRate >= 50 && (
+                      <TableCell />
+                    )}
                   </motion.tr>
                 ))}
               </TableBody>

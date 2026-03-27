@@ -218,6 +218,89 @@ create table if not exists public.scan_insights (
 );
 create index if not exists idx_scan_insights_domain on public.scan_insights(domain_id);
 
+-- ============================================================
+-- Content Platform tables
+-- ============================================================
+
+-- Cached Ahrefs keyword data per prompt
+create table if not exists public.keyword_metrics (
+  id uuid primary key default gen_random_uuid(),
+  prompt_id uuid not null references public.prompts(id) on delete cascade,
+  keyword text not null,
+  country text not null default 'us',
+  volume integer,
+  difficulty integer,
+  cpc integer,
+  traffic_potential integer,
+  global_volume integer,
+  parent_topic text,
+  fetched_at timestamptz not null default now(),
+  unique(prompt_id, keyword, country)
+);
+create index if not exists idx_keyword_metrics_prompt on public.keyword_metrics(prompt_id);
+
+-- Monthly content calendar entries
+create table if not exists public.content_plans (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  title text not null,
+  keyword text,
+  article_type text check (article_type in ('guide', 'how-to', 'listicle', 'comparison', 'explainer', 'round-up')),
+  scheduled_date date not null,
+  status text not null default 'planned' check (status in ('planned', 'writing', 'review', 'published')),
+  article_id uuid,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_content_plans_domain on public.content_plans(domain_id);
+create index if not exists idx_content_plans_date on public.content_plans(domain_id, scheduled_date);
+
+-- AI-generated articles
+create table if not exists public.articles (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  content_plan_id uuid references public.content_plans(id) on delete set null,
+  title text not null,
+  slug text not null,
+  meta_description text,
+  cover_image text,
+  content text,
+  word_count integer not null default 0,
+  target_keyword text,
+  secondary_keywords text[] not null default '{}',
+  tags text[] not null default '{}',
+  outline jsonb not null default '[]',
+  research_data jsonb not null default '{}',
+  faq jsonb not null default '[]',
+  seo_score integer,
+  status text not null default 'draft' check (status in ('draft', 'review', 'approved', 'published')),
+  published_at timestamptz,
+  published_to jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists idx_articles_domain on public.articles(domain_id);
+create index if not exists idx_articles_status on public.articles(domain_id, status);
+
+-- FK from content_plans.article_id -> articles.id (deferred to avoid circular dependency)
+alter table public.content_plans
+  add constraint fk_content_plans_article
+  foreign key (article_id) references public.articles(id) on delete set null;
+
+-- Publishing integrations (connected platforms per domain)
+create table if not exists public.publish_integrations (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null references public.domains(id) on delete cascade,
+  platform text not null check (platform in (
+    'wordpress', 'notion', 'webflow', 'shopify', 'wix',
+    'ghost', 'framer', 'feather', 'webhook', 'citeplex'
+  )),
+  config jsonb not null default '{}',
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique(domain_id, platform)
+);
+create index if not exists idx_publish_integrations_domain on public.publish_integrations(domain_id);
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'free')

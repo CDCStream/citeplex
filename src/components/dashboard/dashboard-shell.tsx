@@ -26,6 +26,8 @@ import {
   MessageSquare,
   Loader2,
   CreditCard,
+  Eye,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -42,11 +44,38 @@ const navItems = [
   { label: "Domains", href: "/dashboard/domains", icon: Globe },
 ];
 
-function getDomainNavItems(domainId: string) {
+interface NavSection {
+  title?: string;
+  items: { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[];
+}
+
+function getDomainNavSections(domainId: string): NavSection[] {
   return [
-    { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
-    { label: "Prompts", href: `/dashboard/${domainId}/prompts`, icon: MessageSquare },
-    { label: "Competitors", href: `/dashboard/${domainId}/competitors`, icon: Users },
+    {
+      items: [
+        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "AI Visibility",
+      items: [
+        { label: "Overview", href: `/dashboard/${domainId}/ai-visibility`, icon: Eye },
+        { label: "Prompts", href: `/dashboard/${domainId}/prompts`, icon: MessageSquare },
+        { label: "Competitor Gaps", href: `/dashboard/${domainId}/ai-visibility/gaps`, icon: Globe },
+      ],
+    },
+    {
+      title: "Content",
+      items: [
+        { label: "Planner", href: `/dashboard/${domainId}/content`, icon: FileText },
+        { label: "Write Article", href: `/dashboard/${domainId}/content/write`, icon: FileText },
+      ],
+    },
+    {
+      items: [
+        { label: "Competitors", href: `/dashboard/${domainId}/competitors`, icon: Users },
+      ],
+    },
   ];
 }
 
@@ -120,25 +149,35 @@ function SidebarContent({
 
         {isDomainPage && (
           <>
-            <Separator className="my-3" />
-            {getDomainNavItems(activeDomainId).map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors pl-6",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            {getDomainNavSections(activeDomainId).map((section, si) => (
+              <div key={si}>
+                <Separator className="my-3" />
+                {section.title && (
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                    {section.title}
+                  </p>
+                )}
+                {section.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        section.title ? "pl-6" : "pl-6",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </>
         )}
 
