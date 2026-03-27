@@ -10,18 +10,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: "/tools",
-        destination: "https://seo-tools-container.onrender.com/",
-      },
-      {
-        source: "/tools/:path*",
-        destination: "https://seo-tools-container.onrender.com/:path*",
-      },
-    ];
-  },
 };
 
 export default nextConfig;
