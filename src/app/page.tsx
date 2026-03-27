@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { SquishyPricing } from "@/components/ui/squishy-pricing";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
+import { ParticleCanvas } from "@/components/ui/particle-canvas";
 import {
   Search,
   BarChart3,
@@ -32,6 +33,7 @@ export default async function LandingPage() {
 
       {/* Hero */}
       <section className="relative">
+        <ParticleCanvas className="pointer-events-auto" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
         <div className="absolute top-20 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute top-40 right-1/4 h-56 w-56 rounded-full bg-blue-400/5 blur-3xl" />
@@ -50,7 +52,16 @@ export default async function LandingPage() {
             >
               Boost your SEO, AEO & GEO —{" "}
               <br className="hidden sm:inline" />
-              all from one platform
+              <span
+                style={{
+                  background: "linear-gradient(to bottom, #3b82f6, #2563eb, rgba(37, 99, 235, 0.6))",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                all from one platform
+              </span>
             </h1>
 
             <p className={`${poppins.className} mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl`}>
