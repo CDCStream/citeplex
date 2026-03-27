@@ -17,9 +17,9 @@ const ahrefsKey = process.env.NEXT_PUBLIC_AHREFS_WEB_ANALYTICS_KEY?.trim();
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  title: "Citeplex — AI Search Visibility · 7 Engines · Daily Tracking · Half the Price",
+  title: "Citeplex — Boost your SEO, AEO & GEO from one platform",
   description:
-    "Track your brand visibility across ChatGPT, Perplexity, Gemini & Claude. Get actionable recommendations to improve your AI search presence.",
+    "Monitor AI engines, find competitor gaps, write SEO-optimized articles with AI, and publish automatically. Track your brand across ChatGPT, Gemini, Claude, Perplexity & more.",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",

@@ -10,12 +10,20 @@ export function GET() {
 
   const body = `# Citeplex
 
-> Citeplex is a B2B SaaS for **AI search visibility** (AEO / GEO): track how your brand appears across major AI assistants and answer engines, get recommendations, and run daily scans — at about half the cost of typical alternatives.
+> Citeplex is an all-in-one **SEO, AEO & GEO platform**. Monitor your brand visibility across 7 AI engines (ChatGPT, Gemini, Claude, Perplexity and more), discover competitor content gaps, write AI-powered articles with built-in SEO optimization, and publish automatically to WordPress, Ghost, Notion, Webflow, Shopify and other platforms.
 
 ## Product
 - **Name:** Citeplex
 - **Site:** ${base}
-- **Category:** AI visibility analytics, brand monitoring, generative engine optimization
+- **Category:** SEO platform, AI visibility analytics (AEO/GEO), AI content writer, multi-platform publishing
+
+## Key features
+- **AI Visibility Tracking:** Monitor how AI engines mention your brand with sentiment analysis and actionable insights.
+- **Competitor Gap Analysis:** Find prompts where competitors are mentioned but you are not, and close the gap.
+- **Keyword Research:** Ahrefs-powered keyword volume and difficulty metrics for each prompt.
+- **AI Article Writer:** Research-backed article generation with cover images, internal/external links, FAQ schema, and SEO scoring.
+- **Content Planner:** Monthly calendar to plan and schedule articles.
+- **Multi-platform Publishing:** One-click publish to WordPress, Ghost, Notion, Webflow, Shopify, Wix, Framer, Feather, and API webhooks.
 
 ## Primary pages
 - Home: ${base}/
@@ -26,7 +34,7 @@ export function GET() {
 
 ## Crawling & use
 - **Public content** (marketing, blog, legal) may be summarized or cited with attribution.
-- **Do not** scrape or train on authenticated areas: \`/dashboard\`, \`/api\`, \`/settings\`, \`/onboarding\`, \`/checkout\`, \`/auth\`.
+- **Do not** scrape or train on authenticated areas: \`/dashboard\`, \`/api\`, \`/settings\`, \`/onboarding\`, \`/checkout\`, \`/auth\`, \`/admin\`.
 - **Robots:** ${base}/robots.txt
 - **Sitemap:** ${base}/sitemap.xml
 

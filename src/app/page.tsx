@@ -102,7 +102,10 @@ export default async function LandingPage() {
           </div>
 
           {/* Engine Marquee */}
-          <div className="relative mt-20 overflow-hidden">
+          <p className="mt-20 mb-4 text-center text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Supported 7 AI Engines
+          </p>
+          <div className="relative overflow-hidden">
             <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-linear-to-r from-background to-transparent" />
             <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-linear-to-l from-background to-transparent" />
             <div className="flex animate-marquee gap-4">

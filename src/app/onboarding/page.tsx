@@ -693,7 +693,7 @@ export default function OnboardingPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Citeplex — AI Search Visibility · 7 Engines · Daily Tracking · Half the Price
+          Citeplex — Boost your SEO, AEO & GEO from one platform
         </p>
       </div>
     </div>
