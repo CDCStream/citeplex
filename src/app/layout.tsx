@@ -55,9 +55,9 @@ export default function RootLayout({
         <Script
           src="https://seo-fixer.writesonic.com/site-audit/fixer-script/index.js"
           id="wsAiSeoMb"
-          strategy="afterInteractive"
+          strategy="beforeInteractive"
         />
-        <Script id="wsAiSeoInitScript" strategy="afterInteractive">
+        <Script id="wsAiSeoInitScript" strategy="beforeInteractive">
           {`wsSEOfixer.configure({
             hostURL: 'https://seo-fixer.writesonic.com',
             siteID: '69c695c155b8ec7751502a36'
