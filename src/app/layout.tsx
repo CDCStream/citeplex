@@ -36,6 +36,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          src="https://seo-fixer.writesonic.com/site-audit/fixer-script/index.js"
+          id="wsAiSeoMb"
+          type="application/javascript"
+        />
+        <script
+          id="wsAiSeoInitScript"
+          dangerouslySetInnerHTML={{
+            __html: `wsSEOfixer.configure({hostURL:'https://seo-fixer.writesonic.com',siteID:'69c695c155b8ec7751502a36'});`,
+          }}
+        />
+      </head>
       <body className={`${jakarta.className} antialiased`}>
         {ahrefsKey ? (
           <Script
@@ -52,17 +65,6 @@ export default function RootLayout({
         </Suspense>
         {children}
         <CookieConsent />
-        <Script
-          src="https://seo-fixer.writesonic.com/site-audit/fixer-script/index.js"
-          id="wsAiSeoMb"
-          strategy="beforeInteractive"
-        />
-        <Script id="wsAiSeoInitScript" strategy="beforeInteractive">
-          {`wsSEOfixer.configure({
-            hostURL: 'https://seo-fixer.writesonic.com',
-            siteID: '69c695c155b8ec7751502a36'
-          });`}
-        </Script>
       </body>
     </html>
   );
