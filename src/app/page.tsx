@@ -33,15 +33,16 @@ export default async function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-24 lg:pt-20">
           <div className="mx-auto max-w-4xl text-center">
             <h1 className="text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">
-              Track brand performance on AI platforms via{" "}
+              Monitor your brand across AI platforms —{" "}
               <span className="bg-linear-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent">
-                Visibility and Position
+                Visibility, Sentiment & Insights
               </span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              AI engines are the new search. Track how ChatGPT, Gemini, Claude
-              and 4 more talk about your brand — and shape the conversation.
+              See where ChatGPT, Gemini, Claude and 4 more mention your brand,
+              how they feel about it, and get AI-powered insights to improve
+              your ranking.
             </p>
 
             <div className="mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
