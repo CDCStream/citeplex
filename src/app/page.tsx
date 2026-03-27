@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Poppins } from "next/font/google";
 import { getAuthUser } from "@/lib/auth";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,11 @@ import {
   Target,
 } from "lucide-react";
 
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export default async function LandingPage() {
   const user = await getAuthUser();
 
@@ -32,16 +38,24 @@ export default async function LandingPage() {
 
         <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-24 lg:pt-20">
           <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">
+            <h1
+              className={`${poppins.className} text-4xl font-semibold leading-[1.15] sm:text-5xl lg:text-6xl`}
+              style={{
+                background: "linear-gradient(to bottom, #111111, #111111, rgba(17, 17, 17, 0.5))",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "-0.05em",
+              }}
+            >
               Boost your SEO, AEO & GEO —{" "}
-              <span className="bg-linear-to-r from-primary via-blue-500 to-indigo-500 bg-clip-text text-transparent">
-                all from one platform
-              </span>
+              <br className="hidden sm:inline" />
+              all from one platform
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+            <p className={`${poppins.className} mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl`}>
               Monitor AI engines, find where competitors outrank you,
-              write targeted content, and publish automatically.
+              write targeted content and publish automatically.
             </p>
 
             <div className="mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
