@@ -16,6 +16,7 @@ import {
   LogIn,
   ArrowLeft,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 interface BlogPost {
@@ -62,6 +63,43 @@ export default function AdminBlogPage() {
       .replace(/[\s_-]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 120);
+
+  const extractFromHtml = (html: string) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    const h1 = doc.querySelector("h1");
+    const extractedTitle = h1?.textContent?.trim() ?? "";
+
+    const firstP = doc.querySelector("p");
+    const extractedDesc = firstP?.textContent?.trim().slice(0, 280) ?? "";
+
+    const firstImg = doc.querySelector("img");
+    const extractedImage = firstImg?.getAttribute("src") ?? "";
+
+    const headings = doc.querySelectorAll("h2, h3");
+    const extractedTags: string[] = [];
+    headings.forEach((el) => {
+      const text = el.textContent?.trim();
+      if (text && text.length > 3 && text.length < 50) {
+        const words = text.toLowerCase().split(/\s+/).slice(0, 3).join(" ");
+        if (!extractedTags.includes(words)) extractedTags.push(words);
+      }
+    });
+
+    if (extractedTitle && !title) {
+      setTitle(extractedTitle);
+      if (!editSlug) setSlug(slugify(extractedTitle));
+    }
+    if (extractedDesc && !description) setDescription(extractedDesc);
+    if (extractedImage && !imageUrl) setImageUrl(extractedImage);
+    if (extractedTags.length > 0 && !tags) setTags(extractedTags.slice(0, 5).join(", "));
+  };
+
+  const handleHtmlChange = (value: string) => {
+    setHtmlContent(value);
+    if (value.length > 50 && !title) extractFromHtml(value);
+  };
 
   const handleLogin = () => {
     if (!secret.trim()) {
@@ -308,11 +346,31 @@ export default function AdminBlogPage() {
             </div>
 
             <div>
-              <Label htmlFor="html">HTML Content *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="html">HTML Content *</Label>
+                {htmlContent.length > 20 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setTitle("");
+                      setSlug("");
+                      setDescription("");
+                      setImageUrl("");
+                      setTags("");
+                      setTimeout(() => extractFromHtml(htmlContent), 0);
+                    }}
+                  >
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    Auto-fill from HTML
+                  </Button>
+                )}
+              </div>
               <textarea
                 id="html"
                 value={htmlContent}
-                onChange={(e) => setHtmlContent(e.target.value)}
+                onChange={(e) => handleHtmlChange(e.target.value)}
                 placeholder="Paste your HTML content from Writesonic here..."
                 className="mt-1 min-h-[400px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
