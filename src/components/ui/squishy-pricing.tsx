@@ -86,7 +86,7 @@ export function SquishyPricing({ tier, seatsLeft, productIds }: SquishyPricingPr
 
         <div className="mt-10 text-center space-y-2">
           <p className="text-sm font-medium text-primary">
-            14-day free trial on Starter plans
+            14-day free trial on Starter plans · Cancel anytime
           </p>
           <p className="text-sm text-muted-foreground">
             Every plan scans{" "}
