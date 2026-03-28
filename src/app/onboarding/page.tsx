@@ -103,6 +103,28 @@ export default function OnboardingPage() {
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
   const [newPromptText, setNewPromptText] = useState("");
   const [promptsGenerated, setPromptsGenerated] = useState(false);
+  const [promptLimit, setPromptLimit] = useState(15);
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    best: "Best Of",
+    howto: "How To",
+    comparison: "Comparison",
+    recommendation: "Recommendation",
+    problem: "Problem Solving",
+    custom: "Custom",
+  };
+
+  const selectedCount = prompts.filter((p) => p.selected).length;
+
+  const groupedPrompts = useMemo(() => {
+    const groups: Record<string, { prompt: PromptItem; index: number }[]> = {};
+    prompts.forEach((p, i) => {
+      const cat = p.category || "other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push({ prompt: p, index: i });
+    });
+    return groups;
+  }, [prompts]);
 
   const [countrySearch, setCountrySearch] = useState("");
 
@@ -274,10 +296,12 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (res.ok && data.suggestions?.length > 0) {
+        const limit = data.promptLimit || 15;
+        setPromptLimit(limit);
         setPrompts(
-          data.suggestions.map((s: { text: string; category: string; language?: string; country?: string }) => ({
+          data.suggestions.map((s: { text: string; category: string; language?: string; country?: string }, i: number) => ({
             ...s,
-            selected: true,
+            selected: i < limit,
           }))
         );
       } else {
@@ -300,9 +324,13 @@ export default function OnboardingPage() {
   }
 
   function togglePrompt(index: number) {
-    setPrompts((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p))
-    );
+    setPrompts((prev) => {
+      const target = prev[index];
+      if (!target.selected && prev.filter((p) => p.selected).length >= promptLimit) {
+        return prev;
+      }
+      return prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p));
+    });
   }
 
   function addCustomPrompt() {
@@ -319,8 +347,11 @@ export default function OnboardingPage() {
     setPrompts((prev) => prev.filter((_, i) => i !== index));
   }
 
+  const [finishPhase, setFinishPhase] = useState<"" | "saving" | "scanning" | "done">("");
+
   async function handleFinish() {
     setSaving(true);
+    setFinishPhase("saving");
     try {
       const selectedPrompts = prompts
         .filter((p) => p.selected)
@@ -347,10 +378,14 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (res.ok && data.domainId) {
-        window.location.href = `/dashboard/${data.domainId}`;
+        setFinishPhase("scanning");
+        fetch(`/api/scan/${data.domainId}`, { method: "POST" }).catch(() => {});
+        setTimeout(() => {
+          window.location.href = `/dashboard/${data.domainId}`;
+        }, 1500);
       }
     } catch {
-      // stay on page
+      setFinishPhase("");
     } finally {
       setSaving(false);
     }
@@ -795,16 +830,52 @@ export default function OnboardingPage() {
 
             {/* Step 4: AI Visibility Prompts */}
             {step === 4 && (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div className="flex items-center gap-3">
                   {url && <Favicon url={url} size={28} />}
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">AI Visibility Prompts</h1>
                     <p className="text-muted-foreground mt-0.5 text-sm">
-                      These are the prompts we&apos;ll track across 7 AI engines daily.
+                      Select the prompts we&apos;ll track across 7 AI engines daily.
                     </p>
                   </div>
                 </div>
+
+                {/* Prompt quota bar */}
+                {promptsGenerated && (
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium">
+                        {selectedCount} / {promptLimit} prompts selected
+                      </span>
+                      <div className="flex gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRegeneratePrompts}
+                          disabled={loading}
+                          className="h-7 text-xs px-2"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          selectedCount >= promptLimit ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min(100, (selectedCount / promptLimit) * 100)}%` }}
+                      />
+                    </div>
+                    {selectedCount >= promptLimit && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        Prompt limit reached. Deselect a prompt to add a new one.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {!promptsGenerated && (
                   <div className="rounded-lg border bg-muted/50 p-6 text-center">
@@ -819,83 +890,62 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
+                {/* Grouped prompts by category */}
                 {promptsGenerated && prompts.length > 0 && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        {prompts.filter((p) => p.selected).length} of {prompts.length} selected
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRegeneratePrompts}
-                          disabled={loading}
-                          className="text-xs"
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Regenerate
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const allSelected = prompts.every((p) => p.selected);
-                            setPrompts((prev) => prev.map((p) => ({ ...p, selected: !allSelected })));
-                          }}
-                          className="text-xs"
-                        >
-                          {prompts.every((p) => p.selected) ? "Deselect All" : "Select All"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
-                      {prompts.map((prompt, i) => (
-                        <div
-                          key={i}
-                          className={`flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer transition-colors ${
-                            prompt.selected
-                              ? "border-primary/30 bg-primary/5"
-                              : "border-muted bg-muted/30 opacity-60"
-                          }`}
-                          onClick={() => togglePrompt(i)}
-                        >
-                          <div
-                            className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center ${
-                              prompt.selected
-                                ? "bg-primary border-primary text-primary-foreground"
-                                : "border-muted-foreground/30"
-                            }`}
-                          >
-                            {prompt.selected && <Check className="h-3 w-3" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="leading-snug">{prompt.text}</p>
-                            <div className="flex gap-2 mt-1">
-                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                {prompt.category}
-                              </span>
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                    {Object.entries(groupedPrompts).map(([cat, items]) => (
+                      <div key={cat}>
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                          {CATEGORY_LABELS[cat] || cat}
+                          <span className="text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded-full">
+                            {items.filter((it) => it.prompt.selected).length}/{items.length}
+                          </span>
+                        </h3>
+                        <div className="space-y-1">
+                          {items.map(({ prompt, index }) => (
+                            <div
+                              key={index}
+                              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                                prompt.selected
+                                  ? "border-primary/30 bg-primary/5"
+                                  : "border-transparent bg-muted/20 opacity-50"
+                              } ${
+                                !prompt.selected && selectedCount >= promptLimit
+                                  ? "cursor-not-allowed"
+                                  : ""
+                              }`}
+                              onClick={() => togglePrompt(index)}
+                            >
+                              <div
+                                className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                                  prompt.selected
+                                    ? "bg-primary border-primary text-primary-foreground"
+                                    : "border-muted-foreground/30"
+                                }`}
+                              >
+                                {prompt.selected && <Check className="h-3 w-3" />}
+                              </div>
+                              <span className="flex-1 min-w-0 leading-snug">{prompt.text}</span>
                               {prompt.country && (
-                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-muted-foreground shrink-0">
                                   {flag(prompt.country)}
                                 </span>
                               )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removePrompt(index);
+                                }}
+                                className="text-muted-foreground/40 hover:text-destructive shrink-0"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removePrompt(i);
-                            }}
-                            className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </>
+                      </div>
+                    ))}
+                  </div>
                 )}
 
                 <div className="flex gap-2">
@@ -916,25 +966,45 @@ export default function OnboardingPage() {
                   </Button>
                 </div>
 
+                {/* Finish phase indicator */}
+                {finishPhase === "scanning" && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 p-4 flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 text-emerald-600 animate-spin shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
+                        Running your first AI visibility scan...
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                        Redirecting to dashboard in a moment.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1" disabled={!!finishPhase}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
                   <Button
                     onClick={handleFinish}
-                    disabled={saving || prompts.filter((p) => p.selected).length === 0}
+                    disabled={saving || selectedCount === 0 || !!finishPhase}
                     className="flex-1"
                   >
-                    {saving ? (
+                    {finishPhase === "saving" ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Saving...
                       </>
+                    ) : finishPhase === "scanning" ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Starting scan...
+                      </>
                     ) : (
                       <>
                         <Check className="mr-2 h-4 w-4" />
-                        Finish & Go to Dashboard
+                        Finish & Start First Scan
                       </>
                     )}
                   </Button>
