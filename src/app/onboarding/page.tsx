@@ -441,16 +441,23 @@ export default function OnboardingPage() {
 
         await new Promise((r) => setTimeout(r, 600));
 
-        // Phase 2: Keyword Planning (fire & poll for completion)
+        // Phase 2: Keyword Planning (fire & poll, with max wait)
         setFinishPhase("planning");
         fetch(`/api/content/${data.domainId}/plan-keywords`, { method: "POST" }).catch(() => {});
 
         await new Promise<void>((resolve) => {
+          const startedAt = Date.now();
+          const MAX_WAIT = 6 * 60 * 1000;
           const poll = setInterval(async () => {
+            if (Date.now() - startedAt > MAX_WAIT) {
+              clearInterval(poll);
+              resolve();
+              return;
+            }
             try {
               const kr = await fetch(`/api/content/${data.domainId}/plan-keywords`, { cache: "no-store" });
               const kd = await kr.json();
-              if (kd.status === "done" || kd.status === "none") {
+              if (kd.status === "done" || kd.status === "none" || kd.status === "error") {
                 clearInterval(poll);
                 resolve();
               }
