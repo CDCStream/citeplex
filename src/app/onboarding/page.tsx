@@ -362,7 +362,7 @@ export default function OnboardingPage() {
   const [finishPhase, setFinishPhase] = useState<"" | "saving" | "scanning" | "planning" | "done">("");
   const [scanProgress, setScanProgress] = useState(0);
   const [scanDetail, setScanDetail] = useState<{ completed: number; total: number } | null>(null);
-  const [planProgress, setPlanProgress] = useState(0);
+  const [planElapsed, setPlanElapsed] = useState(0);
   const [createdDomainId, setCreatedDomainId] = useState("");
   const [activeEngineIdx, setActiveEngineIdx] = useState(0);
 
@@ -371,6 +371,13 @@ export default function OnboardingPage() {
     const iv = setInterval(() => {
       setActiveEngineIdx((i) => (i + 1) % SCAN_ENGINES.length);
     }, 600);
+    return () => clearInterval(iv);
+  }, [finishPhase]);
+
+  useEffect(() => {
+    if (finishPhase !== "planning") return;
+    setPlanElapsed(0);
+    const iv = setInterval(() => setPlanElapsed((s) => s + 1), 1000);
     return () => clearInterval(iv);
   }, [finishPhase]);
 
@@ -434,28 +441,21 @@ export default function OnboardingPage() {
 
         await new Promise((r) => setTimeout(r, 600));
 
-        // Phase 2: Keyword Planning (fire & poll)
+        // Phase 2: Keyword Planning (fire & poll for completion)
         setFinishPhase("planning");
         fetch(`/api/content/${data.domainId}/plan-keywords`, { method: "POST" }).catch(() => {});
 
         await new Promise<void>((resolve) => {
-          let ticks = 0;
           const poll = setInterval(async () => {
-            ticks++;
             try {
               const kr = await fetch(`/api/content/${data.domainId}/plan-keywords`, { cache: "no-store" });
               const kd = await kr.json();
               if (kd.status === "done" || kd.status === "none") {
                 clearInterval(poll);
-                setPlanProgress(100);
                 resolve();
-              } else {
-                setPlanProgress(Math.min(ticks * 8, 92));
               }
-            } catch {
-              setPlanProgress(Math.min(ticks * 8, 92));
-            }
-          }, 3000);
+            } catch { /* retry */ }
+          }, 4000);
         });
 
         setFinishPhase("done");
@@ -1138,9 +1138,9 @@ export default function OnboardingPage() {
                 {/* Keyword Planning */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    {planProgress >= 100 ? (
+                    {finishPhase === "done" ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                    ) : finishPhase === "planning" || finishPhase === "done" ? (
+                    ) : finishPhase === "planning" ? (
                       <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
                     ) : (
                       <div className="h-5 w-5 rounded-full border-2 border-muted shrink-0" />
@@ -1148,21 +1148,34 @@ export default function OnboardingPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">30-Day Content Strategy</p>
                       <p className="text-xs text-muted-foreground">
-                        Analyzing competitors, Ahrefs data & backlink opportunities
+                        {finishPhase === "done"
+                          ? "Strategy ready!"
+                          : finishPhase === "planning"
+                            ? "Analyzing competitors, Ahrefs data & backlink opportunities..."
+                            : "Waiting to start"}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      {Math.round(planProgress)}%
-                    </span>
+                    {finishPhase === "planning" && (
+                      <div className="text-right shrink-0">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {Math.floor(planElapsed / 60)}:{String(planElapsed % 60).padStart(2, "0")}
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">~4-5 min</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ease-out ${
-                        planProgress >= 100 ? "bg-emerald-500" : "bg-primary"
-                      }`}
-                      style={{ width: `${Math.max(planProgress, planProgress > 0 ? 2 : 0)}%` }}
-                    />
-                  </div>
+                  {finishPhase === "planning" && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground pl-8">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      {planElapsed < 30
+                        ? "Discovering competitor keywords..."
+                        : planElapsed < 90
+                          ? "Fetching Ahrefs metrics & scoring keywords..."
+                          : planElapsed < 180
+                            ? "Generating article titles & strategy..."
+                            : "Almost done, finalizing plan..."}
+                    </div>
+                  )}
                 </div>
 
                 {finishPhase === "done" && (
