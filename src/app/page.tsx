@@ -183,7 +183,13 @@ export default async function LandingPage() {
               Features
             </p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Everything you need to dominate AI search and increase organic traffic
+              Everything you need to{" "}
+              <span className="bg-linear-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                dominate AI search
+              </span>{" "}
+              <span className="bg-linear-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
+                and increase organic traffic
+              </span>
             </h2>
           </div>
 
