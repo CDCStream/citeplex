@@ -138,28 +138,32 @@ export default async function LandingPage() {
               How it works
             </p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Three steps. Five minutes.
+              From setup to results — in minutes
             </h2>
           </div>
 
-          <div className="relative mt-16 grid gap-0 lg:grid-cols-3">
-            {/* Connecting line */}
-            <div className="absolute top-10 left-[16.67%] right-[16.67%] hidden h-0.5 bg-linear-to-r from-primary/20 via-primary to-primary/20 lg:block" />
+          <div className="relative mt-16 grid gap-0 lg:grid-cols-4">
+            <div className="absolute top-10 left-[12.5%] right-[12.5%] hidden h-0.5 bg-linear-to-r from-primary/20 via-primary to-primary/20 lg:block" />
 
             <TimelineStep
               step={1}
               title="Add your brand"
-              description="Type your website URL. We find your industry, suggest prompts, and detect competitors for you."
+              description="Enter your website URL. We detect your industry, analyze your brand voice, find competitors, and suggest prompts automatically."
             />
             <TimelineStep
               step={2}
-              title="We query AI engines"
-              description="We send your prompts to all 7 AI engines every day. Then we check each response for your brand."
+              title="We scan AI engines"
+              description="Every day, we query all 7 AI engines with your prompts and analyze each response — mentions, rank, sentiment, and insights."
             />
             <TimelineStep
               step={3}
-              title="Track & improve"
-              description="See your score, daily trends, and competitor gaps. Get clear tips to grow your presence."
+              title="We write & publish"
+              description="AI-powered articles with Ahrefs keyword research, your brand voice, AI images, YouTube videos, and FAQ schema — published automatically."
+            />
+            <TimelineStep
+              step={4}
+              title="Grow & dominate"
+              description="Track your visibility trends, close competitor gaps with targeted articles, build high DR backlinks, and get mentioned by AI engines."
             />
           </div>
         </div>
