@@ -131,13 +131,18 @@ function PricingCard({
   ];
 
   const extras = [
-    "Daily scans across 7 engines",
-    "Ahrefs keyword research",
-    "AI images in every article",
-    "YouTube videos in articles",
+    "Daily scans across 7 AI engines",
+    "Brand mention & position tracking",
+    "AI Insight Engine (why you rank)",
+    "Sentiment analysis (pos/neg/neutral)",
+    "Competitor comparison reports",
+    "Ahrefs keyword research per article",
+    "AI images in every article (DALL-E 3)",
+    "YouTube videos embedded in articles",
+    "FAQ + JSON-LD schema in articles",
     "High DR backlink exchange",
+    "AI visibility gap articles",
     "150+ language support",
-    "Sentiment analysis & insights",
     "Multi-platform publishing",
     "SEO scoring & optimization",
     "14-day free trial",
