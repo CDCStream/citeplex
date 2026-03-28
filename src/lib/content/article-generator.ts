@@ -47,6 +47,8 @@ export interface ResearchData {
   suggestedImages: string[];
   internalLinkSuggestions: string[];
   externalSources: string[];
+  backlinkAngles: string[];
+  statistics: string[];
 }
 
 export async function researchTopic(
@@ -63,7 +65,9 @@ export async function researchTopic(
   "relatedTopics": ["5-8 related topics for internal linking"],
   "suggestedImages": ["3-5 suggested image descriptions"],
   "internalLinkSuggestions": ["3-5 internal link anchor text ideas"],
-  "externalSources": ["3-5 authoritative external sources to cite"]
+  "externalSources": ["3-5 authoritative external sources to cite"],
+  "backlinkAngles": ["3-5 unique data points, frameworks, or original insights that would make other sites want to link to this article"],
+  "statistics": ["3-5 relevant industry statistics with source attribution to include in the article"]
 }
 All content must be in ${language}.`;
 
@@ -92,6 +96,8 @@ function defaultResearch(): ResearchData {
     suggestedImages: [],
     internalLinkSuggestions: [],
     externalSources: [],
+    backlinkAngles: [],
+    statistics: [],
   };
 }
 
@@ -179,6 +185,13 @@ Requirements:
 - Include a FAQ section at the end with proper HTML structure
 - Write engaging, informative content optimized for both humans and AI search engines
 - Maintain a coherent narrative throughout — every section must logically connect to the previous one and the overall topic. Do not drift off-topic or repeat the same points
+- BACKLINK OPTIMIZATION — write content that other sites will want to link to:
+  * Include original statistics, data points, or unique insights that others can cite
+  * Create definitive, comprehensive sections that serve as single-source references
+  * Add quotable statements and key takeaways that bloggers and journalists would reference
+  * Build "linkable assets" within the article: comparison tables, step-by-step frameworks, checklists, or original definitions
+  * Use the skyscraper approach: cover the topic more thoroughly than any existing article
+  * Include expert-level analysis that demonstrates E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
 - Do NOT include the <h1> title tag - it will be added separately
 - Do NOT include any markdown - use only HTML
 
@@ -191,12 +204,14 @@ Keyword Data (Ahrefs): ${keywordContext || "N/A"}
 Brand: ${brandName} (${brandUrl})
 External Sources: ${research.externalSources.join(", ")}
 Image Suggestions: ${research.suggestedImages.join(", ")}
+Backlink Angles: ${(research.backlinkAngles || []).join("; ") || "N/A"}
+Statistics to Include: ${(research.statistics || []).join("; ") || "N/A"}
 Language: ${language}
 
 Outline:
 ${outlineText}
 
-Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level.`;
+Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level. Incorporate the backlink angles and statistics to make this article a link-worthy reference.`;
 
   const text = await chatAnthropic(systemPrompt, userPrompt, 0.7, 8192);
 
