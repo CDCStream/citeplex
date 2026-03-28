@@ -150,7 +150,8 @@ export async function writeArticle(
   brandUrl: string,
   wordCount: number,
   language = "English",
-  keywordContext = ""
+  keywordContext = "",
+  brandVoiceInstruction = ""
 ): Promise<GeneratedArticle> {
   const outlineText = outline
     .map(
@@ -159,9 +160,13 @@ export async function writeArticle(
     )
     .join("\n\n");
 
+  const voiceBlock = brandVoiceInstruction
+    ? `\n\n${brandVoiceInstruction}\nIMPORTANT: Match the brand voice described above throughout the entire article.\n`
+    : "";
+
   const systemPrompt = `You are an expert SEO content writer. Write a complete article in HTML format.
 IMPORTANT: Write the ENTIRE article in ${language}. Every sentence, heading, and paragraph must be in ${language}.
-
+${voiceBlock}
 Requirements:
 - Follow the provided outline structure exactly
 - Target approximately ${wordCount} words

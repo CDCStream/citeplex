@@ -22,35 +22,63 @@ export default async function PricingPage() {
           <h3 className="text-center text-2xl font-bold mb-10">
             Every plan includes
           </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              "Daily scans across 7 AI engines",
-              "Brand mention & position tracking",
-              "AI Insight Engine — why you rank (or don't)",
-              "Sentiment analysis (positive / negative / neutral)",
-              "Competitor comparison reports",
-              "Claude Opus 4.6 article writing",
-              "Ahrefs keyword research before every article",
-              "AI images generated for every article (DALL-E 3)",
-              "YouTube videos embedded in articles",
-              "FAQ section + JSON-LD schema in every article",
-              "High DR backlink exchange",
-              "AI visibility gap articles — get mentioned where you're missing",
-              "Articles in 150+ languages",
-              "Multi-platform publishing (WordPress, Webflow, Shopify & more)",
-              "SEO scoring & optimization",
-              "14-day free trial — no credit card required",
-            ].map((feature) => (
-              <div
-                key={feature}
-                className="flex items-start gap-3 rounded-xl border bg-card p-4"
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Check className="h-3 w-3 text-primary" />
-                </div>
-                <span className="text-sm font-medium">{feature}</span>
+          <div className="space-y-10">
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                AI Visibility & Gap Articles
+              </h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  "Daily scans across 7 AI engines",
+                  "Brand mention & position tracking",
+                  "AI Insight Engine — why you rank (or don't)",
+                  "Sentiment analysis (positive / negative / neutral)",
+                  "Competitor comparison reports",
+                  "AI visibility gap articles — get mentioned where you're missing",
+                ].map((feature) => (
+                  <div
+                    key={feature}
+                    className="flex items-start gap-3 rounded-xl border bg-card p-4"
+                  >
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                    <span className="text-sm font-medium">{feature}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">
+                Article & Content
+              </h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  "Claude Opus 4.6 article writing",
+                  "Brand voice matching — writes in your style",
+                  "Ahrefs keyword research before every article",
+                  "AI images generated for every article",
+                  "YouTube videos embedded in articles",
+                  "FAQ section + JSON-LD schema in every article",
+                  "High DR backlink exchange",
+                  "Articles in 150+ languages",
+                  "Multi-platform publishing (WordPress, Webflow, Shopify & more)",
+                  "SEO scoring & optimization",
+                  "14-day free trial — no credit card required",
+                ].map((feature) => (
+                  <div
+                    key={feature}
+                    className="flex items-start gap-3 rounded-xl border bg-card p-4"
+                  >
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                    <span className="text-sm font-medium">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -65,7 +93,7 @@ export default async function PricingPage() {
             {[
               {
                 q: "What is included in each plan?",
-                a: "Every plan is an all-in-one bundle: AI Visibility tracking across 7 engines, scheduled article writing (Claude Opus 4.6), AI-generated images (DALL-E 3), YouTube video embeds, Ahrefs keyword research, high DR backlink exchange, 150+ language support, and multi-platform publishing. Plans differ in volume.",
+                a: "Every plan is an all-in-one bundle: AI Visibility tracking across 7 engines, scheduled article writing (Claude Opus 4.6) with brand voice matching, AI-generated images (DALL-E 3), YouTube video embeds, Ahrefs keyword research, high DR backlink exchange, 150+ language support, and multi-platform publishing. Plans differ in volume.",
               },
               {
                 q: "Is there a free trial?",

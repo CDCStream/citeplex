@@ -1,0 +1,121 @@
+export interface BrandVoiceProfile {
+  tone: string;
+  style: string;
+  vocabulary: string;
+  sentenceStructure: string;
+  personality: string;
+  doList: string[];
+  dontList: string[];
+  sampleExcerpt: string;
+}
+
+function getAnthropicKey(): string {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
+  return key;
+}
+
+export async function analyzeBrandVoice(
+  sampleTexts: string[]
+): Promise<BrandVoiceProfile> {
+  const combined = sampleTexts
+    .map((t, i) => `--- Sample ${i + 1} ---\n${t.slice(0, 3000)}`)
+    .join("\n\n");
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": getAnthropicKey(),
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1500,
+      temperature: 0.3,
+      system: `You are a writing style analyst. Analyze the provided content samples and extract a detailed brand voice profile.
+Return ONLY valid JSON with this structure:
+{
+  "tone": "description of the overall tone (e.g. professional yet approachable, casual and witty, authoritative and formal)",
+  "style": "writing style characteristics (e.g. uses short paragraphs, heavy on lists, storytelling approach)",
+  "vocabulary": "vocabulary level and preferences (e.g. simple everyday language, technical jargon, mix of both)",
+  "sentenceStructure": "typical sentence patterns (e.g. short punchy sentences, long detailed explanations, varied mix)",
+  "personality": "brand personality that comes through (e.g. helpful expert, friendly mentor, no-nonsense professional)",
+  "doList": ["5-7 specific things this brand does in their writing"],
+  "dontList": ["5-7 things this brand avoids in their writing"],
+  "sampleExcerpt": "a 2-3 sentence example that captures this voice perfectly"
+}`,
+      messages: [
+        {
+          role: "user",
+          content: `Analyze the writing style and brand voice from these content samples:\n\n${combined}`,
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Brand voice analysis failed: ${err}`);
+  }
+
+  const data = await res.json();
+  const text =
+    data.content
+      ?.filter((b: { type: string }) => b.type === "text")
+      .map((b: { text: string }) => b.text)
+      .join("") ?? "";
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("Failed to parse brand voice profile");
+  }
+
+  return JSON.parse(jsonMatch[0]);
+}
+
+export async function scrapePageText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; Citeplex/1.0; +https://www.citeplex.io)",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) return "";
+
+    const html = await res.text();
+
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const body = bodyMatch ? bodyMatch[1] : html;
+
+    return body
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 5000);
+  } catch {
+    return "";
+  }
+}
+
+export function buildVoiceInstruction(profile: BrandVoiceProfile): string {
+  return `## Brand Voice Guidelines
+Match this exact writing style:
+- Tone: ${profile.tone}
+- Style: ${profile.style}
+- Vocabulary: ${profile.vocabulary}
+- Sentences: ${profile.sentenceStructure}
+- Personality: ${profile.personality}
+- DO: ${profile.doList.join("; ")}
+- DON'T: ${profile.dontList.join("; ")}
+- Voice example: "${profile.sampleExcerpt}"`;
+}

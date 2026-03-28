@@ -27,6 +27,7 @@ create table if not exists public.domains (
   scan_status text not null default 'idle',
   first_scan_done boolean not null default false,
   last_scan_started_at timestamptz,
+  brand_voice jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

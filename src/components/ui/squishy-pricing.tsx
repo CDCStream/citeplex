@@ -125,23 +125,27 @@ function PricingCard({
   };
 
   const features = [
-    { icon: Target, text: `${prompts} AI Visibility prompts` },
+    { icon: Target, text: `${prompts} AI Visibility tracked prompts` },
     { icon: PenLine, text: `${dailyArticles} article${dailyArticles > 1 ? "s" : ""}/day (${dailyArticles * 30}/mo)` },
     { icon: Zap, text: `${gapArticles} gap articles/month` },
   ];
 
-  const extras = [
+  const visibilityFeatures = [
     "Daily scans across 7 AI engines",
     "Brand mention & position tracking",
     "AI Insight Engine (why you rank)",
     "Sentiment analysis (pos/neg/neutral)",
     "Competitor comparison reports",
+    "AI visibility gap articles",
+  ];
+
+  const articleFeatures = [
+    "Brand voice matching",
     "Ahrefs keyword research per article",
-    "AI images in every article (DALL-E 3)",
+    "AI images in every article",
     "YouTube videos embedded in articles",
     "FAQ + JSON-LD schema in articles",
     "High DR backlink exchange",
-    "AI visibility gap articles",
     "150+ language support",
     "Multi-platform publishing",
     "SEO scoring & optimization",
@@ -197,13 +201,25 @@ function PricingCard({
           ))}
         </div>
 
-        <div className="space-y-2 mb-6 flex-1">
-          {extras.map((e) => (
-            <div key={e} className="flex items-center gap-2 text-white/70">
-              <Check className="h-3.5 w-3.5 shrink-0" />
-              <span className="text-xs">{e}</span>
-            </div>
-          ))}
+        <div className="mb-6 flex-1 space-y-4">
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">AI Visibility & Gap Articles</p>
+            {visibilityFeatures.map((e) => (
+              <div key={e} className="flex items-center gap-2 text-white/70">
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-xs">{e}</span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Article & Content</p>
+            {articleFeatures.map((e) => (
+              <div key={e} className="flex items-center gap-2 text-white/70">
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-xs">{e}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <button

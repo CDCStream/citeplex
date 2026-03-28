@@ -9,6 +9,7 @@ import {
 } from "@/lib/content/article-generator";
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
 import { generateArticleImages } from "@/lib/content/image-generator";
+import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { getArticleLimit } from "@/lib/plans";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
@@ -29,7 +30,7 @@ export async function POST(
 
     const { data: domain } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country")
+      .select("id, brand_name, url, description, industry, primary_country, brand_voice")
       .eq("id", domainId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -90,7 +91,11 @@ export async function POST(
       language
     );
 
-    // Step 3: Write article (with keyword data)
+    // Step 3: Write article (with keyword data + brand voice)
+    const voiceInstruction = domain.brand_voice
+      ? buildVoiceInstruction(domain.brand_voice as BrandVoiceProfile)
+      : "";
+
     const generated = await writeArticle(
       title,
       targetKeyword,
@@ -100,7 +105,8 @@ export async function POST(
       domain.url,
       wordCount,
       language,
-      keywordContext
+      keywordContext,
+      voiceInstruction
     );
 
     // Step 4: YouTube videos & AI images (parallel)
