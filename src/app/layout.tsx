@@ -20,6 +20,20 @@ export const metadata: Metadata = {
   title: "Citeplex — Boost your SEO, AEO & GEO from one platform",
   description:
     "Monitor AI engines, find competitor gaps, write SEO-optimized articles with AI, and publish automatically. Track your brand across ChatGPT, Gemini, Claude, Perplexity & more.",
+  openGraph: {
+    siteName: "Citeplex",
+    title: "Citeplex — Boost your SEO, AEO & GEO from one platform",
+    description:
+      "Monitor AI engines, find competitor gaps, write SEO-optimized articles with AI, and publish automatically.",
+    type: "website",
+    url: getSiteUrl(),
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Citeplex — Boost your SEO, AEO & GEO from one platform",
+    description:
+      "Monitor AI engines, find competitor gaps, write SEO-optimized articles with AI, and publish automatically.",
+  },
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",

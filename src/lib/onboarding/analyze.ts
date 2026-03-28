@@ -48,47 +48,115 @@ interface ScrapedMeta {
   description: string;
   ogSiteName: string;
   ogDescription: string;
+  ogTitle: string;
   lang: string;
   headingText: string;
+  bodyText: string;
+}
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+];
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/");
+}
+
+function extractBodyText(html: string): string {
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const body = bodyMatch ? bodyMatch[1] : html;
+
+  return body
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 3000);
 }
 
 async function scrapeWebsite(url: string): Promise<ScrapedMeta> {
-  const empty: ScrapedMeta = { title: "", description: "", ogSiteName: "", ogDescription: "", lang: "", headingText: "" };
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Citeplex/1.0)" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return empty;
+  const empty: ScrapedMeta = { title: "", description: "", ogSiteName: "", ogDescription: "", ogTitle: "", lang: "", headingText: "", bodyText: "" };
 
-    const html = await res.text();
-    const head = html.slice(0, 30000);
+  for (const ua of USER_AGENTS) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": ua,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) continue;
 
-    const match = (pattern: RegExp): string => {
-      const m = head.match(pattern);
-      return m?.[1]?.trim() || "";
-    };
+      const html = await res.text();
+      if (!html || html.length < 100) continue;
 
-    const title = match(/<title[^>]*>([^<]+)<\/title>/i);
-    const description =
-      match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
-      match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
-    const ogSiteName =
-      match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) ||
-      match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
-    const ogDescription =
-      match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
-      match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
-    const lang = match(/<html[^>]*lang=["']([^"']+)["']/i);
+      const full = html.slice(0, 80000);
 
-    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-    const headingText = h1Match?.[1]?.replace(/<[^>]+>/g, "").trim().slice(0, 200) || "";
+      const match = (pattern: RegExp): string => {
+        const m = full.match(pattern);
+        return decodeHtmlEntities(m?.[1]?.trim() || "");
+      };
 
-    return { title, description: description.slice(0, 500), ogSiteName, ogDescription: ogDescription.slice(0, 500), lang, headingText };
-  } catch {
-    return empty;
+      const title = match(/<title[^>]*>([^<]+)<\/title>/i);
+      const description =
+        match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
+        match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+      const ogSiteName =
+        match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i) ||
+        match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
+      const ogDescription =
+        match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
+        match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
+      const ogTitle =
+        match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+        match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+      const lang = match(/<html[^>]*lang=["']([^"']+)["']/i);
+
+      const headings = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi) || [];
+      const headingText = headings
+        .slice(0, 3)
+        .map((h) => h.replace(/<[^>]+>/g, "").trim())
+        .filter(Boolean)
+        .join(" | ")
+        .slice(0, 300);
+
+      const bodyText = extractBodyText(html);
+
+      const result = {
+        title,
+        description: description.slice(0, 500),
+        ogSiteName,
+        ogDescription: ogDescription.slice(0, 500),
+        ogTitle,
+        lang,
+        headingText,
+        bodyText,
+      };
+
+      const hasAnything = title || description || ogSiteName || ogDescription || headingText || bodyText.length > 50;
+      if (hasAnything) return result;
+    } catch {
+      continue;
+    }
   }
+
+  return empty;
 }
 
 export interface WebsiteAnalysis {
@@ -139,41 +207,49 @@ export async function analyzeWebsite(url: string): Promise<WebsiteAnalysis> {
   const brandHint = extractBrandHint(url);
   const meta = await scrapeWebsite(url);
 
-  const hasContent = !!(meta.title || meta.description || meta.ogDescription);
+  const hasMetaTags = !!(meta.title || meta.description || meta.ogDescription || meta.ogTitle);
+  const hasBodyContent = meta.bodyText.length > 50;
+  const hasHeadings = !!meta.headingText;
 
-  if (!hasContent) {
-    return {
-      brandName: meta.ogSiteName || brandHint,
-      description: "",
-      industry: "",
-      primaryCountry: tldCountry || "US",
-    };
+  // STRATEGY 1: No content at all → use AI web search as last resort
+  if (!hasMetaTags && !hasBodyContent && !hasHeadings) {
+    return analyzeWithWebSearch(url, brandHint, tldCountry);
   }
 
-  const systemPrompt = `You extract structured brand information from website metadata. Only use the data provided — do NOT invent, guess, or hallucinate any information. Always respond with valid JSON only, no markdown.`;
+  // STRATEGY 2: Has meta tags → use them (best case)
+  // STRATEGY 3: No meta tags but has body content → use body text
+  const contentForAI = hasMetaTags
+    ? `- Page title: "${meta.title}"
+- Meta description: "${meta.description || meta.ogDescription}"
+- OG site name: "${meta.ogSiteName}"
+- OG title: "${meta.ogTitle}"
+- Page language: "${meta.lang}"
+- H1/H2 headings: "${meta.headingText}"`
+    : `- Page title: "${meta.title || "(not found)"}"
+- Page language: "${meta.lang || "(not found)"}"
+- H1/H2 headings: "${meta.headingText || "(not found)"}"
+- Page body text (first 2000 chars): "${meta.bodyText.slice(0, 2000)}"`;
+
+  const systemPrompt = `You extract structured brand information from website data. Only use the data provided — do NOT invent, guess, or hallucinate any information. Always respond with valid JSON only, no markdown.`;
   const userPrompt = `URL: ${url}
 Domain name: ${brandHint}
 
 Here is the actual data scraped from this website:
-- Page title: "${meta.title}"
-- Meta description: "${meta.description || meta.ogDescription}"
-- OG site name: "${meta.ogSiteName}"
-- Page language: "${meta.lang}"
-- H1 heading: "${meta.headingText}"
+${contentForAI}
 
 Based ONLY on the data above, return a JSON object:
 {
-  "brandName": "the brand name (use og:site_name if available, otherwise use '${brandHint}')",
-  "description": "1-2 sentence description of what they offer based on the meta description, no brand name",
+  "brandName": "the brand name (use og:site_name if available, otherwise extract from title or use '${brandHint}')",
+  "description": "1-2 sentence description of what they offer, no brand name",
   "industry": "the industry category (e.g. SaaS, E-commerce, Marketing, Developer Tools, etc.)",
   "primaryCountry": "ISO 3166-1 alpha-2 country code based on the page language and content (e.g. US, TR, DE)"
 }
 
 RULES:
-- For brandName: prefer og:site_name > page title > domain name "${brandHint}". Do NOT invent a name.
-- For description: rephrase the meta description. If empty, write a short description based on the title.
-- For industry: infer from the description/title.
-- For primaryCountry: infer from page language "${meta.lang}" and content.
+- For brandName: prefer og:site_name > og:title (first part before separator) > page title (first part before — or | or -) > domain name "${brandHint}". Do NOT invent a name.
+- For description: rephrase the meta description. If empty, infer from headings and body text.
+- For industry: infer from the description/title/body content.
+- For primaryCountry: infer from page language "${meta.lang}" and content. Default to "${tldCountry || "US"}" if unclear.
 
 Only return the JSON, nothing else.`;
 
@@ -190,20 +266,65 @@ Only return the JSON, nothing else.`;
     const hintLower = brandHint.toLowerCase();
     const resultLower = (result.brandName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (resultLower && !resultLower.includes(hintLower) && !hintLower.includes(resultLower)) {
-      result.brandName = meta.ogSiteName || brandHint;
+      if (meta.ogSiteName) {
+        result.brandName = meta.ogSiteName;
+      } else {
+        result.brandName = brandHint;
+      }
     }
 
-    if (!result.primaryCountry && tldCountry) {
-      result.primaryCountry = tldCountry;
-    }
     if (!result.primaryCountry) {
-      result.primaryCountry = "US";
+      result.primaryCountry = tldCountry || "US";
+    }
+    if (!result.description) {
+      result.description = meta.description || meta.ogDescription || "";
     }
     return result;
   } catch {
     return {
       brandName: meta.ogSiteName || brandHint,
       description: meta.description || meta.ogDescription || "",
+      industry: "",
+      primaryCountry: tldCountry || "US",
+    };
+  }
+}
+
+async function analyzeWithWebSearch(
+  url: string,
+  brandHint: string,
+  tldCountry: string | null
+): Promise<WebsiteAnalysis> {
+  try {
+    const systemPrompt = `You research websites and extract brand information. Use web search to find information about the given URL. Always respond with valid JSON only, no markdown.`;
+    const userPrompt = `I need information about this website: ${url}
+Domain name hint: ${brandHint}
+
+Search the web for this website and return a JSON object:
+{
+  "brandName": "the brand/company name",
+  "description": "1-2 sentence description of what they offer",
+  "industry": "industry category (e.g. SaaS, E-commerce, Marketing)",
+  "primaryCountry": "ISO 3166-1 alpha-2 country code (e.g. US, TR, DE)"
+}
+
+RULES:
+- Use real information found from web search
+- If you cannot find info, use domain name "${brandHint}" as brandName and leave description/industry minimal
+- Only return the JSON, nothing else.`;
+
+    const response = await callOpenAI(systemPrompt, userPrompt, { webSearch: true });
+    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const result = JSON.parse(cleaned);
+
+    if (!result.brandName) result.brandName = brandHint;
+    if (!result.primaryCountry) result.primaryCountry = tldCountry || "US";
+
+    return result;
+  } catch {
+    return {
+      brandName: brandHint,
+      description: "",
       industry: "",
       primaryCountry: tldCountry || "US",
     };
