@@ -11,6 +11,7 @@ import { getSeatsRemaining } from "@/lib/customer-count";
 import { PLAN_PRODUCT_IDS } from "@/lib/plans";
 import { ParticleCanvas } from "@/components/ui/particle-canvas";
 import { HeroCta } from "@/components/marketing/hero-cta";
+import { MissionSection } from "@/components/marketing/mission-section";
 import {
   Search,
   BarChart3,
@@ -130,6 +131,9 @@ export default async function LandingPage() {
 
         </div>
       </section>
+
+      {/* Mission — Before/After */}
+      <MissionSection />
 
       {/* Pricing */}
       <section id="pricing" className="border-t">

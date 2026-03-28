@@ -175,8 +175,10 @@ Requirements:
 - Add internal link placeholders as <a href="${brandUrl}/[page]">[anchor text]</a>
 - Add external link placeholders as <a href="[url]" rel="noopener" target="_blank">[text]</a>
 - Use semantic HTML: <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <em>, <blockquote>
+- Include HTML comparison/data tables where appropriate (e.g. feature comparisons, pros vs cons, pricing breakdowns, specifications). Use <table> with <thead> and <tbody>, styled with class="comparison-table" for styling hooks
 - Include a FAQ section at the end with proper HTML structure
 - Write engaging, informative content optimized for both humans and AI search engines
+- Maintain a coherent narrative throughout — every section must logically connect to the previous one and the overall topic. Do not drift off-topic or repeat the same points
 - Do NOT include the <h1> title tag - it will be added separately
 - Do NOT include any markdown - use only HTML
 
@@ -360,6 +362,17 @@ export function checkSeo(
       ? "FAQ section found"
       : "Add a FAQ section for rich results",
     impact: "medium",
+  });
+
+  const hasTables = (content.match(/<table[^>]*>/gi) || []).length;
+  checks.push({
+    name: "Comparison tables",
+    passed: hasTables >= 1,
+    message:
+      hasTables >= 1
+        ? `${hasTables} table(s) found`
+        : "Consider adding a comparison or data table",
+    impact: "low",
   });
 
   const passed = checks.filter((c) => c.passed).length;

@@ -10,6 +10,8 @@ import {
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
 import { generateArticleImages } from "@/lib/content/image-generator";
 import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
+import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
+import { checkCoherence } from "@/lib/content/coherence-check";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { getArticleLimit } from "@/lib/plans";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
@@ -109,10 +111,12 @@ export async function POST(
       voiceInstruction
     );
 
-    // Step 4: YouTube videos & AI images (parallel)
-    const [videos, images] = await Promise.allSettled([
+    // Step 4: YouTube videos, AI images, web images & infographics (parallel)
+    const [videos, images, webImgs, infographics] = await Promise.allSettled([
       searchYouTubeVideos(targetKeyword, 2),
       generateArticleImages(title, targetKeyword, 3),
+      searchWebImages(targetKeyword, 2),
+      searchInfographics(targetKeyword, 2),
     ]);
 
     let enrichedContent = generated.content;
@@ -137,7 +141,30 @@ export async function POST(
       enrichedContent = paragraphs.join("</p>");
     }
 
-    // Step 5: SEO Check
+    // Step 4b: Web images & infographics from Google
+    const webImageResults = webImgs.status === "fulfilled" ? webImgs.value : [];
+    const infographicResults = infographics.status === "fulfilled" ? infographics.value : [];
+    const allWebImages = [...webImageResults, ...infographicResults];
+
+    if (allWebImages.length > 0) {
+      const sections = enrichedContent.split("</h2>");
+      const insertEvery = Math.max(1, Math.floor(sections.length / (allWebImages.length + 1)));
+      for (let i = 0; i < allWebImages.length; i++) {
+        const insertAt = insertEvery * (i + 1);
+        if (insertAt < sections.length) {
+          sections[insertAt] = `</h2>${buildWebImageHtml(allWebImages[i])}${sections[insertAt]}`;
+        }
+      }
+      enrichedContent = sections.join("</h2>");
+    }
+
+    // Step 5: Coherence check
+    const coherence = await checkCoherence(title, targetKeyword, enrichedContent, language);
+    if (coherence.fixedContent) {
+      enrichedContent = coherence.fixedContent;
+    }
+
+    // Step 6: SEO Check
     const seoCheck = checkSeo(
       title,
       targetKeyword,
@@ -164,7 +191,7 @@ export async function POST(
         target_keyword: targetKeyword,
         tags: generated.tags,
         outline: outline,
-        research_data: { ...research, videos: videoResults, images: imageResults, keywordMetrics: keywordMetrics ?? null },
+        research_data: { ...research, videos: videoResults, images: imageResults, webImages: allWebImages, keywordMetrics: keywordMetrics ?? null, coherence: { score: coherence.score, issues: coherence.issues } },
         faq: generated.faq,
         seo_score: seoCheck.score,
         status: "draft",
