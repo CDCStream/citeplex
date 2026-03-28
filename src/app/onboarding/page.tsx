@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Mail,
   RefreshCw,
+  MessageSquareText,
 } from "lucide-react";
 import { COUNTRIES, countryFlag } from "@/lib/constants/countries";
 import { Favicon } from "@/components/ui/favicon";
@@ -32,6 +33,7 @@ const STEPS = [
   { label: "Verify", icon: ShieldCheck },
   { label: "Brand", icon: Building2 },
   { label: "Competitors", icon: Users },
+  { label: "Prompts", icon: MessageSquareText },
 ];
 
 interface CompetitorItem {
@@ -89,6 +91,18 @@ export default function OnboardingPage() {
   // Step 3: Competitors
   const [competitors, setCompetitors] = useState<CompetitorItem[]>([]);
   const [newCompetitorUrl, setNewCompetitorUrl] = useState("");
+
+  // Step 4: AI Visibility Prompts
+  interface PromptItem {
+    text: string;
+    category: string;
+    language?: string;
+    country?: string;
+    selected: boolean;
+  }
+  const [prompts, setPrompts] = useState<PromptItem[]>([]);
+  const [newPromptText, setNewPromptText] = useState("");
+  const [promptsGenerated, setPromptsGenerated] = useState(false);
 
   const [countrySearch, setCountrySearch] = useState("");
 
@@ -237,9 +251,74 @@ export default function OnboardingPage() {
     setCompetitors(competitors.filter((_, i) => i !== index));
   }
 
+  async function handleGeneratePrompts() {
+    setLoading(true);
+    try {
+      const countryInputs = targetCountries.map((code) => {
+        const c = getCountryObj(code);
+        return { code, lang: c?.lang || "en", langName: c?.langName || "English" };
+      });
+
+      const res = await fetch("/api/onboarding/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandName,
+          description,
+          industry,
+          countries: countryInputs,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.suggestions) {
+        setPrompts(
+          data.suggestions.map((s: { text: string; category: string; language?: string; country?: string }) => ({
+            ...s,
+            selected: true,
+          }))
+        );
+        setPromptsGenerated(true);
+      }
+      setStep(4);
+    } catch {
+      setStep(4);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function togglePrompt(index: number) {
+    setPrompts((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p))
+    );
+  }
+
+  function addCustomPrompt() {
+    const text = newPromptText.trim();
+    if (!text) return;
+    setPrompts((prev) => [
+      ...prev,
+      { text, category: "custom", selected: true },
+    ]);
+    setNewPromptText("");
+  }
+
+  function removePrompt(index: number) {
+    setPrompts((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleFinish() {
     setSaving(true);
     try {
+      const selectedPrompts = prompts
+        .filter((p) => p.selected)
+        .map(({ text, category, language, country }) => ({
+          text,
+          category,
+          language,
+          country,
+        }));
+
       const res = await fetch("/api/onboarding/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -251,6 +330,7 @@ export default function OnboardingPage() {
           primaryCountry,
           targetCountries,
           competitors,
+          prompts: selectedPrompts,
         }),
       });
       const data = await res.json();
@@ -681,8 +761,139 @@ export default function OnboardingPage() {
                     Back
                   </Button>
                   <Button
+                    onClick={handleGeneratePrompts}
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Prompts...
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: AI Visibility Prompts */}
+            {step === 4 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  {url && <Favicon url={url} size={28} />}
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">AI Visibility Prompts</h1>
+                    <p className="text-muted-foreground mt-0.5 text-sm">
+                      These are the prompts we&apos;ll track across 7 AI engines daily.
+                    </p>
+                  </div>
+                </div>
+
+                {!promptsGenerated && prompts.length === 0 && (
+                  <div className="rounded-lg border bg-muted/50 p-6 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Generating prompt suggestions...</p>
+                  </div>
+                )}
+
+                {prompts.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {prompts.filter((p) => p.selected).length} of {prompts.length} selected
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const allSelected = prompts.every((p) => p.selected);
+                          setPrompts((prev) => prev.map((p) => ({ ...p, selected: !allSelected })));
+                        }}
+                        className="text-xs"
+                      >
+                        {prompts.every((p) => p.selected) ? "Deselect All" : "Select All"}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
+                      {prompts.map((prompt, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer transition-colors ${
+                            prompt.selected
+                              ? "border-primary/30 bg-primary/5"
+                              : "border-muted bg-muted/30 opacity-60"
+                          }`}
+                          onClick={() => togglePrompt(i)}
+                        >
+                          <div
+                            className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center ${
+                              prompt.selected
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {prompt.selected && <Check className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="leading-snug">{prompt.text}</p>
+                            <div className="flex gap-2 mt-1">
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                {prompt.category}
+                              </span>
+                              {prompt.country && (
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                  {flag(prompt.country)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removePrompt(i);
+                            }}
+                            className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add a custom prompt..."
+                    value={newPromptText}
+                    onChange={(e) => setNewPromptText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addCustomPrompt()}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={addCustomPrompt}
+                    disabled={!newPromptText.trim()}
+                    className="shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(3)} className="flex-1">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
                     onClick={handleFinish}
-                    disabled={saving}
+                    disabled={saving || prompts.filter((p) => p.selected).length === 0}
                     className="flex-1"
                   >
                     {saving ? (

@@ -437,26 +437,35 @@ async function generatePromptsForLanguage(
     ? "Write all prompts in English."
     : `Write ALL prompts in ${langName} (language code: ${lang}). Every prompt must be in ${langName}, not English.`;
 
-  const systemPrompt = `You generate generic search prompts that people would type into AI assistants (ChatGPT, Perplexity, etc.) when looking for products/services in a given category. ${languageInstruction} Always respond with valid JSON only, no markdown.`;
+  const systemPrompt = `You generate search prompts that real people would type into AI assistants (ChatGPT, Perplexity, Gemini, Claude, etc.) when looking for exactly the kind of product or service described below. ${languageInstruction} Always respond with valid JSON only, no markdown.`;
   const userPrompt = `Brand: ${brandName}
 Description: ${description}
 Industry: ${industry}
 
-Generate ${count} GENERIC search prompts in ${langName} that potential customers would ask AI assistants when looking for this type of product/service.
+Generate ${count} search prompts in ${langName} that a potential customer would ask an AI assistant when looking for EXACTLY this type of product/service.
 
 CRITICAL RULES:
-- NEVER include the brand name "${brandName}" or any variation of it in the prompts
-- NEVER include the brand's domain/URL in the prompts
-- Prompts must be generic category queries, NOT brand-specific
-- Think about what a customer who doesn't know this brand yet would search for
+- NEVER include the brand name "${brandName}" or any variation of it
+- NEVER include the brand's domain/URL
+- Every prompt MUST be directly relevant to what this brand offers: "${description}"
+- A prompt is relevant ONLY if this brand could realistically be recommended as an answer
+- Do NOT generate generic prompts about unrelated topics, even if they're in the same broad industry
+- Think: "Would someone searching this prompt benefit from discovering this exact product/service?"
 - ALL prompts MUST be written in ${langName}
 
-Include a mix of:
-- "Best X" type queries
-- "How to" queries
-- Recommendation queries
-- Problem-solving queries
-- Comparison queries WITHOUT brand names
+PROMPT TYPES (include a mix):
+- "Best [specific product/service type]" discovery queries
+- "How to [solve a problem this brand solves]" queries
+- "What is the best way to [achieve outcome this brand enables]" queries
+- "[Specific problem] solution" queries
+- "Alternatives to [competitor type]" or comparison queries (no brand names)
+- "Tools for [specific use case]" queries
+
+EXAMPLES OF GOOD vs BAD (for an SEO tool brand):
+✓ "best tools to track AI search visibility" — directly relevant
+✓ "how to get mentioned by ChatGPT" — relevant problem this brand solves
+✗ "best project management software" — wrong category entirely
+✗ "how to start a business" — too generic, not relevant
 
 Return a JSON array:
 [{"text": "the prompt text in ${langName}", "category": "best|howto|comparison|recommendation|problem"}]
@@ -471,21 +480,37 @@ Only return the JSON array, nothing else.`;
     if (!Array.isArray(prompts)) return [];
 
     const brandLower = brandName.toLowerCase();
+    const descWords = extractKeywords(description + " " + industry);
+
     const filtered = prompts
       .filter((p: GeneratedPrompt) => {
         const textLower = p.text?.toLowerCase() ?? "";
-        return !textLower.includes(brandLower);
+        if (!textLower || textLower.length < 10) return false;
+        if (textLower.includes(brandLower)) return false;
+        return true;
       })
-      .map((p: GeneratedPrompt) => ({
-        ...p,
-        language: lang,
-        country: countryCode,
-      }));
+      .map((p: GeneratedPrompt) => {
+        const textLower = p.text.toLowerCase();
+        const relevanceScore = descWords.filter((w) => textLower.includes(w)).length;
+        return { ...p, language: lang, country: countryCode, _score: relevanceScore };
+      })
+      .sort((a: { _score: number }, b: { _score: number }) => b._score - a._score)
+      .map(({ _score, ...rest }: { _score: number; text: string; category: string; language: string; country: string }) => rest);
 
     return filtered.slice(0, count);
   } catch {
     return [];
   }
+}
+
+function extractKeywords(text: string): string[] {
+  const stopWords = new Set(["the", "a", "an", "is", "are", "was", "were", "be", "been", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "into", "that", "this", "it", "its", "they", "their", "your", "our", "we", "you", "can", "will", "has", "have", "had", "do", "does", "not", "no", "all", "more", "most", "very", "just", "also", "about", "than", "how", "what", "which", "who", "when", "where", "why"]);
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w))
+    .filter((w, i, arr) => arr.indexOf(w) === i);
 }
 
 export async function generatePrompts(

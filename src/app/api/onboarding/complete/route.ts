@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { url, brandName, description, industry, competitors, primaryCountry, targetCountries } = await req.json();
+    const { url, brandName, description, industry, competitors, primaryCountry, targetCountries, prompts } = await req.json();
 
     if (!url || !brandName) {
       return NextResponse.json({ error: "URL and brand name are required" }, { status: 400 });
@@ -45,7 +45,20 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from("competitors").insert(competitorRows);
     }
 
-    logActivity({ userId: user.id, action: "onboarding.complete", resourceType: "domain", resourceId: domain.id, metadata: { brand_name: brandName, url, competitors: competitors?.length ?? 0 } });
+    if (prompts?.length > 0) {
+      const promptRows = prompts.map((p: { text: string; category?: string; language?: string; country?: string }) => ({
+        domain_id: domain.id,
+        text: p.text,
+        category: p.category || null,
+        language: p.language || null,
+        country: p.country || null,
+        is_active: true,
+      }));
+
+      await supabaseAdmin.from("prompts").insert(promptRows);
+    }
+
+    logActivity({ userId: user.id, action: "onboarding.complete", resourceType: "domain", resourceId: domain.id, metadata: { brand_name: brandName, url, competitors: competitors?.length ?? 0, prompts: prompts?.length ?? 0 } });
 
     return NextResponse.json({ domainId: domain.id });
   } catch (err) {
