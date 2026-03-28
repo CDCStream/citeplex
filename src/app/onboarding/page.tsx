@@ -301,7 +301,7 @@ export default function OnboardingPage() {
         setPrompts(
           data.suggestions.map((s: { text: string; category: string; language?: string; country?: string }, i: number) => ({
             ...s,
-            selected: i < limit,
+            selected: false,
           }))
         );
       } else {
