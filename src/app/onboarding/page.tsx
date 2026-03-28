@@ -876,16 +876,6 @@ export default function OnboardingPage() {
                         {selectedCount} / {promptLimit} prompts selected
                       </span>
                       <div className="flex gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRegeneratePrompts}
-                          disabled={loading}
-                          className="h-7 text-xs px-2"
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Regenerate
-                        </Button>
                       </div>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -975,23 +965,25 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add a custom prompt..."
-                    value={newPromptText}
-                    onChange={(e) => setNewPromptText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addCustomPrompt()}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={addCustomPrompt}
-                    disabled={!newPromptText.trim()}
-                    className="shrink-0"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {selectedCount < promptLimit && (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add a custom prompt..."
+                      value={newPromptText}
+                      onChange={(e) => setNewPromptText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addCustomPrompt()}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={addCustomPrompt}
+                      disabled={!newPromptText.trim()}
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(3)} className="flex-1" disabled={!!finishPhase}>
