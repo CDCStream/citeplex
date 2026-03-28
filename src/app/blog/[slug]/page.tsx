@@ -141,9 +141,9 @@ export default async function BlogPostPage(props: Props) {
 
           <div className="mt-16 rounded-2xl border border-border/80 bg-muted/30 p-6 sm:p-8">
             <p className="text-center text-sm text-muted-foreground">
-              Track how AI engines mention your brand —{" "}
+              Track AI visibility, write SEO articles with your brand voice, and get mentioned by AI engines —{" "}
               <Link href="/" className="font-semibold text-primary hover:underline">
-                try Citeplex
+                try Citeplex free for 14 days
               </Link>
               .
             </p>
