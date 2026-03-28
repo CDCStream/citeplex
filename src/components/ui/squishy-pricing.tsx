@@ -136,7 +136,7 @@ function PricingCard({
     "AI Insight Engine (why you rank)",
     "Sentiment analysis (pos/neg/neutral)",
     "Competitor comparison reports",
-    "AI visibility gap articles",
+    "AI visibility gap articles — get mentioned by AI engines",
   ];
 
   const articleFeatures = [
@@ -146,7 +146,7 @@ function PricingCard({
     "YouTube videos embedded in articles",
     "FAQ + JSON-LD schema in articles",
     "High DR backlink exchange",
-    "150+ language support",
+    "110+ language support",
     "Multi-platform publishing",
     "SEO scoring & optimization",
     "14-day free trial",

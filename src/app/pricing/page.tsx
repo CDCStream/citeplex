@@ -34,7 +34,7 @@ export default async function PricingPage() {
                   "AI Insight Engine — why you rank (or don't)",
                   "Sentiment analysis (positive / negative / neutral)",
                   "Competitor comparison reports",
-                  "AI visibility gap articles — get mentioned where you're missing",
+                  "AI visibility gap articles — get mentioned by AI engines",
                 ].map((feature) => (
                   <div
                     key={feature}
@@ -62,7 +62,7 @@ export default async function PricingPage() {
                   "YouTube videos embedded in articles",
                   "FAQ section + JSON-LD schema in every article",
                   "High DR backlink exchange",
-                  "Articles in 150+ languages",
+                  "Articles in 110+ languages",
                   "Multi-platform publishing (WordPress, Webflow, Shopify & more)",
                   "SEO scoring & optimization",
                   "14-day free trial — no credit card required",
@@ -93,7 +93,7 @@ export default async function PricingPage() {
             {[
               {
                 q: "What is included in each plan?",
-                a: "Every plan is an all-in-one bundle: AI Visibility tracking across 7 engines, scheduled article writing (Claude Opus 4.6) with brand voice matching, AI-generated images (DALL-E 3), YouTube video embeds, Ahrefs keyword research, high DR backlink exchange, 150+ language support, and multi-platform publishing. Plans differ in volume.",
+                a: "Every plan is an all-in-one bundle: AI Visibility tracking across 7 engines, scheduled article writing (Claude Opus 4.6) with brand voice matching, AI-generated images (DALL-E 3), YouTube video embeds, Ahrefs keyword research, high DR backlink exchange, 110+ language support, and multi-platform publishing. Plans differ in volume.",
               },
               {
                 q: "Is there a free trial?",
