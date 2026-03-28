@@ -251,8 +251,11 @@ export default function OnboardingPage() {
     setCompetitors(competitors.filter((_, i) => i !== index));
   }
 
+  const [promptError, setPromptError] = useState("");
+
   async function handleGeneratePrompts() {
     setLoading(true);
+    setPromptError("");
     try {
       const countryInputs = targetCountries.map((code) => {
         const c = getCountryObj(code);
@@ -270,21 +273,30 @@ export default function OnboardingPage() {
         }),
       });
       const data = await res.json();
-      if (res.ok && data.suggestions) {
+      if (res.ok && data.suggestions?.length > 0) {
         setPrompts(
           data.suggestions.map((s: { text: string; category: string; language?: string; country?: string }) => ({
             ...s,
             selected: true,
           }))
         );
-        setPromptsGenerated(true);
+      } else {
+        setPromptError("Could not generate suggestions. You can add prompts manually below.");
       }
-      setStep(4);
     } catch {
-      setStep(4);
+      setPromptError("Network error generating prompts. You can add prompts manually.");
     } finally {
+      setPromptsGenerated(true);
       setLoading(false);
+      setStep(4);
     }
+  }
+
+  async function handleRegeneratePrompts() {
+    setPrompts([]);
+    setPromptsGenerated(false);
+    setPromptError("");
+    await handleGeneratePrompts();
   }
 
   function togglePrompt(index: number) {
@@ -794,30 +806,48 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
-                {!promptsGenerated && prompts.length === 0 && (
+                {!promptsGenerated && (
                   <div className="rounded-lg border bg-muted/50 p-6 text-center">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">Generating prompt suggestions...</p>
                   </div>
                 )}
 
-                {prompts.length > 0 && (
+                {promptError && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-400">
+                    {promptError}
+                  </div>
+                )}
+
+                {promptsGenerated && prompts.length > 0 && (
                   <>
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
                         {prompts.filter((p) => p.selected).length} of {prompts.length} selected
                       </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const allSelected = prompts.every((p) => p.selected);
-                          setPrompts((prev) => prev.map((p) => ({ ...p, selected: !allSelected })));
-                        }}
-                        className="text-xs"
-                      >
-                        {prompts.every((p) => p.selected) ? "Deselect All" : "Select All"}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRegeneratePrompts}
+                          disabled={loading}
+                          className="text-xs"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Regenerate
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const allSelected = prompts.every((p) => p.selected);
+                            setPrompts((prev) => prev.map((p) => ({ ...p, selected: !allSelected })));
+                          }}
+                          className="text-xs"
+                        >
+                          {prompts.every((p) => p.selected) ? "Deselect All" : "Select All"}
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">

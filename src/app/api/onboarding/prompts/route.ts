@@ -4,6 +4,8 @@ import { getAuthUser } from "@/lib/auth";
 import { getPromptLimit } from "@/lib/plans";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { brandName, description, industry, countries } = await req.json();
