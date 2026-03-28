@@ -314,6 +314,11 @@ Only return the JSON, nothing else.`;
     if (!result.description) {
       result.description = meta.description || meta.ogDescription || "";
     }
+    if (!result.industry) {
+      result.industry = inferIndustry(
+        (result.description || "") + " " + (meta.title || "") + " " + (meta.headingText || "")
+      );
+    }
     return result;
   } catch {
     console.error(`[Analyze] JSON parse failed for ${url}, raw: ${cleaned.slice(0, 200)}`);
@@ -321,13 +326,45 @@ Only return the JSON, nothing else.`;
   }
 }
 
+function inferIndustry(text: string): string {
+  const lower = text.toLowerCase();
+  const rules: [RegExp, string][] = [
+    [/\b(seo|search engine|ai visibility|ai engine|aeo|geo|serp|backlink|keyword|organic traffic)\b/, "SEO & AI Visibility"],
+    [/\b(marketing|advertis|campaign|brand awareness|social media|content marketing)\b/, "Marketing"],
+    [/\b(e-?commerce|online store|shopif|retail|product catalog|shopping)\b/, "E-commerce"],
+    [/\b(saas|software as a service|cloud platform|web app|dashboard)\b/, "SaaS"],
+    [/\b(fintech|payment|banking|financial|crypto|blockchain|trading)\b/, "Fintech"],
+    [/\b(health|medical|clinic|patient|wellness|fitness|pharma)\b/, "Healthcare"],
+    [/\b(educat|learn|course|school|university|lms|tutori)\b/, "Education"],
+    [/\b(real estate|property|rent|mortgage|housing)\b/, "Real Estate"],
+    [/\b(travel|hotel|booking|flight|tourism)\b/, "Travel & Hospitality"],
+    [/\b(food|restaurant|delivery|recipe|meal)\b/, "Food & Beverage"],
+    [/\b(developer|api|sdk|open.?source|devops|code|programm)\b/, "Developer Tools"],
+    [/\b(design|ui\/ux|figma|creative|graphic)\b/, "Design"],
+    [/\b(hr|recruit|hiring|talent|employee|workforce)\b/, "HR & Recruitment"],
+    [/\b(crm|sales|lead|pipeline|customer relationship)\b/, "Sales & CRM"],
+    [/\b(cyber.?security|security|auth|encrypt|privacy)\b/, "Cybersecurity"],
+    [/\b(ai|artificial intelligence|machine learning|nlp|llm|gpt|deep learning)\b/, "AI & Machine Learning"],
+    [/\b(analytics|data|insight|metric|dashboard|bi|reporting)\b/, "Analytics"],
+    [/\b(logistics|shipping|supply chain|warehouse|fulfillment)\b/, "Logistics"],
+    [/\b(media|news|publish|journalism|content)\b/, "Media & Publishing"],
+    [/\b(gaming|game|esport|play)\b/, "Gaming"],
+  ];
+
+  for (const [pattern, industry] of rules) {
+    if (pattern.test(lower)) return industry;
+  }
+  return "Technology";
+}
+
 function buildFallback(meta: ScrapedMeta, brandHint: string, tldCountry: string | null): WebsiteAnalysis {
   const brandName = meta.ogSiteName || meta.ogTitle?.split(/[—|·\-]/)[0]?.trim() || brandHint;
   const description = meta.description || meta.ogDescription || meta.headingText || "";
+  const industry = inferIndustry(description + " " + (meta.title || "") + " " + (meta.headingText || ""));
   return {
     brandName,
     description,
-    industry: "",
+    industry,
     primaryCountry: tldCountry || "US",
   };
 }
