@@ -60,7 +60,7 @@ export function SquishyPricing({ tier, seatsLeft, productIds }: SquishyPricingPr
             All-in-one SEO, AEO & GEO plans
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-            AI Visibility tracking, daily article writing, and competitor gap analysis — bundled in every plan.
+            AI Visibility tracking, daily SEO articles with brand voice, and gap articles to get mentioned by AI engines — all bundled in every plan.
           </p>
 
           {(tier === "early1" || tier === "early2") && seatsLeft > 0 && (
@@ -89,10 +89,10 @@ export function SquishyPricing({ tier, seatsLeft, productIds }: SquishyPricingPr
             14-day free trial on all plans — no credit card required
           </p>
           <p className="text-sm text-muted-foreground">
-            All plans include daily scans across{" "}
+            Every plan scans{" "}
             <span className="font-semibold text-foreground">
               ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok & Mistral
-            </span>
+            </span>{" "}daily
           </p>
         </div>
       </div>
