@@ -90,21 +90,39 @@ function extractBodyText(html: string): string {
 async function scrapeWebsite(url: string): Promise<ScrapedMeta> {
   const empty: ScrapedMeta = { title: "", description: "", ogSiteName: "", ogDescription: "", ogTitle: "", lang: "", headingText: "", bodyText: "" };
 
-  for (const ua of USER_AGENTS) {
+  const urls = [url];
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.startsWith("www.")) {
+      urls.push(`${parsed.protocol}//www.${parsed.hostname}${parsed.pathname}`);
+    } else {
+      urls.push(`${parsed.protocol}//${parsed.hostname.replace(/^www\./, "")}${parsed.pathname}`);
+    }
+  } catch { /* ignore */ }
+
+  for (const targetUrl of urls) {
+    const ua = USER_AGENTS[0];
     try {
-      const res = await fetch(url, {
+      const res = await fetch(targetUrl, {
         headers: {
           "User-Agent": ua,
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.5",
         },
         redirect: "follow",
-        signal: AbortSignal.timeout(15000),
+        cache: "no-store",
+        signal: AbortSignal.timeout(6000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.log(`[Scrape] HTTP ${res.status} for ${targetUrl}`);
+        continue;
+      }
 
       const html = await res.text();
-      if (!html || html.length < 100) continue;
+      if (!html || html.length < 100) {
+        console.log(`[Scrape] Too short HTML for ${targetUrl}: ${html.length} bytes`);
+        continue;
+      }
 
       const full = html.slice(0, 80000);
 
@@ -128,13 +146,13 @@ async function scrapeWebsite(url: string): Promise<ScrapedMeta> {
         match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
       const lang = match(/<html[^>]*lang=["']([^"']+)["']/i);
 
-      const headings = html.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi) || [];
+      const headings = full.match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi) || [];
       const headingText = headings
-        .slice(0, 3)
+        .slice(0, 5)
         .map((h) => h.replace(/<[^>]+>/g, "").trim())
         .filter(Boolean)
         .join(" | ")
-        .slice(0, 300);
+        .slice(0, 500);
 
       const bodyText = extractBodyText(html);
 
@@ -150,12 +168,19 @@ async function scrapeWebsite(url: string): Promise<ScrapedMeta> {
       };
 
       const hasAnything = title || description || ogSiteName || ogDescription || headingText || bodyText.length > 50;
-      if (hasAnything) return result;
-    } catch {
+      if (hasAnything) {
+        console.log(`[Scrape] OK for ${targetUrl} — title="${title.slice(0, 60)}", og:site="${ogSiteName}", desc="${(description || ogDescription).slice(0, 60)}", bodyLen=${bodyText.length}, headings="${headingText.slice(0, 80)}"`);
+        return result;
+      }
+
+      console.log(`[Scrape] No useful content from ${targetUrl}, htmlLen=${html.length}`);
+    } catch (err) {
+      console.error(`[Scrape] Fetch error for ${targetUrl}:`, (err as Error).message);
       continue;
     }
   }
 
+  console.log(`[Scrape] All attempts failed for ${url}, returning empty`);
   return empty;
 }
 
@@ -211,8 +236,11 @@ export async function analyzeWebsite(url: string): Promise<WebsiteAnalysis> {
   const hasBodyContent = meta.bodyText.length > 50;
   const hasHeadings = !!meta.headingText;
 
+  console.log(`[Analyze] ${url} — hasMeta=${hasMetaTags}, hasBody=${hasBodyContent}, hasHeadings=${hasHeadings}, brandHint="${brandHint}"`);
+
   // STRATEGY 1: No content at all → use AI web search as last resort
   if (!hasMetaTags && !hasBodyContent && !hasHeadings) {
+    console.log(`[Analyze] Using web search fallback for ${url}`);
     return analyzeWithWebSearch(url, brandHint, tldCountry);
   }
 
@@ -253,7 +281,14 @@ RULES:
 
 Only return the JSON, nothing else.`;
 
-  const response = await callOpenAI(systemPrompt, userPrompt);
+  let response = "";
+  try {
+    response = await callOpenAI(systemPrompt, userPrompt);
+  } catch (err) {
+    console.error(`[Analyze] OpenAI call failed for ${url}:`, (err as Error).message);
+    return buildFallback(meta, brandHint, tldCountry);
+  }
+
   const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   try {
@@ -281,13 +316,20 @@ Only return the JSON, nothing else.`;
     }
     return result;
   } catch {
-    return {
-      brandName: meta.ogSiteName || brandHint,
-      description: meta.description || meta.ogDescription || "",
-      industry: "",
-      primaryCountry: tldCountry || "US",
-    };
+    console.error(`[Analyze] JSON parse failed for ${url}, raw: ${cleaned.slice(0, 200)}`);
+    return buildFallback(meta, brandHint, tldCountry);
   }
+}
+
+function buildFallback(meta: ScrapedMeta, brandHint: string, tldCountry: string | null): WebsiteAnalysis {
+  const brandName = meta.ogSiteName || meta.ogTitle?.split(/[—|·\-]/)[0]?.trim() || brandHint;
+  const description = meta.description || meta.ogDescription || meta.headingText || "";
+  return {
+    brandName,
+    description,
+    industry: "",
+    primaryCountry: tldCountry || "US",
+  };
 }
 
 async function analyzeWithWebSearch(

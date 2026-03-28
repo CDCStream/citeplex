@@ -107,9 +107,12 @@ export default function OnboardingPage() {
     );
   }
 
+  const [analyzeError, setAnalyzeError] = useState("");
+
   async function handleAnalyze() {
     if (!url.trim()) return;
     setLoading(true);
+    setAnalyzeError("");
     try {
       const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
       setUrl(normalizedUrl);
@@ -128,10 +131,12 @@ export default function OnboardingPage() {
           setPrimaryCountry(data.primaryCountry);
           setTargetCountries([data.primaryCountry]);
         }
+        setStep(1);
+      } else {
+        setAnalyzeError(data.error || "Could not analyze website. Please try again.");
       }
-      setStep(1);
     } catch {
-      setStep(1);
+      setAnalyzeError("Network error — please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -299,6 +304,12 @@ export default function OnboardingPage() {
                     onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
                   />
                 </div>
+
+                {analyzeError && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+                    {analyzeError}
+                  </div>
+                )}
 
                 <Button
                   onClick={handleAnalyze}
