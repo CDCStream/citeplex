@@ -65,7 +65,7 @@ async function writeArticleForPlan(
     ]);
 
     if (videos.length > 0) {
-      const videoHtml = videos.map((v) => buildVideoEmbedHtml(v)).join("\n");
+      const videoHtml = buildVideoEmbedHtml(videos);
       const h2Match = enrichedContent.match(/<\/h2>/g);
       if (h2Match && h2Match.length >= 2) {
         let count = 0;
