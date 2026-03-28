@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });
     }
 
-    const limit = getArticleLimit(user.plan || "free");
+    const limit = getArticleLimit(user.plan || "starter");
     const { count } = await supabaseAdmin
       .from("articles")
       .select("id", { count: "exact", head: true })

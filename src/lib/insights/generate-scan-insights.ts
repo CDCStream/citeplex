@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { extractSources } from "./extract-sources";
 
-const OPENAI_API_KEY = () => process.env.OPENAI_API_KEY || "";
+const ANTHROPIC_API_KEY = () => process.env.ANTHROPIC_API_KEY || "";
 
 const LANG_NAMES: Record<string, string> = {
   en: "English", tr: "Turkish", de: "German", fr: "French", es: "Spanish",
@@ -10,31 +10,31 @@ const LANG_NAMES: Record<string, string> = {
 };
 
 async function callInsightLLM(prompt: string): Promise<string> {
-  const res = await fetch("https://api.openai.com/v1/responses", {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY()}`,
+      "x-api-key": ANTHROPIC_API_KEY(),
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: [{ role: "user", content: prompt }],
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
     }),
     signal: AbortSignal.timeout(60000),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`OpenAI error ${res.status}: ${err}`);
+    throw new Error(`Anthropic error ${res.status}: ${err}`);
   }
 
   const data = await res.json();
   return (
-    data.output
-      ?.filter((item: { type: string }) => item.type === "message")
-      .map((item: { content: { text: string }[] }) =>
-        item.content?.map((c: { text: string }) => c.text).join("")
-      )
+    data.content
+      ?.filter((block: { type: string }) => block.type === "text")
+      .map((block: { text: string }) => block.text)
       .join("\n") ?? ""
   );
 }

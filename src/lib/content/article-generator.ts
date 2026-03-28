@@ -1,12 +1,16 @@
-const MODEL = "gpt-4o-mini";
-
-function getApiKey(): string {
+function getOpenAIKey(): string {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not configured");
   return key;
 }
 
-async function chat(
+function getAnthropicKey(): string {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
+  return key;
+}
+
+async function chatOpenAI(
   systemPrompt: string,
   userPrompt: string,
   temperature = 0.7,
@@ -16,10 +20,10 @@ async function chat(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
+      Authorization: `Bearer ${getOpenAIKey()}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -36,6 +40,42 @@ async function chat(
 
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "";
+}
+
+async function chatAnthropic(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature = 0.7,
+  maxTokens = 8192
+): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": getAnthropicKey(),
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-opus-4-20250514",
+      max_tokens: maxTokens,
+      temperature,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Anthropic API error (${res.status}): ${body}`);
+  }
+
+  const data = await res.json();
+  return (
+    data.content
+      ?.filter((b: { type: string }) => b.type === "text")
+      .map((b: { text: string }) => b.text)
+      .join("") ?? ""
+  );
 }
 
 export interface ResearchData {
@@ -69,7 +109,7 @@ Target Keyword: ${keyword}
 Brand: ${brandName}
 Industry: ${industry}`;
 
-  const text = await chat(systemPrompt, userPrompt);
+  const text = await chatOpenAI(systemPrompt, userPrompt);
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return defaultResearch();
 
@@ -115,7 +155,7 @@ Target Keyword: ${keyword}
 Key Points to Cover: ${research.keyPoints.join(", ")}
 Related Topics: ${research.relatedTopics.join(", ")}`;
 
-  const text = await chat(systemPrompt, userPrompt);
+  const text = await chatOpenAI(systemPrompt, userPrompt);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
 
@@ -179,7 +219,7 @@ ${outlineText}
 
 Write the complete article now.`;
 
-  const text = await chat(systemPrompt, userPrompt, 0.7, 8000);
+  const text = await chatAnthropic(systemPrompt, userPrompt, 0.7, 8192);
 
   let content = text;
   let metaDescription = "";

@@ -1,6 +1,7 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getPlanByProductId, PLAN_PRICES } from "@/lib/plans";
+import { getPlanByProductId, PLAN_PRICES, getPriceTier } from "@/lib/plans";
+import { getPayingCustomerCount } from "@/lib/customer-count";
 
 async function getUserByEmail(email: string) {
   const { data } = await supabaseAdmin
@@ -63,6 +64,9 @@ export const POST = Webhooks({
 
     const plan = getPlanByProductId(productId);
     const user = await getUserByEmail(email);
+    const customerCount = await getPayingCustomerCount();
+    const tier = getPriceTier(customerCount);
+    const price = PLAN_PRICES[plan]?.[tier] ?? 0;
 
     const { error } = await supabaseAdmin
       .from("users")
@@ -79,7 +83,7 @@ export const POST = Webhooks({
       userId: user?.id ?? null,
       type: "subscription_created",
       plan,
-      amount: (PLAN_PRICES[plan] || 0) * 100,
+      amount: price * 100,
       polarSubscriptionId: data.data.id,
       polarCustomerId: data.data.customer?.id,
       description: `Subscribed to ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`,
@@ -87,6 +91,7 @@ export const POST = Webhooks({
         email,
         product_id: productId,
         subscription_id: data.data.id,
+        tier,
       },
     });
   },
@@ -102,14 +107,14 @@ export const POST = Webhooks({
     if (status === "canceled" || status === "revoked") {
       await supabaseAdmin
         .from("users")
-        .update({ plan: "free" })
+        .update({ plan: null })
         .eq("email", email);
-      console.log(`[Polar Webhook] ${email} downgraded to free (${status})`);
+      console.log(`[Polar Webhook] ${email} subscription ${status}`);
 
       await recordBillingEvent({
         userId: user?.id ?? null,
         type: "subscription_canceled",
-        plan: "free",
+        plan: "none",
         amount: 0,
         status: status,
         polarSubscriptionId: data.data.id,
@@ -125,6 +130,10 @@ export const POST = Webhooks({
     }
 
     const plan = getPlanByProductId(productId);
+    const customerCount = await getPayingCustomerCount();
+    const tier = getPriceTier(customerCount);
+    const price = PLAN_PRICES[plan]?.[tier] ?? 0;
+
     await supabaseAdmin
       .from("users")
       .update({ plan })
@@ -135,7 +144,7 @@ export const POST = Webhooks({
       userId: user?.id ?? null,
       type: "subscription_updated",
       plan,
-      amount: (PLAN_PRICES[plan] || 0) * 100,
+      amount: price * 100,
       polarSubscriptionId: data.data.id,
       polarCustomerId: data.data.customer?.id,
       description: `Plan changed to ${plan.charAt(0).toUpperCase() + plan.slice(1)}`,
@@ -143,6 +152,7 @@ export const POST = Webhooks({
         email,
         product_id: productId,
         subscription_id: data.data.id,
+        tier,
       },
     });
   },

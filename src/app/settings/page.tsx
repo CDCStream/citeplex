@@ -41,8 +41,8 @@ export default async function SettingsPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-sm text-muted-foreground">Plan</span>
-            <Badge variant={user?.plan === "free" ? "secondary" : "default"}>
-              {user?.plan ?? "free"}
+            <Badge variant="default">
+              {user?.plan ?? "starter"}
             </Badge>
           </div>
         </CardContent>

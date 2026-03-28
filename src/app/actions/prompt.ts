@@ -12,7 +12,7 @@ export async function createPrompt(domainId: string, formData: FormData) {
   const user = await getAuthUser();
   if (!user) throw new Error("Unauthorized");
 
-  const plan = user.plan || "free";
+  const plan = user.plan || "starter";
   const limit = getPromptLimit(plan);
 
   const { data: userDomains } = await supabaseAdmin

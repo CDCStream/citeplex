@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     let promptsUsed = 0;
 
     if (user) {
-      promptLimit = getPromptLimit(user.plan || "free");
+      promptLimit = getPromptLimit(user.plan || "starter");
       const { count } = await supabaseAdmin
         .from("prompts")
         .select("id", { count: "exact", head: true })

@@ -15,7 +15,7 @@ export default async function PromptsPage({
   const user = await getAuthUser();
   if (!user) redirect("/login");
 
-  const promptLimit = getPromptLimit(user.plan || "free");
+  const promptLimit = getPromptLimit(user.plan || "starter");
 
   const [{ data: rawDomain }, { data: rawPrompts }, { data: userDomains }] = await Promise.all([
     supabaseAdmin.from("domains").select("id, brand_name, scan_status, first_scan_done").eq("id", domainId).eq("user_id", user.id).maybeSingle(),

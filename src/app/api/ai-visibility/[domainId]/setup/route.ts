@@ -39,7 +39,7 @@ export async function POST(
       );
     }
 
-    const plan = user.plan || "free";
+    const plan = user.plan || "starter";
     const limit = getPromptLimit(plan);
 
     const { data: userDomains } = await supabaseAdmin

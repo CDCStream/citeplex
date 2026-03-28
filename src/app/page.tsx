@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { EngineIcon } from "@/components/ui/engine-icon";
 import { SquishyPricing } from "@/components/ui/squishy-pricing";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
+import { getSeatsRemaining } from "@/lib/customer-count";
+import { PLAN_PRODUCT_IDS } from "@/lib/plans";
 import { ParticleCanvas } from "@/components/ui/particle-canvas";
 import { HeroCta } from "@/components/marketing/hero-cta";
 import {
@@ -27,6 +29,7 @@ const poppins = Poppins({
 
 export default async function LandingPage() {
   const user = await getAuthUser();
+  const { tier, seatsLeft } = await getSeatsRemaining();
 
   return (
     <div className="min-h-screen bg-background overflow-hidden pt-16">
@@ -124,7 +127,7 @@ export default async function LandingPage() {
 
       {/* Pricing */}
       <section id="pricing" className="border-t">
-        <SquishyPricing />
+        <SquishyPricing tier={tier} seatsLeft={seatsLeft} productIds={PLAN_PRODUCT_IDS} />
       </section>
 
       {/* How It Works */}

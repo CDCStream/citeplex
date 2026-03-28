@@ -19,8 +19,8 @@ import {
   MessageSquare,
   Globe,
   BarChart3,
-  Users,
-  ArrowDownCircle,
+  PenLine,
+  Target,
   ArrowUpCircle,
   XCircle,
   Receipt,
@@ -29,57 +29,38 @@ import {
   PLAN_LABELS,
   PLAN_LIMITS,
   PLAN_PRICES,
-  PLAN_PRODUCT_IDS,
+  PLAN_ORDER,
+  DAILY_ARTICLE_LIMITS,
+  GAP_ARTICLE_LIMITS,
   getPromptLimit,
+  getProductIdForPlan,
 } from "@/lib/plans";
-
-const PLAN_ORDER = ["free", "starter", "growth", "pro", "business", "enterprise"];
+import { getCurrentPriceTier } from "@/lib/customer-count";
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  free: [
-    "3 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-  ],
   starter: [
-    "15 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-    "Email reports",
+    "15 AI Visibility prompts",
+    "1 article/day (30/month)",
+    "5 gap articles/month",
+    "Daily scans · 7 AI engines",
+    "Sentiment analysis & insights",
+    "Multi-platform publishing",
   ],
   growth: [
-    "30 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-    "Email reports",
-    "Priority support",
+    "30 AI Visibility prompts",
+    "2 articles/day (60/month)",
+    "15 gap articles/month",
+    "Daily scans · 7 AI engines",
+    "Sentiment analysis & insights",
+    "Multi-platform publishing",
   ],
   pro: [
-    "50 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-    "Email reports",
-    "Priority support",
-  ],
-  business: [
-    "100 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-    "Email reports",
-    "Priority support",
-  ],
-  enterprise: [
-    "250 prompts",
-    "Daily scans",
-    "7 AI engines",
-    "Competitor tracking",
-    "Email reports",
-    "Priority support",
+    "50 AI Visibility prompts",
+    "3 articles/day (90/month)",
+    "30 gap articles/month",
+    "Daily scans · 7 AI engines",
+    "Sentiment analysis & insights",
+    "Multi-platform publishing",
   ],
 };
 
@@ -87,11 +68,12 @@ export default async function BillingPage() {
   const user = await getAuthUser();
   if (!user) redirect("/login");
 
-  const plan = user.plan || "free";
+  const plan = user.plan || "starter";
   const promptLimit = getPromptLimit(plan);
-  const planLabel = PLAN_LABELS[plan] || "Free";
-  const planPrice = PLAN_PRICES[plan] || 0;
-  const features = PLAN_FEATURES[plan] || PLAN_FEATURES.free;
+  const planLabel = PLAN_LABELS[plan] || "Starter";
+  const tier = await getCurrentPriceTier();
+  const planPrice = PLAN_PRICES[plan]?.[tier] ?? 0;
+  const features = PLAN_FEATURES[plan] || PLAN_FEATURES.starter;
 
   const { data: domains } = await supabaseAdmin
     .from("domains")
@@ -117,6 +99,8 @@ export default async function BillingPage() {
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const currentPlanIndex = PLAN_ORDER.indexOf(plan as typeof PLAN_ORDER[number]);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-3">
@@ -138,14 +122,10 @@ export default async function BillingPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 Active Plan
-                <Badge variant={plan === "free" ? "secondary" : "default"}>
-                  {planLabel}
-                </Badge>
+                <Badge>{planLabel}</Badge>
               </CardTitle>
               <CardDescription className="mt-1">
-                {plan === "free"
-                  ? "You are on the free plan. Upgrade to unlock more prompts."
-                  : `Your current plan renews monthly at $${planPrice}/mo.`}
+                Your current plan renews monthly at ${planPrice}/mo.
               </CardDescription>
             </div>
             <div className="text-right">
@@ -157,7 +137,6 @@ export default async function BillingPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Usage */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Prompt usage</span>
@@ -179,7 +158,6 @@ export default async function BillingPage() {
             </div>
           </div>
 
-          {/* Features */}
           <div className="grid grid-cols-2 gap-2">
             {features.map((feature) => (
               <div key={feature} className="flex items-center gap-2 text-sm">
@@ -189,45 +167,36 @@ export default async function BillingPage() {
             ))}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
-            {plan === "free" ? (
-              <Button asChild>
-                <Link href="/pricing">
-                  <Zap className="mr-2 h-4 w-4" />
-                  Upgrade Plan
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild variant="outline">
-                  <Link href="/pricing">
-                    Change Plan
-                    <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-                  </Link>
-                </Button>
-              </>
-            )}
+            <Button asChild variant="outline">
+              <Link href="/pricing">
+                Change Plan
+                <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Plan Comparison */}
+      {/* Plan Comparison — Upgrade */}
       <Card>
         <CardHeader>
           <CardTitle>Available Plans</CardTitle>
           <CardDescription>
-            Compare plans and choose the one that fits your needs.
+            Upgrade to get more prompts, articles, and gap analysis capacity.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {PLAN_ORDER.filter((p) => p !== "free").map((planKey) => {
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PLAN_ORDER.map((planKey, index) => {
               const isCurrentPlan = plan === planKey;
-              const price = PLAN_PRICES[planKey];
-              const prompts = PLAN_LIMITS[planKey];
-              const label = PLAN_LABELS[planKey];
-              const productId = PLAN_PRODUCT_IDS[planKey];
+              const price = PLAN_PRICES[planKey]?.[tier] ?? 0;
+              const prompts = PLAN_LIMITS[planKey] ?? 0;
+              const dailyArticles = DAILY_ARTICLE_LIMITS[planKey] ?? 0;
+              const gapArticles = GAP_ARTICLE_LIMITS[planKey] ?? 0;
+              const label = PLAN_LABELS[planKey] ?? planKey;
+              const productId = getProductIdForPlan(planKey, tier);
+              const isUpgrade = index > currentPlanIndex;
 
               return (
                 <div
@@ -248,20 +217,18 @@ export default async function BillingPage() {
                     ${price}
                     <span className="text-sm font-medium text-muted-foreground">/mo</span>
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {prompts} prompts · Daily scans · 7 engines
-                  </p>
-                  {!isCurrentPlan && (
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <p>{prompts} prompts · {dailyArticles} article{dailyArticles > 1 ? "s" : ""}/day · {gapArticles} gap/mo</p>
+                  </div>
+                  {!isCurrentPlan && isUpgrade && (
                     <Button
                       asChild
                       size="sm"
-                      variant={isCurrentPlan ? "secondary" : "default"}
                       className="mt-4 w-full"
                     >
                       <Link href={`/checkout?products=${productId}`}>
-                        {PLAN_ORDER.indexOf(planKey) > PLAN_ORDER.indexOf(plan)
-                          ? "Upgrade"
-                          : "Switch"}
+                        <Zap className="mr-1.5 h-3.5 w-3.5" />
+                        Upgrade (prorated)
                       </Link>
                     </Button>
                   )}
@@ -293,14 +260,14 @@ export default async function BillingPage() {
               value={`${domainIds.length}`}
             />
             <UsageStat
-              icon={BarChart3}
-              label="AI Engines"
-              value="7"
+              icon={PenLine}
+              label="Daily Articles"
+              value={`${DAILY_ARTICLE_LIMITS[plan] ?? 1}/day`}
             />
             <UsageStat
-              icon={Users}
-              label="Competitors"
-              value="Unlimited"
+              icon={Target}
+              label="Gap Articles"
+              value={`${GAP_ARTICLE_LIMITS[plan] ?? 5}/mo`}
             />
           </div>
         </CardContent>
@@ -322,9 +289,7 @@ export default async function BillingPage() {
                 No billing history yet
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {plan === "free"
-                  ? "Upgrade to a paid plan to see your invoices here."
-                  : "Your billing events will appear here."}
+                Your billing events will appear here.
               </p>
             </div>
           ) : (

@@ -33,7 +33,7 @@ async function AiVisibilityContent({ domainId }: { domainId: string }) {
 
   if (!rawDomain) notFound();
 
-  const promptLimit = getPromptLimit(user.plan || "free");
+  const promptLimit = getPromptLimit(user.plan || "starter");
 
   const { data: userDomains } = await supabaseAdmin
     .from("domains")

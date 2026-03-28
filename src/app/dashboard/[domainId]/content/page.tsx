@@ -41,7 +41,7 @@ async function ContentPageContent({ domainId }: { domainId: string }) {
       .eq("domain_id", domainId),
   ]);
 
-  const articleLimit = getArticleLimit(user.plan || "free");
+  const articleLimit = getArticleLimit(user.plan || "starter");
 
   return (
     <ContentDashboard

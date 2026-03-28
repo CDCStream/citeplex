@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const user = await getAuthUser();
   if (!user) redirect("/login");
 
-  const plan = user.plan || "free";
+  const plan = user.plan || "starter";
   const promptLimit = getPromptLimit(plan);
 
   const { data: rawDomains } = await supabaseAdmin
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
         <SignupConversion />
       </Suspense>
       <div className="space-y-8">
-      {plan === "free" && (
+      {plan === "starter" && (
         <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
@@ -63,10 +63,10 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-semibold">
-                Free Plan — {totalPromptsUsed}/{promptLimit} prompts used
+                Starter Plan — {totalPromptsUsed}/{promptLimit} prompts used
               </p>
               <p className="text-xs text-muted-foreground">
-                Upgrade to track more prompts across all 7 AI engines.
+                Upgrade to get more prompts, articles, and gap analysis.
               </p>
             </div>
           </div>

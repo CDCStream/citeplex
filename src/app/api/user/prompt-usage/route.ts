@@ -6,10 +6,10 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 export async function GET() {
   const user = await getAuthUser();
   if (!user) {
-    return NextResponse.json({ limit: 3, used: 0, remaining: 3, plan: "free" });
+    return NextResponse.json({ limit: 15, used: 0, remaining: 15, plan: "starter" });
   }
 
-  const plan = user.plan || "free";
+  const plan = user.plan || "starter";
   const limit = getPromptLimit(plan);
 
   const { data: domains } = await supabaseAdmin
