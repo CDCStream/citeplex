@@ -205,6 +205,19 @@ export async function runDomainScan(
             progress.errors.push(`${engine.name} run${run}: ${result.error}`);
             progress.completed++;
             onProgress?.(progress);
+
+            await supabaseAdmin.from("scan_results").insert({
+              domain_id: domainId,
+              prompt_id: prompt.id,
+              ai_engine: ENGINE_NAME_MAP[engine.name],
+              run_index: run,
+              response: `[Error: ${result.error}]`,
+              brand_mentioned: false,
+              position: null,
+              sentiment: null,
+              citations: [],
+            });
+
             return null;
           }
 
