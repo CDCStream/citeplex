@@ -183,7 +183,7 @@ export default async function LandingPage() {
               Features
             </p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Everything you need to dominate AI search
+              Everything you need to dominate AI search and increase organic traffic
             </h2>
           </div>
 
@@ -224,6 +224,11 @@ export default async function LandingPage() {
               icon={PenLine}
               title="AI Article Writer"
               description="Claude Opus 4.6 writes SEO-optimized articles with your brand voice, Ahrefs keywords, AI images, and YouTube videos built in."
+            />
+            <BentoCard
+              icon={Target}
+              title="Gap Articles"
+              description="We detect prompts where AI engines mention competitors but not you — then write targeted articles to close that gap and get you mentioned."
             />
 
             {/* Large card — Content Engine */}
