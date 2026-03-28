@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignupConversion } from "@/app/dashboard/signup-conversion";
 import { Button } from "@/components/ui/button";
-import { Globe, Plus, Sparkles, ArrowUpRight, Zap } from "lucide-react";
+import { Globe, Plus, ArrowUpRight, Zap } from "lucide-react";
 import { DomainCards } from "@/components/dashboard/domain-cards";
 import { getPromptLimit } from "@/lib/plans";
 
@@ -80,16 +80,11 @@ export default async function DashboardPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-primary/10 p-2.5">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-            <p className="text-sm text-muted-foreground">
-              Track your brand&apos;s AI search visibility across engines.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+          <p className="text-sm text-muted-foreground">
+            Track your brand&apos;s AI search visibility across engines.
+          </p>
         </div>
         <Button asChild size="lg" className="rounded-xl">
           <Link href="/onboarding">
