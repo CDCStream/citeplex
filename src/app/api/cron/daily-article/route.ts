@@ -115,7 +115,7 @@ async function writeArticleForPlan(
       word_count: enrichedContent.split(/\s+/).length,
       target_keyword: targetKeyword,
       tags: article.tags || [],
-      outline: article.outline || [],
+      outline: outline || [],
       research_data: { ...research, keywordContext },
       faq: article.faq || [],
       seo_score: seo.score,
