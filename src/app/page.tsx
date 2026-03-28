@@ -302,18 +302,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="border-t">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-            <StatBlock value="7" label="AI Engines Tracked" />
-            <StatBlock value="24h" label="Scan Frequency" />
-            <StatBlock value="100%" label="Automated" />
-            <StatBlock value="∞" label="Custom Prompts" />
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section id="faq" className="border-t bg-muted/30">
         <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
@@ -325,50 +313,58 @@ export default async function LandingPage() {
               Frequently asked questions
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Everything you need to know about AI search visibility and how Citeplex works.
+              Everything you need to know about Citeplex — AI visibility, content writing, and growing your organic traffic.
             </p>
           </div>
 
           <div className="mt-14 space-y-4">
             <FaqItem
+              question="What is Citeplex?"
+              answer="Citeplex is an all-in-one SEO, AEO, and GEO platform. It tracks your brand across 7 AI engines, writes SEO-optimized articles with your brand voice, generates gap articles to get you mentioned by AI, and builds high DR backlinks — all on autopilot."
+            />
+            <FaqItem
               question="What is AI search visibility?"
-              answer="It shows how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — how often, at what rank, and compared to your competitors."
+              answer="It measures how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — mention rate, rank, sentiment, and competitor comparisons — updated daily."
             />
             <FaqItem
-              question="What is AEO (Answer Engine Optimization)?"
-              answer="AEO means Answer Engine Optimization. It is like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI answers from ChatGPT, Perplexity, and Gemini. Citeplex helps you track and improve your AEO results."
+              question="What is AEO and GEO?"
+              answer="AEO (Answer Engine Optimization) and GEO (Generative Engine Optimization) are like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI-generated answers. Citeplex tracks your AEO and GEO performance across ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral."
             />
             <FaqItem
-              question="What is GEO (Generative Engine Optimization)?"
-              answer="GEO stands for Generative Engine Optimization. The goal is simple: make AI models mention and recommend your brand. As more people use AI to search, GEO makes sure you are part of the answer. Citeplex tracks your GEO score across 7 AI engines."
+              question="How does the AI article writer work?"
+              answer="Citeplex uses Claude Opus 4.6 to write full SEO-optimized articles. First, Ahrefs keyword research identifies the best keywords. Then the AI writes the article matching your brand voice, adds AI-generated images, embeds relevant YouTube videos, and includes FAQ sections with JSON-LD schema. Articles can be published automatically to WordPress, Webflow, Shopify, and more."
             />
             <FaqItem
-              question="How does Citeplex track AI mentions?"
-              answer="Every day, we send your prompts to 7 AI engines. Then we read each answer and check if your brand is there. We note the rank, the tone, and the context. You can see the results on your dashboard and track changes over time."
+              question="What is brand voice matching?"
+              answer="Citeplex analyzes your existing blog posts and content to learn your writing style — tone, vocabulary, sentence structure, and personality. Every article the AI writes matches your unique voice, so it sounds like you, not a robot."
             />
             <FaqItem
-              question="Which AI engines does Citeplex support?"
-              answer="We support 7 engines: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market."
+              question="What are gap articles?"
+              answer="Gap articles target prompts where AI engines mention your competitors but not you. Citeplex detects these gaps and writes targeted articles designed to close them — so AI engines start mentioning your brand in those answers."
+            />
+            <FaqItem
+              question="Which AI engines does Citeplex scan?"
+              answer="We scan 7 engines daily: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market."
             />
             <FaqItem
               question="How is Citeplex different from traditional SEO tools?"
-              answer="SEO tools track Google rankings. Citeplex tracks AI answers. AI engines do not show a list of links — they write full responses. We check if your brand appears in those responses, where it ranks, and how often it comes up."
+              answer="Traditional SEO tools track Google rankings. Citeplex goes further — it tracks AI answers, writes articles with your brand voice, generates AI images, embeds YouTube videos, builds backlinks, and publishes content automatically. It combines AI visibility tracking with a full content engine in one platform."
             />
             <FaqItem
-              question="What is a prompt in Citeplex?"
-              answer="A prompt is a question we ask AI engines for you. For example: 'What is the best resume builder?' We send it to all 7 engines daily and check if they mention your brand. You can add any question your customers might ask."
+              question="What languages are supported?"
+              answer="Citeplex supports 110+ languages. Articles, keywords, prompts, and all content are generated in your target country's language automatically."
             />
             <FaqItem
-              question="How often are scans performed?"
-              answer="Every day. We send your prompts to all 7 AI engines once a day. Your dashboard updates with fresh data each morning. This helps you spot trends and act fast."
+              question="Is there a free trial?"
+              answer="Yes. All plans come with a 14-day free trial — no credit card required. You get full access to AI visibility tracking, article writing, gap articles, backlinks, and all features."
             />
             <FaqItem
-              question="Can I track my competitors?"
-              answer="Yes. We find your competitors and track them too. You can compare mention rates side by side. When a competitor shows up and you do not, we flag that as a gap you can close."
+              question="Can I upgrade my plan later?"
+              answer="Absolutely. You can upgrade anytime from your dashboard. You only pay the prorated difference for the remaining billing period."
             />
             <FaqItem
-              question="Why is AI search visibility important for my brand?"
-              answer="More people now use AI to search for products and services. If AI engines do not mention your brand, you lose traffic and trust. Citeplex helps you see where you stand and what to do about it."
+              question="What is the early bird pricing?"
+              answer="We offer discounted pricing for our first 200 customers. The first 89 customers get the best rate, and customers 90-200 get a moderate discount. After that, normal pricing applies. Lock in your price now — it stays the same as long as you remain subscribed."
             />
           </div>
         </div>
@@ -382,42 +378,58 @@ export default async function LandingPage() {
               mainEntity: [
                 {
                   "@type": "Question",
+                  name: "What is Citeplex?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "Citeplex is an all-in-one SEO, AEO, and GEO platform. It tracks your brand across 7 AI engines, writes SEO-optimized articles with your brand voice, generates gap articles to get you mentioned by AI, and builds high DR backlinks — all on autopilot.",
+                  },
+                },
+                {
+                  "@type": "Question",
                   name: "What is AI search visibility?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "It shows how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — how often, at what rank, and compared to your competitors.",
+                    text: "It measures how often AI engines mention your brand. When people ask ChatGPT, Gemini, or Claude about your industry, do they bring up your name? Citeplex tracks that — mention rate, rank, sentiment, and competitor comparisons — updated daily.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "What is AEO (Answer Engine Optimization)?",
+                  name: "What is AEO and GEO?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "AEO means Answer Engine Optimization. It is like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI answers from ChatGPT, Perplexity, and Gemini. Citeplex helps you track and improve your AEO results.",
+                    text: "AEO (Answer Engine Optimization) and GEO (Generative Engine Optimization) are like SEO, but for AI. Instead of ranking on Google, you aim to get mentioned in AI-generated answers. Citeplex tracks your AEO and GEO performance across ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "What is GEO (Generative Engine Optimization)?",
+                  name: "How does the AI article writer work?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "GEO stands for Generative Engine Optimization. The goal is simple: make AI models mention and recommend your brand. As more people use AI to search, GEO makes sure you are part of the answer. Citeplex tracks your GEO score across 7 AI engines.",
+                    text: "Citeplex uses Claude Opus 4.6 to write full SEO-optimized articles. First, Ahrefs keyword research identifies the best keywords. Then the AI writes the article matching your brand voice, adds AI-generated images, embeds relevant YouTube videos, and includes FAQ sections with JSON-LD schema.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "How does Citeplex track AI mentions?",
+                  name: "What is brand voice matching?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Every day, we send your prompts to 7 AI engines. Then we read each answer and check if your brand is there. We note the rank, the tone, and the context. You can see the results on your dashboard.",
+                    text: "Citeplex analyzes your existing blog posts and content to learn your writing style — tone, vocabulary, sentence structure, and personality. Every article the AI writes matches your unique voice, so it sounds like you, not a robot.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Which AI engines does Citeplex support?",
+                  name: "What are gap articles?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "We support 7 engines: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market.",
+                    text: "Gap articles target prompts where AI engines mention your competitors but not you. Citeplex detects these gaps and writes targeted articles designed to close them — so AI engines start mentioning your brand in those answers.",
+                  },
+                },
+                {
+                  "@type": "Question",
+                  name: "Which AI engines does Citeplex scan?",
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: "We scan 7 engines daily: ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral. Together, they cover most of the AI search market.",
                   },
                 },
                 {
@@ -425,39 +437,39 @@ export default async function LandingPage() {
                   name: "How is Citeplex different from traditional SEO tools?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "SEO tools track Google rankings. Citeplex tracks AI answers. AI engines do not show a list of links — they write full responses. We check if your brand appears in those responses, where it ranks, and how often it comes up.",
+                    text: "Traditional SEO tools track Google rankings. Citeplex goes further — it tracks AI answers, writes articles with your brand voice, generates AI images, embeds YouTube videos, builds backlinks, and publishes content automatically. It combines AI visibility tracking with a full content engine in one platform.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "What is a prompt in Citeplex?",
+                  name: "What languages are supported?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "A prompt is a question we ask AI engines for you. For example: 'What is the best resume builder?' We send it to all 7 engines daily and check if they mention your brand.",
+                    text: "Citeplex supports 110+ languages. Articles, keywords, prompts, and all content are generated in your target country's language automatically.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "How often are scans performed?",
+                  name: "Is there a free trial?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Every day. We send your prompts to all 7 AI engines once a day. Your dashboard updates with fresh data each morning.",
+                    text: "Yes. All plans come with a 14-day free trial — no credit card required. You get full access to AI visibility tracking, article writing, gap articles, backlinks, and all features.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Can I track my competitors?",
+                  name: "Can I upgrade my plan later?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "Yes. We find your competitors and track them too. You can compare mention rates side by side. When a competitor shows up and you do not, we flag that gap.",
+                    text: "Absolutely. You can upgrade anytime from your dashboard. You only pay the prorated difference for the remaining billing period.",
                   },
                 },
                 {
                   "@type": "Question",
-                  name: "Why is AI search visibility important for my brand?",
+                  name: "What is the early bird pricing?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "More people now use AI to search for products and services. If AI engines do not mention your brand, you lose traffic and trust. Citeplex helps you see where you stand and what to do about it.",
+                    text: "We offer discounted pricing for our first 200 customers. The first 89 customers get the best rate, and customers 90-200 get a moderate discount. After that, normal pricing applies. Lock in your price now — it stays the same as long as you remain subscribed.",
                   },
                 },
               ],
@@ -594,13 +606,3 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
-function StatBlock({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="text-center">
-      <p className="text-4xl font-extrabold tracking-tight bg-linear-to-r from-primary to-indigo-500 bg-clip-text text-transparent sm:text-5xl">
-        {value}
-      </p>
-      <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
-    </div>
-  );
-}
