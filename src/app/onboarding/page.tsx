@@ -23,6 +23,7 @@ import {
   Mail,
   RefreshCw,
   MessageSquareText,
+  Home,
 } from "lucide-react";
 import { COUNTRIES, countryFlag } from "@/lib/constants/countries";
 import { Favicon } from "@/components/ui/favicon";
@@ -483,6 +484,20 @@ export default function OnboardingPage() {
       </Suspense>
     <div className="min-h-screen bg-linear-to-b from-background to-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
+        {step === 0 && (
+          <div className="mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { window.location.href = "/dashboard"; }}
+              className="text-xs text-muted-foreground gap-1.5"
+            >
+              <Home className="h-3.5 w-3.5" />
+              Dashboard
+            </Button>
+          </div>
+        )}
+
         <div className="flex gap-2 mb-8">
           {STEPS.map((s, i) => (
             <div
@@ -1167,7 +1182,7 @@ export default function OnboardingPage() {
                         <span className="text-xs text-muted-foreground font-mono">
                           {Math.floor(planElapsed / 60)}:{String(planElapsed % 60).padStart(2, "0")}
                         </span>
-                        <p className="text-[10px] text-muted-foreground">~4-5 min</p>
+                        <p className="text-[10px] text-muted-foreground">~5-6 min</p>
                       </div>
                     )}
                   </div>
@@ -1194,20 +1209,6 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                {(finishPhase === "planning" || finishPhase === "scanning") && (
-                  <div className="text-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (createdDomainId) window.location.href = `/dashboard/${createdDomainId}`;
-                      }}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Skip & go to dashboard →
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>

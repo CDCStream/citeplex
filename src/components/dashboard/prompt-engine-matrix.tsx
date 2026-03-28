@@ -223,20 +223,18 @@ export function PromptEngineMatrix({ rows, domainId }: { rows: PromptResult[]; d
                         </TableCell>
                       );
                     })}
-                    {domainId && row.mentionRate < 50 && (
+                    {domainId && row.mentionRate === 0 && (
                       <TableCell className="text-center">
                         <Link
-                          href={`/dashboard/${domainId}/content/write?title=${encodeURIComponent(`How to rank for: ${row.promptText}`)}&keyword=${encodeURIComponent(row.promptText)}`}
+                          href={`/dashboard/${domainId}/content/write?title=${encodeURIComponent(row.promptText)}&keyword=${encodeURIComponent(row.promptText)}&gap=1`}
                           className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
-                          title="Write article to improve visibility"
+                          title="Write gap article"
                         >
                           <Pencil className="h-3 w-3 text-primary" />
                         </Link>
                       </TableCell>
                     )}
-                    {domainId && row.mentionRate >= 50 && (
-                      <TableCell />
-                    )}
+                    {domainId && row.mentionRate > 0 && <TableCell />}
                   </motion.tr>
                 ))}
               </TableBody>
