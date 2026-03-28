@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { callLLM } from "@/lib/llm/client";
 
 export async function POST(
   req: NextRequest,
@@ -45,51 +46,25 @@ export async function POST(
       .map((p) => p.title)
       .join("; ");
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ suggestions: [] });
-    }
-
-    const systemPrompt = `You are an SEO content strategist. Generate 8 article topic suggestions for a brand.
+    const text = await callLLM({
+      chain: "fast",
+      system: `You are an SEO content strategist. Generate 8 article topic suggestions for a brand.
 Return ONLY valid JSON array: [{"title":"...","keyword":"...","type":"guide|how-to|listicle|comparison|explainer|round-up"}]
 - Each title should be specific and actionable
 - Keywords should be realistic search terms
 - Mix different article types
 - Focus on topics that would improve AI visibility and SEO
-- Avoid duplicate topics with existing planned articles`;
-
-    const userPrompt = `Brand: ${domain.brand_name}
+- Avoid duplicate topics with existing planned articles`,
+      user: `Brand: ${domain.brand_name}
 Description: ${domain.description || "N/A"}
 Industry: ${domain.industry || "N/A"}
 Competitors: ${competitorNames || "N/A"}
 ${existingTitles ? `Already planned: ${existingTitles}` : ""}
 
-Generate 8 article topic suggestions.`;
-
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        max_tokens: 1500,
-      }),
+Generate 8 article topic suggestions.`,
+      temperature: 0.8,
+      maxTokens: 1500,
     });
-
-    if (!res.ok) {
-      console.error("OpenAI suggestion error:", await res.text());
-      return NextResponse.json({ suggestions: [] });
-    }
-
-    const data = await res.json();
-    const text = data.choices?.[0]?.message?.content || "[]";
 
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];

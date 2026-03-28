@@ -1,7 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
-
-const ANTHROPIC_API_KEY = () => process.env.ANTHROPIC_API_KEY || "";
+import { callLLM } from "@/lib/llm/client";
 
 interface DomainContext {
   id: string;
@@ -22,32 +21,6 @@ interface PlannedKeyword {
   reasoning: string;
 }
 
-async function callClaude(system: string, user: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY(),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-    signal: AbortSignal.timeout(120000),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return data.content?.map((c: { text: string }) => c.text).join("") ?? "";
-}
-
 async function getCompetitorKeywords(domainId: string, domain: DomainContext): Promise<string[]> {
   const { data: competitors } = await supabaseAdmin
     .from("competitors")
@@ -59,9 +32,10 @@ async function getCompetitorKeywords(domainId: string, domain: DomainContext): P
 
   const competitorNames = competitors.map((c) => `${c.brand_name} (${c.url})`).join(", ");
 
-  const response = await callClaude(
-    "You are an SEO strategist. Generate keyword ideas based on competitor analysis. Return ONLY a JSON array of keyword strings.",
-    `Our brand: ${domain.brand_name}
+  const response = await callLLM({
+    chain: "fast",
+    system: "You are an SEO strategist. Generate keyword ideas based on competitor analysis. Return ONLY a JSON array of keyword strings.",
+    user: `Our brand: ${domain.brand_name}
 Description: ${domain.description}
 Industry: ${domain.industry}
 Competitors: ${competitorNames}
@@ -72,8 +46,10 @@ Generate 30 keyword ideas that our competitors likely rank for but we might not.
 3. Comparison/alternative keywords (without brand names)
 4. Problem-solving keywords in our shared industry
 
-Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...]`
-  );
+Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...]`,
+    maxTokens: 8192,
+    timeout: 120000,
+  });
 
   try {
     const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -85,9 +61,10 @@ Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...
 }
 
 async function getBacklinkKeywords(domain: DomainContext): Promise<string[]> {
-  const response = await callClaude(
-    "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks. Return ONLY a JSON array of keyword strings.",
-    `Brand: ${domain.brand_name}
+  const response = await callLLM({
+    chain: "fast",
+    system: "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks. Return ONLY a JSON array of keyword strings.",
+    user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
 
@@ -98,8 +75,10 @@ Generate 15 keyword ideas for articles that would naturally attract backlinks:
 4. "Best tools/resources" listicle keywords
 5. "Benchmark/report" keywords that people cite
 
-Return ONLY a JSON array of keyword strings.`
-  );
+Return ONLY a JSON array of keyword strings.`,
+    maxTokens: 8192,
+    timeout: 120000,
+  });
 
   try {
     const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -111,9 +90,10 @@ Return ONLY a JSON array of keyword strings.`
 }
 
 async function getOpportunityKeywords(domain: DomainContext): Promise<string[]> {
-  const response = await callClaude(
-    "You are an SEO content strategist. Generate keyword ideas for organic traffic growth. Return ONLY a JSON array of keyword strings.",
-    `Brand: ${domain.brand_name}
+  const response = await callLLM({
+    chain: "fast",
+    system: "You are an SEO content strategist. Generate keyword ideas for organic traffic growth. Return ONLY a JSON array of keyword strings.",
+    user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
 Country: ${domain.primary_country}
@@ -129,8 +109,10 @@ Focus on keywords that are:
 - Directly relevant to what this brand offers
 - Likely to convert visitors into customers
 
-Return ONLY a JSON array of keyword strings.`
-  );
+Return ONLY a JSON array of keyword strings.`,
+    maxTokens: 8192,
+    timeout: 120000,
+  });
 
   try {
     const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -176,9 +158,10 @@ async function generateTitlesForKeywords(
     .map((k) => `- "${k.keyword}" (source: ${k.source}, volume: ${k.metrics?.volume ?? "?"}, difficulty: ${k.metrics?.difficulty ?? "?"})`)
     .join("\n");
 
-  const response = await callClaude(
-    "You are an SEO content strategist. Create article titles for the given keywords. Return ONLY valid JSON.",
-    `Brand: ${domain.brand_name}
+  const response = await callLLM({
+    chain: "fast",
+    system: "You are an SEO content strategist. Create article titles for the given keywords. Return ONLY valid JSON.",
+    user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
 
@@ -195,8 +178,10 @@ Return a JSON array:
   "reasoning": "1 sentence why this keyword is valuable for this brand"
 }]
 
-Select the top ${count} keywords that would be most impactful. Return ONLY the JSON.`
-  );
+Select the top ${count} keywords that would be most impactful. Return ONLY the JSON.`,
+    maxTokens: 8192,
+    timeout: 120000,
+  });
 
   try {
     const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

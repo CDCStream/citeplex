@@ -27,6 +27,18 @@ import {
 import { COUNTRIES, countryFlag } from "@/lib/constants/countries";
 import { Favicon } from "@/components/ui/favicon";
 import { SignupConversion } from "@/app/dashboard/signup-conversion";
+import { EngineIcon } from "@/components/ui/engine-icon";
+
+const SCAN_ENGINES = ["chatgpt", "perplexity", "gemini", "claude", "deepseek", "grok", "mistral"] as const;
+const ENGINE_LABELS: Record<string, string> = {
+  chatgpt: "ChatGPT",
+  perplexity: "Perplexity",
+  gemini: "Gemini",
+  claude: "Claude",
+  deepseek: "DeepSeek",
+  grok: "Grok",
+  mistral: "Mistral",
+};
 
 const STEPS = [
   { label: "Website", icon: Globe },
@@ -349,8 +361,18 @@ export default function OnboardingPage() {
 
   const [finishPhase, setFinishPhase] = useState<"" | "saving" | "scanning" | "planning" | "done">("");
   const [scanProgress, setScanProgress] = useState(0);
+  const [scanDetail, setScanDetail] = useState<{ completed: number; total: number } | null>(null);
   const [planProgress, setPlanProgress] = useState(0);
   const [createdDomainId, setCreatedDomainId] = useState("");
+  const [activeEngineIdx, setActiveEngineIdx] = useState(0);
+
+  useEffect(() => {
+    if (finishPhase !== "scanning") return;
+    const iv = setInterval(() => {
+      setActiveEngineIdx((i) => (i + 1) % SCAN_ENGINES.length);
+    }, 600);
+    return () => clearInterval(iv);
+  }, [finishPhase]);
 
   async function handleFinish() {
     setSaving(true);
@@ -384,28 +406,57 @@ export default function OnboardingPage() {
         setCreatedDomainId(data.domainId);
         setStep(5);
 
+        // Phase 1: AI Visibility Scan (fire & poll)
         setFinishPhase("scanning");
-        const scanInterval = setInterval(() => {
-          setScanProgress((p) => Math.min(p + Math.random() * 15, 95));
-        }, 800);
+        fetch(`/api/scan/${data.domainId}`, { method: "POST" }).catch(() => {});
 
-        try {
-          await fetch(`/api/scan/${data.domainId}`, { method: "POST" });
-        } catch { /* continue */ }
-        clearInterval(scanInterval);
-        setScanProgress(100);
+        await new Promise<void>((resolve) => {
+          const poll = setInterval(async () => {
+            try {
+              const sr = await fetch(`/api/scan-status/${data.domainId}`, { cache: "no-store" });
+              const sd = await sr.json();
+              if (sd.progress) {
+                setScanDetail(sd.progress);
+                const pct = sd.progress.total > 0
+                  ? (sd.progress.completed / sd.progress.total) * 100
+                  : 0;
+                setScanProgress(Math.min(pct, 99));
+              }
+              if (sd.status === "completed") {
+                clearInterval(poll);
+                setScanProgress(100);
+                setScanDetail((prev) => prev ? { ...prev, completed: prev.total } : prev);
+                resolve();
+              }
+            } catch { /* retry next tick */ }
+          }, 2500);
+        });
 
         await new Promise((r) => setTimeout(r, 600));
-        setFinishPhase("planning");
-        const planInterval = setInterval(() => {
-          setPlanProgress((p) => Math.min(p + Math.random() * 8, 95));
-        }, 1200);
 
+        // Phase 2: Keyword Planning (fire & poll)
+        setFinishPhase("planning");
         fetch(`/api/content/${data.domainId}/plan-keywords`, { method: "POST" }).catch(() => {});
 
-        await new Promise((r) => setTimeout(r, 5000));
-        clearInterval(planInterval);
-        setPlanProgress(100);
+        await new Promise<void>((resolve) => {
+          let ticks = 0;
+          const poll = setInterval(async () => {
+            ticks++;
+            try {
+              const kr = await fetch(`/api/content/${data.domainId}/plan-keywords`, { cache: "no-store" });
+              const kd = await kr.json();
+              if (kd.status === "done" || kd.status === "none") {
+                clearInterval(poll);
+                setPlanProgress(100);
+                resolve();
+              } else {
+                setPlanProgress(Math.min(ticks * 8, 92));
+              }
+            } catch {
+              setPlanProgress(Math.min(ticks * 8, 92));
+            }
+          }, 3000);
+        });
 
         setFinishPhase("done");
         await new Promise((r) => setTimeout(r, 1000));
@@ -1022,7 +1073,7 @@ export default function OnboardingPage() {
                 </div>
 
                 {/* AI Visibility Scan */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     {scanProgress >= 100 ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
@@ -1034,21 +1085,54 @@ export default function OnboardingPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">AI Visibility Scan</p>
                       <p className="text-xs text-muted-foreground">
-                        Scanning {selectedCount} prompts across 7 AI engines
+                        {scanDetail
+                          ? `${scanDetail.completed} / ${scanDetail.total} queries completed`
+                          : `Scanning ${selectedCount} prompts across ${SCAN_ENGINES.length} AI engines`}
                       </p>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
                       {Math.round(scanProgress)}%
                     </span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+
+                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${
                         scanProgress >= 100 ? "bg-emerald-500" : "bg-primary"
                       }`}
-                      style={{ width: `${scanProgress}%` }}
+                      style={{ width: `${Math.max(scanProgress, 2)}%` }}
                     />
                   </div>
+
+                  {/* AI Engine Logos */}
+                  {(finishPhase === "scanning" || scanProgress >= 100) && (
+                    <div className="flex justify-center gap-3">
+                      {SCAN_ENGINES.map((engine, i) => (
+                        <div key={engine} className="flex flex-col items-center gap-1.5">
+                          <div
+                            className={`rounded-full p-1.5 ring-1 transition-all duration-300 ${
+                              scanProgress >= 100
+                                ? "bg-emerald-50 dark:bg-emerald-500/10 ring-emerald-200 dark:ring-emerald-500/30"
+                                : i === activeEngineIdx
+                                  ? "bg-primary/10 ring-primary/40 scale-110"
+                                  : "bg-white/60 dark:bg-white/10 ring-gray-200/50 dark:ring-gray-600/30 opacity-50"
+                            }`}
+                          >
+                            <EngineIcon engine={engine} size={20} />
+                          </div>
+                          <span className={`text-[9px] transition-colors duration-300 ${
+                            scanProgress >= 100
+                              ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                              : i === activeEngineIdx
+                                ? "text-primary font-medium"
+                                : "text-muted-foreground"
+                          }`}>
+                            {ENGINE_LABELS[engine]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Keyword Planning */}
@@ -1071,12 +1155,12 @@ export default function OnboardingPage() {
                       {Math.round(planProgress)}%
                     </span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
+                      className={`h-full rounded-full transition-all duration-700 ease-out ${
                         planProgress >= 100 ? "bg-emerald-500" : "bg-primary"
                       }`}
-                      style={{ width: `${planProgress}%` }}
+                      style={{ width: `${Math.max(planProgress, planProgress > 0 ? 2 : 0)}%` }}
                     />
                   </div>
                 </div>

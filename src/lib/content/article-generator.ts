@@ -1,44 +1,4 @@
-function getAnthropicKey(): string {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
-  return key;
-}
-
-async function chatAnthropic(
-  systemPrompt: string,
-  userPrompt: string,
-  temperature = 0.7,
-  maxTokens = 8192
-): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": getAnthropicKey(),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-opus-4-20250514",
-      max_tokens: maxTokens,
-      temperature,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Anthropic API error (${res.status}): ${body}`);
-  }
-
-  const data = await res.json();
-  return (
-    data.content
-      ?.filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("") ?? ""
-  );
-}
+import { callLLM } from "@/lib/llm/client";
 
 export interface ResearchData {
   keyPoints: string[];
@@ -77,7 +37,7 @@ Target Keyword: ${keyword}
 Brand: ${brandName}
 Industry: ${industry}`;
 
-  const text = await chatAnthropic(systemPrompt, userPrompt, 0.5, 2048);
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048 });
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return defaultResearch();
 
@@ -128,7 +88,7 @@ Key Points to Cover: ${research.keyPoints.join(", ")}
 Related Topics: ${research.relatedTopics.join(", ")}
 Language: ${language}`;
 
-  const text = await chatAnthropic(systemPrompt, userPrompt, 0.5, 3000);
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000 });
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
 
@@ -213,7 +173,7 @@ ${outlineText}
 
 Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level. Incorporate the backlink angles and statistics to make this article a link-worthy reference.`;
 
-  const text = await chatAnthropic(systemPrompt, userPrompt, 0.7, 8192);
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.7, maxTokens: 8192 });
 
   let content = text;
   let metaDescription = "";

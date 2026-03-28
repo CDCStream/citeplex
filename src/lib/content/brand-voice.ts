@@ -1,3 +1,5 @@
+import { callLLM } from "@/lib/llm/client";
+
 export interface BrandVoiceProfile {
   tone: string;
   style: string;
@@ -9,12 +11,6 @@ export interface BrandVoiceProfile {
   sampleExcerpt: string;
 }
 
-function getAnthropicKey(): string {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
-  return key;
-}
-
 export async function analyzeBrandVoice(
   sampleTexts: string[]
 ): Promise<BrandVoiceProfile> {
@@ -22,18 +18,9 @@ export async function analyzeBrandVoice(
     .map((t, i) => `--- Sample ${i + 1} ---\n${t.slice(0, 3000)}`)
     .join("\n\n");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": getAnthropicKey(),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
-      temperature: 0.3,
-      system: `You are a writing style analyst. Analyze the provided content samples and extract a detailed brand voice profile.
+  const text = await callLLM({
+    chain: "fast",
+    system: `You are a writing style analyst. Analyze the provided content samples and extract a detailed brand voice profile.
 Return ONLY valid JSON with this structure:
 {
   "tone": "description of the overall tone (e.g. professional yet approachable, casual and witty, authoritative and formal)",
@@ -45,27 +32,11 @@ Return ONLY valid JSON with this structure:
   "dontList": ["5-7 things this brand avoids in their writing"],
   "sampleExcerpt": "a 2-3 sentence example that captures this voice perfectly"
 }`,
-      messages: [
-        {
-          role: "user",
-          content: `Analyze the writing style and brand voice from these content samples:\n\n${combined}`,
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(30000),
+    user: `Analyze the writing style and brand voice from these content samples:\n\n${combined}`,
+    maxTokens: 1500,
+    temperature: 0.3,
+    timeout: 30000,
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Brand voice analysis failed: ${err}`);
-  }
-
-  const data = await res.json();
-  const text =
-    data.content
-      ?.filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("") ?? "";
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { callLLM } from "@/lib/llm/client";
+
 type Priority = "high" | "medium" | "low";
 
 interface RawRecommendation {
@@ -8,9 +10,6 @@ interface RawRecommendation {
 }
 
 export async function generateRecommendations(domainId: string): Promise<number> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return 0;
-
   const { data: domain } = await supabaseAdmin
     .from("domains")
     .select("brand_name, url, industry")
@@ -72,7 +71,11 @@ export async function generateRecommendations(domainId: string): Promise<number>
   const mentionedRuns = results.filter((r) => r.brandMentioned).length;
   const mentionRate = Math.round((mentionedRuns / totalRuns) * 100);
 
-  const prompt = `You are an AI Search Visibility expert. Analyze these scan results and provide 3-5 specific, actionable recommendations.
+  try {
+    const content = await callLLM({
+      chain: "fast",
+      system: "You are an AI Search Visibility expert. Respond ONLY with a valid JSON array, no other text.",
+      user: `Analyze these scan results and provide 3-5 specific, actionable recommendations.
 
 Brand: ${domain.brand_name}
 Website: ${domain.url}
@@ -95,28 +98,11 @@ Focus on:
 2. Technical SEO — structured data, citations, authority signals
 3. AI-specific optimization — how to get cited by AI engines
 
-Respond ONLY with a valid JSON array, no other text.`;
-
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
-      signal: AbortSignal.timeout(30000),
+Respond ONLY with a valid JSON array, no other text.`,
+      maxTokens: 1000,
+      temperature: 0.7,
+      timeout: 30000,
     });
-
-    if (!res.ok) return 0;
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content?.trim() ?? "";
 
     const jsonStr = content.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
     const recommendations: RawRecommendation[] = JSON.parse(jsonStr);

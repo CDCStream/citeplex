@@ -1,86 +1,10 @@
-const OPENAI_API_KEY = () => process.env.OPENAI_API_KEY || "";
-const ANTHROPIC_API_KEY = () => process.env.ANTHROPIC_API_KEY || "";
+import { callLLM } from "@/lib/llm/client";
 
-interface CallLLMOptions {
-  webSearch?: boolean;
-}
-
-async function callOpenAI(systemPrompt: string, userPrompt: string, options?: CallLLMOptions): Promise<string> {
-  const body: Record<string, unknown> = {
-    model: "gpt-4.1-mini",
-    input: [
-      { role: "developer", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  };
-
-  if (options?.webSearch) {
-    body.tools = [{ type: "web_search_preview" }];
-  }
-
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY()}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OpenAI error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return (
-    data.output
-      ?.filter((item: { type: string }) => item.type === "message")
-      .map((item: { content: { text: string }[] }) =>
-        item.content?.map((c: { text: string }) => c.text).join("")
-      )
-      .join("\n") ?? ""
-  );
-}
-
-async function callClaude(systemPrompt: string, userPrompt: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY(),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Claude error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return data.content?.map((c: { text: string }) => c.text).join("") ?? "";
-}
-
-async function callLLM(systemPrompt: string, userPrompt: string, options?: CallLLMOptions): Promise<string> {
-  try {
-    return await callOpenAI(systemPrompt, userPrompt, options);
-  } catch (err) {
-    console.error("[LLM] OpenAI failed, trying Claude fallback:", (err as Error).message);
-    if (options?.webSearch) {
-      return await callClaude(systemPrompt, userPrompt + "\n\n(Note: web search is not available, use your knowledge.)");
-    }
-    return await callClaude(systemPrompt, userPrompt);
-  }
-}
+const ANALYZE_CHAIN = [
+  { provider: "openai" as const, model: "gpt-4.1-mini" },
+  { provider: "anthropic" as const, model: "claude-sonnet-4-20250514" },
+  { provider: "gemini" as const, model: "gemini-2.5-flash" },
+];
 
 interface ScrapedMeta {
   title: string;
@@ -322,9 +246,9 @@ Only return the JSON, nothing else.`;
 
   let response = "";
   try {
-    response = await callLLM(systemPrompt, userPrompt);
+    response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
   } catch (err) {
-    console.error(`[Analyze] OpenAI call failed for ${url}:`, (err as Error).message);
+    console.error(`[Analyze] LLM call failed for ${url}:`, (err as Error).message);
     return buildFallback(meta, brandHint, tldCountry);
   }
 
@@ -431,7 +355,7 @@ RULES:
 - If you cannot find info, use domain name "${brandHint}" as brandName and leave description/industry minimal
 - Only return the JSON, nothing else.`;
 
-    const response = await callLLM(systemPrompt, userPrompt, { webSearch: true });
+    const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
     const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const result = JSON.parse(cleaned);
 
@@ -511,7 +435,7 @@ Return a JSON array:
 
 Only return the JSON array, nothing else.`;
 
-  const response = await callLLM(systemPrompt, userPrompt);
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
   const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   try {
@@ -628,7 +552,7 @@ Return a JSON array:
 
 Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
 
-  const response = await callLLM(systemPrompt, userPrompt, { webSearch: true });
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
   const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
   try {

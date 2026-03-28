@@ -1,38 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { extractSources } from "./extract-sources";
 import { getLanguageName } from "@/lib/languages";
-
-const ANTHROPIC_API_KEY = () => process.env.ANTHROPIC_API_KEY || "";
-
-async function callInsightLLM(prompt: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY(),
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Anthropic error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  return (
-    data.content
-      ?.filter((block: { type: string }) => block.type === "text")
-      .map((block: { text: string }) => block.text)
-      .join("\n") ?? ""
-  );
-}
+import { callLLM } from "@/lib/llm/client";
 
 export async function generateScanInsights(domainId: string) {
   const { data: domain } = await supabaseAdmin
@@ -170,7 +139,7 @@ ${sources.length > 0 ? sources.map((s) => `- ${s}`).join("\n") : "(no sources de
 
 Only return valid JSON, nothing else.`;
 
-          const response = await callInsightLLM(llmPrompt);
+          const response = await callLLM({ chain: "fast", system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
           const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
           let insight;
