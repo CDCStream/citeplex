@@ -487,12 +487,12 @@ export default function OnboardingPage() {
         {step === 0 && (
           <div className="mb-4">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => { window.location.href = "/dashboard"; }}
-              className="text-xs text-muted-foreground gap-1.5"
+              className="gap-1.5"
             >
-              <Home className="h-3.5 w-3.5" />
+              <Home className="h-4 w-4" />
               Dashboard
             </Button>
           </div>
