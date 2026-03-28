@@ -20,6 +20,12 @@ import {
   ChevronRight,
   Eye,
   Target,
+  PenLine,
+  Globe,
+  ImageIcon,
+  Link2,
+  MessageSquareText,
+  Sparkles,
 } from "lucide-react";
 
 const poppins = Poppins({
@@ -177,20 +183,20 @@ export default async function LandingPage() {
               Features
             </p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Built for the AI-first era
+              Everything you need to dominate AI search
             </h2>
           </div>
 
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Large card */}
+            {/* Large card — AI Visibility */}
             <div className="row-span-2 rounded-3xl border bg-linear-to-br from-primary/5 to-transparent p-8 flex flex-col justify-between">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                   <Eye className="h-6 w-6" />
                 </div>
-                <h3 className="mt-6 text-2xl font-bold">Mention Rate</h3>
+                <h3 className="mt-6 text-2xl font-bold">AI Visibility Tracking</h3>
                 <p className="mt-3 text-muted-foreground leading-relaxed">
-                  How often do AI engines mention your brand? See the percentage across all 7 engines, updated daily.
+                  Track how often AI engines mention your brand across 7 platforms. Daily scans with sentiment analysis and AI-powered insights on why you rank — or why you don&apos;t.
                 </p>
               </div>
               <div className="mt-8 flex items-end gap-1">
@@ -207,41 +213,78 @@ export default async function LandingPage() {
             <BentoCard
               icon={Search}
               title="7 AI Engines"
-              description="We scan ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral — all at once."
+              description="ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, and Mistral — scanned daily, all at once."
             />
             <BentoCard
               icon={Users}
-              title="Competitor Intel"
-              description="See where your competitors show up and you don't. Find the gaps and close them."
+              title="Competitor Intelligence"
+              description="See where competitors show up and you don't. Close the gaps with targeted articles designed to get you mentioned."
             />
             <BentoCard
-              icon={TrendingUp}
-              title="Daily Trends"
-              description="Daily scans show how your visibility changes over time. Spot trends at a glance."
+              icon={PenLine}
+              title="AI Article Writer"
+              description="Claude Opus 4.6 writes SEO-optimized articles with your brand voice, Ahrefs keywords, AI images, and YouTube videos built in."
             />
-            {/* Wide card */}
+
+            {/* Large card — Content Engine */}
+            <div className="row-span-2 rounded-3xl border bg-linear-to-br from-blue-500/5 to-transparent p-8 flex flex-col justify-between">
+              <div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <h3 className="mt-6 text-2xl font-bold">Brand Voice Matching</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
+                  We analyze your existing content and learn your writing style. Every article matches your tone, vocabulary, and personality — so it sounds like you, not a robot.
+                </p>
+              </div>
+              <div className="mt-8 grid grid-cols-2 gap-2">
+                {["Tone", "Style", "Vocabulary", "Personality"].map((tag) => (
+                  <div key={tag} className="rounded-lg border bg-muted/50 px-3 py-2 text-center text-xs font-medium">
+                    {tag}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <BentoCard
+              icon={TrendingUp}
+              title="Daily Trends & Insights"
+              description="Track visibility changes over time. AI Insight Engine explains why your rank changed and what to do next."
+            />
+            <BentoCard
+              icon={MessageSquareText}
+              title="Sentiment Analysis"
+              description="Every mention is classified as positive, negative, or neutral. Know how AI engines feel about your brand."
+            />
+
+            {/* Wide card — Full Pipeline */}
             <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border bg-card p-8 flex flex-col sm:flex-row items-center gap-8">
               <div className="flex-1">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                   <Target className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="mt-4 text-2xl font-bold">Prompt-Level Analysis</h3>
+                <h3 className="mt-4 text-2xl font-bold">Full Content Pipeline</h3>
                 <p className="mt-2 text-muted-foreground leading-relaxed">
-                  Pick any question your customers might ask. We show which AI engines mention you, your rank, and how the answer feels — by engine, language, and topic.
+                  From keyword research to published article — fully automated. Ahrefs data drives keyword selection, Claude Opus 4.6 writes with your brand voice, and articles publish to WordPress, Webflow, Shopify and more.
                 </p>
               </div>
               <div className="grid shrink-0 grid-cols-3 gap-2">
-                {["ChatGPT", "Gemini", "Claude", "Perplexity", "DeepSeek", "Grok"].map(
-                  (name) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-center gap-2 rounded-xl border bg-muted/50 px-3 py-2 text-xs font-medium"
-                    >
-                      <EngineIcon engine={name.toLowerCase()} size={16} />
-                      {name}
-                    </div>
-                  ),
-                )}
+                {[
+                  { icon: Search, label: "Keywords" },
+                  { icon: PenLine, label: "Writing" },
+                  { icon: ImageIcon, label: "AI Images" },
+                  { icon: Globe, label: "110+ Langs" },
+                  { icon: Link2, label: "Backlinks" },
+                  { icon: Target, label: "Publishing" },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-center gap-2 rounded-xl border bg-muted/50 px-3 py-2 text-xs font-medium"
+                  >
+                    <item.icon className="h-4 w-4 text-primary" />
+                    {item.label}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
