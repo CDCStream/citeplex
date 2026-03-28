@@ -1,13 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { extractSources } from "./extract-sources";
+import { getLanguageName } from "@/lib/languages";
 
 const ANTHROPIC_API_KEY = () => process.env.ANTHROPIC_API_KEY || "";
-
-const LANG_NAMES: Record<string, string> = {
-  en: "English", tr: "Turkish", de: "German", fr: "French", es: "Spanish",
-  it: "Italian", pt: "Portuguese", nl: "Dutch", ja: "Japanese", ko: "Korean",
-  zh: "Chinese", ar: "Arabic", ru: "Russian", pl: "Polish", sv: "Swedish",
-};
 
 async function callInsightLLM(prompt: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -108,7 +103,7 @@ export async function generateScanInsights(domainId: string) {
     if (!prompt) continue;
 
     const lang = prompt.language || "en";
-    const langName = LANG_NAMES[lang] || "English";
+    const langName = getLanguageName(lang);
 
     await Promise.allSettled(
       results.map(async (scanResult) => {

@@ -24,15 +24,18 @@ export default async function PricingPage() {
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              "Daily automated scans",
-              "7 AI engines (ChatGPT, Gemini, Claude, Perplexity, DeepSeek, Grok, Mistral)",
-              "Competitor tracking & gap analysis",
-              "Mention rate & position tracking",
+              "Daily scans across 7 AI engines",
+              "Claude Opus 4.6 article writing",
+              "Ahrefs keyword research before every article",
+              "AI images generated for every article (DALL-E 3)",
+              "YouTube videos embedded in articles",
+              "High DR backlink exchange",
+              "Articles in 150+ languages",
               "Sentiment analysis & AI insights",
-              "Keyword research (Ahrefs powered)",
-              "AI article writer with SEO scoring",
-              "Multi-platform publishing",
-              "14-day free trial",
+              "Competitor tracking & gap analysis",
+              "Multi-platform publishing (WordPress, Webflow, Shopify & more)",
+              "SEO scoring & optimization",
+              "14-day free trial — no credit card required",
             ].map((feature) => (
               <div
                 key={feature}
@@ -58,7 +61,7 @@ export default async function PricingPage() {
             {[
               {
                 q: "What is included in each plan?",
-                a: "Every plan is an all-in-one bundle: AI Visibility tracking (prompts scanned daily across 7 engines), scheduled article writing, and competitor gap analysis articles. Plans differ in volume.",
+                a: "Every plan is an all-in-one bundle: AI Visibility tracking across 7 engines, scheduled article writing (Claude Opus 4.6), AI-generated images (DALL-E 3), YouTube video embeds, Ahrefs keyword research, high DR backlink exchange, 150+ language support, and multi-platform publishing. Plans differ in volume.",
               },
               {
                 q: "Is there a free trial?",

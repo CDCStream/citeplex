@@ -11,9 +11,9 @@ export const DAILY_ARTICLE_LIMITS: Record<string, number> = {
 };
 
 export const GAP_ARTICLE_LIMITS: Record<string, number> = {
-  starter: 5,
-  growth: 15,
-  pro: 30,
+  starter: 15,
+  growth: 30,
+  pro: 50,
 };
 
 export const ARTICLE_LIMITS: Record<string, number> = {

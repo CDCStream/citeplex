@@ -1,45 +1,7 @@
-function getOpenAIKey(): string {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY is not configured");
-  return key;
-}
-
 function getAnthropicKey(): string {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
   return key;
-}
-
-async function chatOpenAI(
-  systemPrompt: string,
-  userPrompt: string,
-  temperature = 0.7,
-  maxTokens = 4000
-): Promise<string> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getOpenAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`OpenAI API error (${res.status}): ${body}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
 }
 
 async function chatAnthropic(
@@ -91,7 +53,8 @@ export async function researchTopic(
   title: string,
   keyword: string,
   brandName: string,
-  industry: string
+  industry: string,
+  language = "English"
 ): Promise<ResearchData> {
   const systemPrompt = `You are an SEO content researcher. Analyze the given topic and return ONLY valid JSON with this structure:
 {
@@ -101,15 +64,16 @@ export async function researchTopic(
   "suggestedImages": ["3-5 suggested image descriptions"],
   "internalLinkSuggestions": ["3-5 internal link anchor text ideas"],
   "externalSources": ["3-5 authoritative external sources to cite"]
-}`;
+}
+All content must be in ${language}.`;
 
-  const userPrompt = `Research this article topic:
+  const userPrompt = `Research this article topic (write everything in ${language}):
 Title: ${title}
 Target Keyword: ${keyword}
 Brand: ${brandName}
 Industry: ${industry}`;
 
-  const text = await chatOpenAI(systemPrompt, userPrompt);
+  const text = await chatAnthropic(systemPrompt, userPrompt, 0.5, 2048);
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return defaultResearch();
 
@@ -141,21 +105,24 @@ export async function generateOutline(
   title: string,
   keyword: string,
   research: ResearchData,
-  wordCount: number
+  wordCount: number,
+  language = "English"
 ): Promise<OutlineSection[]> {
   const systemPrompt = `You are an SEO content strategist. Generate an article outline optimized for AI search engines.
 Return ONLY valid JSON array: [{"heading":"...","level":2,"points":["key point 1","key point 2"]}]
 - Include an introduction (H2), 4-8 main sections (H2/H3), and a conclusion (H2)
 - Include an FAQ section at the end with 4-6 questions
 - Optimize headings for the target keyword
-- Target approximately ${wordCount} words total`;
+- Target approximately ${wordCount} words total
+- All headings and points must be in ${language}`;
 
   const userPrompt = `Title: ${title}
 Target Keyword: ${keyword}
 Key Points to Cover: ${research.keyPoints.join(", ")}
-Related Topics: ${research.relatedTopics.join(", ")}`;
+Related Topics: ${research.relatedTopics.join(", ")}
+Language: ${language}`;
 
-  const text = await chatOpenAI(systemPrompt, userPrompt);
+  const text = await chatAnthropic(systemPrompt, userPrompt, 0.5, 3000);
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
 
@@ -181,7 +148,9 @@ export async function writeArticle(
   research: ResearchData,
   brandName: string,
   brandUrl: string,
-  wordCount: number
+  wordCount: number,
+  language = "English",
+  keywordContext = ""
 ): Promise<GeneratedArticle> {
   const outlineText = outline
     .map(
@@ -191,6 +160,7 @@ export async function writeArticle(
     .join("\n\n");
 
   const systemPrompt = `You are an expert SEO content writer. Write a complete article in HTML format.
+IMPORTANT: Write the ENTIRE article in ${language}. Every sentence, heading, and paragraph must be in ${language}.
 
 Requirements:
 - Follow the provided outline structure exactly
@@ -206,18 +176,20 @@ Requirements:
 - Do NOT include any markdown - use only HTML
 
 After the article HTML, add a JSON block wrapped in <script type="application/json" id="article-meta"> with:
-{"metaDescription":"150-160 char meta description","tags":["5-8 tags"],"faq":[{"question":"...","answer":"..."}]}`;
+{"metaDescription":"150-160 char meta description in ${language}","tags":["5-8 tags in ${language}"],"faq":[{"question":"...","answer":"..."}]}`;
 
   const userPrompt = `Title: ${title}
 Target Keyword: ${keyword}
+Keyword Data (Ahrefs): ${keywordContext || "N/A"}
 Brand: ${brandName} (${brandUrl})
 External Sources: ${research.externalSources.join(", ")}
 Image Suggestions: ${research.suggestedImages.join(", ")}
+Language: ${language}
 
 Outline:
 ${outlineText}
 
-Write the complete article now.`;
+Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level.`;
 
   const text = await chatAnthropic(systemPrompt, userPrompt, 0.7, 8192);
 

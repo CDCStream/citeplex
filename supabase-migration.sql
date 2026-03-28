@@ -301,7 +301,36 @@ create table if not exists public.publish_integrations (
 );
 create index if not exists idx_publish_integrations_domain on public.publish_integrations(domain_id);
 
+-- Backlink Exchange: site listings
+create table if not exists public.backlink_listings (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid not null unique references public.domains(id) on delete cascade,
+  url text not null,
+  brand_name text not null,
+  industry text,
+  dr_score integer not null default 0,
+  accepts_guest_posts boolean not null default true,
+  preferred_niches text[] not null default '{}',
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_backlink_listings_active on public.backlink_listings(is_active, dr_score desc);
+create index if not exists idx_backlink_listings_industry on public.backlink_listings(industry) where is_active = true;
+
+-- Backlink Exchange: match requests
+create table if not exists public.backlink_matches (
+  id uuid primary key default gen_random_uuid(),
+  requester_listing_id uuid not null references public.backlink_listings(id) on delete cascade,
+  target_listing_id uuid not null references public.backlink_listings(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'completed')),
+  link_url text,
+  created_at timestamptz not null default now(),
+  unique(requester_listing_id, target_listing_id)
+);
+create index if not exists idx_backlink_matches_target on public.backlink_matches(target_listing_id, status);
+create index if not exists idx_backlink_matches_requester on public.backlink_matches(requester_listing_id);
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
-values ('demo@citeplex.io', 'Demo User', 'free')
+values ('demo@citeplex.io', 'Demo User', 'starter')
 on conflict (email) do nothing;

@@ -132,10 +132,14 @@ function PricingCard({
 
   const extras = [
     "Daily scans across 7 engines",
+    "Ahrefs keyword research",
+    "AI images in every article",
+    "YouTube videos in articles",
+    "High DR backlink exchange",
+    "150+ language support",
     "Sentiment analysis & insights",
-    "Keyword research (Ahrefs)",
     "Multi-platform publishing",
-    "Competitor gap analysis",
+    "SEO scoring & optimization",
     "14-day free trial",
   ];
 

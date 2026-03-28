@@ -7,7 +7,11 @@ import {
   writeArticle,
   checkSeo,
 } from "@/lib/content/article-generator";
+import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
+import { generateArticleImages } from "@/lib/content/image-generator";
+import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { getArticleLimit } from "@/lib/plans";
+import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
 
 export const maxDuration = 300;
 
@@ -25,7 +29,7 @@ export async function POST(
 
     const { data: domain } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry")
+      .select("id, brand_name, url, description, industry, primary_country")
       .eq("id", domainId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -58,24 +62,35 @@ export async function POST(
     }
 
     const targetKeyword = keyword?.trim() || title;
+    const countryCode = (domain.primary_country || "US").toLowerCase();
+    const langCode = getLanguageFromCountry(domain.primary_country || "US");
+    const language = getLanguageName(langCode);
 
-    // Step 1: Research
+    // Step 0: Ahrefs keyword research (mandatory)
+    const [keywordMetrics] = await fetchKeywordMetrics([targetKeyword], countryCode);
+    const keywordContext = keywordMetrics
+      ? `Volume: ${keywordMetrics.volume ?? "N/A"}, Difficulty: ${keywordMetrics.difficulty ?? "N/A"}/100, CPC: $${keywordMetrics.cpc ?? "N/A"}, Traffic Potential: ${keywordMetrics.traffic_potential ?? "N/A"}, Parent Topic: ${keywordMetrics.parent_topic ?? "N/A"}`
+      : "Keyword data unavailable";
+
+    // Step 1: Research (with keyword data)
     const research = await researchTopic(
       title,
       targetKeyword,
       domain.brand_name,
-      domain.industry || ""
+      domain.industry || "",
+      language
     );
 
-    // Step 2: Outline
+    // Step 2: Outline (with keyword data)
     const outline = await generateOutline(
       title,
       targetKeyword,
       research,
-      wordCount
+      wordCount,
+      language
     );
 
-    // Step 3: Write
+    // Step 3: Write article (with keyword data)
     const generated = await writeArticle(
       title,
       targetKeyword,
@@ -83,20 +98,50 @@ export async function POST(
       research,
       domain.brand_name,
       domain.url,
-      wordCount
+      wordCount,
+      language,
+      keywordContext
     );
 
-    // Step 4: SEO Check
+    // Step 4: YouTube videos & AI images (parallel)
+    const [videos, images] = await Promise.allSettled([
+      searchYouTubeVideos(targetKeyword, 2),
+      generateArticleImages(title, targetKeyword, 3),
+    ]);
+
+    let enrichedContent = generated.content;
+
+    const videoResults = videos.status === "fulfilled" ? videos.value : [];
+    if (videoResults.length > 0) {
+      enrichedContent += buildVideoEmbedHtml(videoResults);
+    }
+
+    const imageResults = images.status === "fulfilled" ? images.value : [];
+    const coverImage = imageResults[0]?.url || null;
+    if (imageResults.length > 1) {
+      const inlineImages = imageResults.slice(1);
+      const paragraphs = enrichedContent.split("</p>");
+      const step = Math.max(1, Math.floor(paragraphs.length / (inlineImages.length + 1)));
+      for (let i = 0; i < inlineImages.length; i++) {
+        const insertAt = step * (i + 1);
+        if (insertAt < paragraphs.length) {
+          paragraphs[insertAt] = `</p><figure class="my-8"><img src="${inlineImages[i].url}" alt="${inlineImages[i].alt}" class="rounded-lg w-full" loading="lazy" /><figcaption class="text-sm text-center text-muted-foreground mt-2">${inlineImages[i].alt}</figcaption></figure>${paragraphs[insertAt]}`;
+        }
+      }
+      enrichedContent = paragraphs.join("</p>");
+    }
+
+    // Step 5: SEO Check
     const seoCheck = checkSeo(
       title,
       targetKeyword,
-      generated.content,
+      enrichedContent,
       generated.metaDescription
     );
 
     const slug = title
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
       .replace(/^-|-$/g, "");
 
     const { data: article, error } = await supabaseAdmin
@@ -107,12 +152,13 @@ export async function POST(
         title: title.trim(),
         slug,
         meta_description: generated.metaDescription,
-        content: generated.content,
+        cover_image: coverImage,
+        content: enrichedContent,
         word_count: generated.wordCount,
         target_keyword: targetKeyword,
         tags: generated.tags,
         outline: outline,
-        research_data: research,
+        research_data: { ...research, videos: videoResults, images: imageResults, keywordMetrics: keywordMetrics ?? null },
         faq: generated.faq,
         seo_score: seoCheck.score,
         status: "draft",
