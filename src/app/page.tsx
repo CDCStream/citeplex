@@ -187,8 +187,9 @@ export default async function LandingPage() {
               <span className="bg-linear-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                 dominate AI search
               </span>{" "}
+              and{" "}
               <span className="bg-linear-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent">
-                and increase organic traffic
+                increase organic traffic
               </span>
             </h2>
           </div>
@@ -484,13 +485,12 @@ export default async function LandingPage() {
           <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border bg-card p-10 text-center shadow-xl sm:p-16">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
             <div className="relative">
-              <BarChart3 className="mx-auto h-10 w-10 text-primary" />
+              <Sparkles className="mx-auto h-10 w-10 text-primary" />
               <h2 className="mt-6 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Ready to own your AI narrative?
+                Ready to dominate AI search and grow your traffic?
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-                Track your brand across 7 AI engines. Start free today.
-                Upgrade when you need more prompts.
+                AI visibility tracking, SEO articles with your brand voice, gap articles, backlinks, and 110+ languages — all in one platform. Start your 14-day free trial today.
               </p>
               <Button
                 size="lg"
