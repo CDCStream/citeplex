@@ -331,6 +331,21 @@ create table if not exists public.backlink_matches (
 create index if not exists idx_backlink_matches_target on public.backlink_matches(target_listing_id, status);
 create index if not exists idx_backlink_matches_requester on public.backlink_matches(requester_listing_id);
 
+-- Keyword planning metadata on content_plans
+alter table public.content_plans
+  add column if not exists keyword_data jsonb default '{}',
+  add column if not exists source text default 'manual',
+  add column if not exists priority integer default 0;
+
+comment on column public.content_plans.keyword_data is 'Ahrefs metrics + analysis data (volume, difficulty, cpc, traffic_potential, reasoning)';
+comment on column public.content_plans.source is 'How keyword was chosen: competitor_gap, ahrefs_opportunity, backlink_potential, trending, manual';
+comment on column public.content_plans.priority is 'Priority score 0-100 for scheduling order';
+
+-- Track keyword planning status per domain
+alter table public.domains
+  add column if not exists keyword_plan_status text default null,
+  add column if not exists keyword_plan_updated_at timestamptz default null;
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'starter')

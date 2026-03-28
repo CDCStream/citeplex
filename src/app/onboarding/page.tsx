@@ -347,7 +347,10 @@ export default function OnboardingPage() {
     setPrompts((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const [finishPhase, setFinishPhase] = useState<"" | "saving" | "scanning" | "done">("");
+  const [finishPhase, setFinishPhase] = useState<"" | "saving" | "scanning" | "planning" | "done">("");
+  const [scanProgress, setScanProgress] = useState(0);
+  const [planProgress, setPlanProgress] = useState(0);
+  const [createdDomainId, setCreatedDomainId] = useState("");
 
   async function handleFinish() {
     setSaving(true);
@@ -378,11 +381,35 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (res.ok && data.domainId) {
+        setCreatedDomainId(data.domainId);
+        setStep(5);
+
         setFinishPhase("scanning");
-        fetch(`/api/scan/${data.domainId}`, { method: "POST" }).catch(() => {});
-        setTimeout(() => {
-          window.location.href = `/dashboard/${data.domainId}`;
-        }, 1500);
+        const scanInterval = setInterval(() => {
+          setScanProgress((p) => Math.min(p + Math.random() * 15, 95));
+        }, 800);
+
+        try {
+          await fetch(`/api/scan/${data.domainId}`, { method: "POST" });
+        } catch { /* continue */ }
+        clearInterval(scanInterval);
+        setScanProgress(100);
+
+        await new Promise((r) => setTimeout(r, 600));
+        setFinishPhase("planning");
+        const planInterval = setInterval(() => {
+          setPlanProgress((p) => Math.min(p + Math.random() * 8, 95));
+        }, 1200);
+
+        fetch(`/api/content/${data.domainId}/plan-keywords`, { method: "POST" }).catch(() => {});
+
+        await new Promise((r) => setTimeout(r, 5000));
+        clearInterval(planInterval);
+        setPlanProgress(100);
+
+        setFinishPhase("done");
+        await new Promise((r) => setTimeout(r, 1000));
+        window.location.href = `/dashboard/${data.domainId}`;
       }
     } catch {
       setFinishPhase("");
@@ -966,21 +993,6 @@ export default function OnboardingPage() {
                   </Button>
                 </div>
 
-                {/* Finish phase indicator */}
-                {finishPhase === "scanning" && (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 p-4 flex items-center gap-3">
-                    <Loader2 className="h-5 w-5 text-emerald-600 animate-spin shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
-                        Running your first AI visibility scan...
-                      </p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-500">
-                        Redirecting to dashboard in a moment.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => setStep(3)} className="flex-1" disabled={!!finishPhase}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -996,19 +1008,110 @@ export default function OnboardingPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Saving...
                       </>
-                    ) : finishPhase === "scanning" ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Starting scan...
-                      </>
                     ) : (
                       <>
                         <Check className="mr-2 h-4 w-4" />
-                        Finish & Start First Scan
+                        Finish & Start Setup
                       </>
                     )}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* Step 5: Setup Loading Screens */}
+            {step === 5 && (
+              <div className="space-y-8 py-4">
+                <div className="text-center">
+                  <h1 className="text-2xl font-bold tracking-tight">Setting up your workspace</h1>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    This runs in the background — you can close this page safely.
+                  </p>
+                </div>
+
+                {/* AI Visibility Scan */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {scanProgress >= 100 ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    ) : finishPhase === "scanning" || finishPhase === "planning" || finishPhase === "done" ? (
+                      <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border-2 border-muted shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">AI Visibility Scan</p>
+                      <p className="text-xs text-muted-foreground">
+                        Scanning {selectedCount} prompts across 7 AI engines
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {Math.round(scanProgress)}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        scanProgress >= 100 ? "bg-emerald-500" : "bg-primary"
+                      }`}
+                      style={{ width: `${scanProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Keyword Planning */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {planProgress >= 100 ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    ) : finishPhase === "planning" || finishPhase === "done" ? (
+                      <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border-2 border-muted shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">30-Day Content Strategy</p>
+                      <p className="text-xs text-muted-foreground">
+                        Analyzing competitors, Ahrefs data & backlink opportunities
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {Math.round(planProgress)}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        planProgress >= 100 ? "bg-emerald-500" : "bg-primary"
+                      }`}
+                      style={{ width: `${planProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {finishPhase === "done" && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/5 p-4 text-center">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
+                      All set! Redirecting to your dashboard...
+                    </p>
+                  </div>
+                )}
+
+                {(finishPhase === "planning" || finishPhase === "scanning") && (
+                  <div className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (createdDomainId) window.location.href = `/dashboard/${createdDomainId}`;
+                      }}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Skip & go to dashboard →
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
