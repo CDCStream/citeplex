@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { url, brandName, description, industry, competitors, primaryCountry, targetCountries, prompts } = await req.json();
+    const { url, brandName, description, industry, competitors, primaryCountry, targetCountries, prompts, articlePreferences } = await req.json();
 
     if (!url || !brandName) {
       return NextResponse.json({ error: "URL and brand name are required" }, { status: 400 });
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
         primary_country: primaryCountry || null,
         target_countries: targetCountries ? JSON.stringify(targetCountries) : null,
         verified: true,
+        article_preferences: articlePreferences || { includeCta: true, includeFaq: true },
       })
       .select()
       .single();

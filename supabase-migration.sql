@@ -350,6 +350,10 @@ alter table public.domains
   add column if not exists keyword_plan_status text default null,
   add column if not exists keyword_plan_updated_at timestamptz default null;
 
+-- Article generation preferences (CTA, FAQ, etc.)
+alter table public.domains
+  add column if not exists article_preferences jsonb default '{"includeCta": true, "includeFaq": true}'::jsonb;
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'starter')

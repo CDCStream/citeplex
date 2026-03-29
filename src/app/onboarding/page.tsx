@@ -118,6 +118,10 @@ export default function OnboardingPage() {
   const [promptsGenerated, setPromptsGenerated] = useState(false);
   const [promptLimit, setPromptLimit] = useState(15);
 
+  // Article preferences
+  const [includeCta, setIncludeCta] = useState(true);
+  const [includeFaq, setIncludeFaq] = useState(true);
+
   const CATEGORY_LABELS: Record<string, string> = {
     best: "Best Of",
     howto: "How To",
@@ -407,6 +411,7 @@ export default function OnboardingPage() {
           targetCountries,
           competitors,
           prompts: selectedPrompts,
+          articlePreferences: { includeCta, includeFaq },
         }),
       });
       const data = await res.json();
@@ -1055,6 +1060,50 @@ export default function OnboardingPage() {
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
+                  </div>
+                )}
+
+                {/* Article preferences */}
+                {promptsGenerated && (
+                  <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-2.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Article Preferences
+                    </p>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Default settings for auto-generated articles.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <div
+                          className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                            includeCta
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "border-muted-foreground/30"
+                          }`}
+                          onClick={() => setIncludeCta(!includeCta)}
+                        >
+                          {includeCta && <Check className="h-3 w-3" />}
+                        </div>
+                        <span className="text-sm" onClick={() => setIncludeCta(!includeCta)}>
+                          Include Call-to-Action
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2.5 cursor-pointer">
+                        <div
+                          className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                            includeFaq
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "border-muted-foreground/30"
+                          }`}
+                          onClick={() => setIncludeFaq(!includeFaq)}
+                        >
+                          {includeFaq && <Check className="h-3 w-3" />}
+                        </div>
+                        <span className="text-sm" onClick={() => setIncludeFaq(!includeFaq)}>
+                          Include FAQ Section
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 )}
 

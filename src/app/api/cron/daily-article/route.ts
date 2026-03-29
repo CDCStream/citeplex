@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { researchTopic, generateOutline, writeArticle, checkSeo } from "@/lib/content/article-generator";
+import { researchTopic, generateOutline, writeArticle, checkSeo, DEFAULT_ENHANCEMENTS, type EnhancementOptions } from "@/lib/content/article-generator";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
@@ -10,6 +10,11 @@ import { checkCoherence } from "@/lib/content/coherence-check";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
 import { checkAndReplan } from "@/lib/content/keyword-planner";
 import { getDailyArticleLimit } from "@/lib/plans";
+
+interface ArticlePreferences {
+  includeCta?: boolean;
+  includeFaq?: boolean;
+}
 
 export const maxDuration = 300;
 
@@ -23,6 +28,7 @@ async function writeArticleForPlan(
     industry: string;
     primary_country: string;
     brand_voice: BrandVoiceProfile | null;
+    article_preferences: ArticlePreferences | null;
   }
 ) {
   const targetKeyword = plan.keyword || plan.title;
@@ -48,10 +54,18 @@ async function writeArticleForPlan(
   const outline = await generateOutline(plan.title, targetKeyword, research, 1500, languageName);
 
   const voiceInstruction = domain.brand_voice ? buildVoiceInstruction(domain.brand_voice) : "";
+
+  const prefs = domain.article_preferences || { includeCta: true, includeFaq: true };
+  const enhancements: EnhancementOptions = {
+    ...DEFAULT_ENHANCEMENTS,
+    callToAction: prefs.includeCta !== false ? "generic" : "",
+    generateFaqs: prefs.includeFaq !== false,
+  };
+
   const article = await writeArticle(
     plan.title, targetKeyword, outline, research,
     domain.brand_name, domain.url, 1500,
-    languageName, keywordContext, voiceInstruction
+    languageName, keywordContext, voiceInstruction, enhancements
   );
 
   let enrichedContent = article.content;
@@ -160,7 +174,7 @@ export async function GET(req: NextRequest) {
 
     const { data: domains } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country, brand_voice")
+      .select("id, brand_name, url, description, industry, primary_country, brand_voice, article_preferences")
       .in("id", domainIds);
 
     const domainMap = new Map((domains || []).map((d) => [d.id, d]));
