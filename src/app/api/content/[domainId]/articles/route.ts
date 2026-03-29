@@ -71,27 +71,67 @@ export async function POST(
   const targetKw = (keyword?.trim() || title).toLowerCase();
   const { data: existingArticle } = await supabaseAdmin
     .from("articles")
-    .select("id, title")
+    .select("id, title, status")
     .eq("domain_id", domainId)
     .ilike("target_keyword", targetKw)
     .maybeSingle();
 
   if (existingArticle) {
-    return NextResponse.json(
-      { error: `An article for "${targetKw}" already exists: "${existingArticle.title}"` },
-      { status: 409 }
-    );
+    const msg = existingArticle.status === "generating"
+      ? `An article for "${targetKw}" is currently being generated.`
+      : `An article for "${targetKw}" already exists: "${existingArticle.title}"`;
+    return NextResponse.json({ error: msg }, { status: 409 });
+  }
+
+  const targetKeyword = keyword?.trim() || title;
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  // Create article record early so generation survives client disconnect
+  const { data: earlyArticle, error: earlyError } = await supabaseAdmin
+    .from("articles")
+    .insert({
+      domain_id: domainId,
+      content_plan_id: planId || null,
+      title: title.trim(),
+      slug,
+      target_keyword: targetKeyword,
+      content: "",
+      word_count: 0,
+      status: "generating",
+    })
+    .select("id")
+    .single();
+
+  if (earlyError || !earlyArticle) {
+    return NextResponse.json({ error: "Failed to start article generation" }, { status: 500 });
+  }
+
+  const articleId = earlyArticle.id;
+
+  if (planId) {
+    await supabaseAdmin
+      .from("content_plans")
+      .update({ article_id: articleId, status: "writing" })
+      .eq("id", planId);
   }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let streamClosed = false;
       function send(data: Record<string, unknown>) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        if (streamClosed) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          streamClosed = true;
+        }
       }
 
       try {
-        const targetKeyword = keyword?.trim() || title;
         const countryCode = (domain.primary_country || "US").toLowerCase();
         const langCode = getLanguageFromCountry(domain.primary_country || "US");
         const language = getLanguageName(langCode);
@@ -201,23 +241,14 @@ export async function POST(
 
         // Step 5: Saving
         send({ type: "step", step: "saving", status: "active", message: "Saving article..." });
-        const slug = title
-          .toLowerCase()
-          .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
-          .replace(/^-|-$/g, "");
 
-        const { data: article, error } = await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("articles")
-          .insert({
-            domain_id: domainId,
-            content_plan_id: planId || null,
-            title: title.trim(),
-            slug,
+          .update({
             meta_description: generated.metaDescription,
             cover_image: coverImage,
             content: enrichedContent,
             word_count: generated.wordCount,
-            target_keyword: targetKeyword,
             tags: generated.tags,
             outline: outline,
             research_data: {
@@ -233,24 +264,39 @@ export async function POST(
             seo_score: seoCheck.score,
             status: "draft",
           })
-          .select()
-          .single();
+          .eq("id", articleId);
 
-        if (error) throw error;
+        if (updateError) throw updateError;
 
         if (planId) {
           await supabaseAdmin
             .from("content_plans")
-            .update({ article_id: article.id, status: "published" })
+            .update({ status: "published" })
             .eq("id", planId);
         }
 
+        send({ type: "step", step: "saving", status: "done" });
         send({
           type: "done",
-          article: { id: article.id, title: article.title, slug: article.slug, wordCount: generated.wordCount },
+          article: { id: articleId, title: title.trim(), slug, wordCount: generated.wordCount },
         });
       } catch (err) {
         console.error("Article generation error:", err);
+
+        // Clean up the early-created article on failure
+        await supabaseAdmin
+          .from("articles")
+          .delete()
+          .eq("id", articleId)
+          .eq("status", "generating");
+
+        if (planId) {
+          await supabaseAdmin
+            .from("content_plans")
+            .update({ article_id: null, status: "planned" })
+            .eq("id", planId);
+        }
+
         const raw = (err as Error).message || "";
         let userMessage = "Failed to generate article. Please try again.";
         if (raw.includes("timeout") || raw.includes("aborted") || raw.includes("Aborted")) {
@@ -262,7 +308,7 @@ export async function POST(
         }
         send({ type: "error", message: userMessage });
       } finally {
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });
@@ -301,7 +347,7 @@ export async function GET(
     const { data: articles } = await supabaseAdmin
       .from("articles")
       .select(
-        "id, title, slug, meta_description, word_count, target_keyword, tags, seo_score, status, created_at, updated_at"
+        "id, title, slug, meta_description, cover_image, word_count, target_keyword, tags, seo_score, status, published_to, published_at, created_at, updated_at"
       )
       .eq("domain_id", domainId)
       .order("created_at", { ascending: false });

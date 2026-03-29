@@ -120,6 +120,22 @@ export default function WriteArticlePage() {
 
     async function runAnalysis() {
       try {
+        // Check if an article is already being generated for this keyword
+        const checkRes = await fetch(`/api/content/${domainId}/articles`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          const generating = (checkData.articles || []).find(
+            (a: { target_keyword?: string; status: string }) =>
+              a.status === "generating" &&
+              a.target_keyword?.toLowerCase() === initialPrompt.toLowerCase()
+          );
+          if (generating && !cancelled) {
+            setError("This article is already being generated. Check Content History for progress.");
+            setPhase("review");
+            return;
+          }
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
 

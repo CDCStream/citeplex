@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +58,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 export function ContentHistoryClient({
   domainId,
   brandName,
-  articles,
+  articles: initialArticles,
   integrations,
 }: {
   domainId: string;
@@ -66,7 +66,42 @@ export function ContentHistoryClient({
   articles: ArticleItem[];
   integrations: Integration[];
 }) {
+  const [articles, setArticles] = useState(initialArticles);
   const [filter, setFilter] = useState<"all" | "draft" | "published">("all");
+
+  const hasGenerating = articles.some(a => a.status === "generating");
+
+  const refreshArticles = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/content/${domainId}/articles`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.articles) {
+        setArticles(data.articles.map((a: Record<string, unknown>) => ({
+          id: a.id,
+          title: a.title,
+          slug: a.slug,
+          metaDescription: a.meta_description || null,
+          coverImage: a.cover_image || null,
+          wordCount: a.word_count || 0,
+          targetKeyword: a.target_keyword || null,
+          tags: a.tags || [],
+          seoScore: a.seo_score || null,
+          status: a.status || "draft",
+          publishedTo: a.published_to || [],
+          publishedAt: a.published_at || null,
+          createdAt: a.created_at,
+          updatedAt: a.updated_at,
+        })));
+      }
+    } catch { /* ignore */ }
+  }, [domainId]);
+
+  useEffect(() => {
+    if (!hasGenerating) return;
+    const interval = setInterval(refreshArticles, 10000);
+    return () => clearInterval(interval);
+  }, [hasGenerating, refreshArticles]);
   const [searchQuery, setSearchQuery] = useState("");
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null);
@@ -74,7 +109,7 @@ export function ContentHistoryClient({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filtered = articles.filter((a) => {
-    if (filter === "draft" && a.status !== "draft") return false;
+    if (filter === "draft" && a.status !== "draft" && a.status !== "generating") return false;
     if (filter === "published" && a.status !== "published") return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -135,6 +170,13 @@ export function ContentHistoryClient({
         return <Badge variant="outline">Draft</Badge>;
       case "scheduled":
         return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400">Scheduled</Badge>;
+      case "generating":
+        return (
+          <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400">
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            Generating...
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -200,10 +242,10 @@ export function ContentHistoryClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${hasGenerating ? "grid-cols-4" : "grid-cols-3"}`}>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{articles.length}</p>
+            <p className="text-2xl font-bold">{articles.filter(a => a.status !== "generating").length}</p>
             <p className="text-xs text-muted-foreground">Total Articles</p>
           </CardContent>
         </Card>
@@ -219,6 +261,14 @@ export function ContentHistoryClient({
             <p className="text-xs text-muted-foreground">Drafts</p>
           </CardContent>
         </Card>
+        {hasGenerating && (
+          <Card className="border-amber-200 dark:border-amber-500/20">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{articles.filter(a => a.status === "generating").length}</p>
+              <p className="text-xs text-muted-foreground">Generating</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Article List */}
@@ -237,6 +287,32 @@ export function ContentHistoryClient({
           {filtered.map((article) => {
             const availablePlatforms = unpublishedPlatforms(article);
             const isPublishing = publishingId === article.id;
+
+            if (article.status === "generating") {
+              return (
+                <Card key={article.id} className="overflow-hidden border-amber-200 dark:border-amber-500/20">
+                  <CardContent className="p-4 lg:p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-amber-100 dark:bg-amber-500/10 p-2.5 shrink-0">
+                        <Loader2 className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-spin" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base truncate">{article.title}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getStatusBadge(article.status)}
+                          {article.targetKeyword && (
+                            <Badge variant="secondary" className="text-[10px]">{article.targetKeyword}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Writing in progress... This may take a few minutes.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
 
             return (
               <Card key={article.id} className="overflow-hidden">
