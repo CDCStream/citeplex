@@ -54,6 +54,16 @@ export async function POST(
 
     const country = (domain.primary_country || "US").toLowerCase();
 
+    // Fetch existing article keywords so the analyzer avoids suggesting duplicates
+    const { data: existingArticles } = await supabaseAdmin
+      .from("articles")
+      .select("target_keyword")
+      .eq("domain_id", domainId);
+
+    const existingKeywords = (existingArticles || [])
+      .map(a => a.target_keyword)
+      .filter(Boolean);
+
     const analysis = await analyzeGapAndPlan(
       prompt.trim(),
       domain.brand_name,
@@ -61,6 +71,7 @@ export async function POST(
       domain.industry || "",
       compList,
       country,
+      existingKeywords,
     );
 
     return NextResponse.json(analysis);

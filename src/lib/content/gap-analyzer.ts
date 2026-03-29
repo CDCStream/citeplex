@@ -50,6 +50,7 @@ export async function analyzeGapAndPlan(
   industry: string,
   competitors: { name: string; url: string }[],
   country: string = "us",
+  existingKeywords: string[] = [],
 ): Promise<GapAnalysis> {
 
   const currentYear = new Date().getFullYear();
@@ -59,6 +60,10 @@ export async function analyzeGapAndPlan(
   const competitorContext = competitors.length > 0
     ? competitors.map(c => `- ${c.name} (${c.url})`).join("\n")
     : "(no competitors)";
+
+  const existingKwContext = existingKeywords.length > 0
+    ? `\n\nALREADY COVERED KEYWORDS (articles already exist for these — do NOT suggest any of them or close variations):\n${existingKeywords.map(k => `- "${k}"`).join("\n")}`
+    : "";
 
   // Step 1: Generate candidate keywords
   console.log(`[GapAnalyzer] Step 1: Generating candidates... (${elapsed()})`);
@@ -74,6 +79,7 @@ Industry: ${industry}
 Country: ${country.toUpperCase()}
 Competitors who ARE mentioned for this prompt:
 ${competitorContext}
+${existingKwContext}
 
 Generate 15 candidate target keywords that could help this brand rank for this prompt.
 
@@ -84,6 +90,7 @@ IMPORTANT RULES for keyword generation:
 - Keywords that competitors likely use to get mentioned
 - Include informational, commercial, and comparison intent variations
 - Each keyword should be a realistic search query that real users would type
+- NEVER suggest keywords that already have articles written (see ALREADY COVERED list above)
 
 Return JSON:
 {
@@ -105,6 +112,15 @@ Return JSON:
 
   if (candidates.length === 0) {
     candidates = [{ keyword: prompt, intent: "informational", rationale: "fallback" }];
+  }
+
+  // Filter out candidates that already have articles
+  if (existingKeywords.length > 0) {
+    const existingSet = new Set(existingKeywords.map(k => k.toLowerCase().trim()));
+    const filtered = candidates.filter(c => !existingSet.has(c.keyword.toLowerCase().trim()));
+    if (filtered.length > 0) {
+      candidates = filtered;
+    }
   }
 
   // Step 2: Fetch Ahrefs metrics for all candidates
@@ -142,15 +158,17 @@ Return JSON:
 
 ## Candidate Keywords with Ahrefs Data:
 ${metricsTable}
+${existingKeywords.length > 0 ? `\n## ALREADY COVERED (articles exist — NEVER pick these):\n${existingKeywords.map(k => `- "${k}"`).join("\n")}` : ""}
 
 ## Selection Criteria (in order of priority):
-1. MUST have actual Ahrefs data (Volume, KD) — NEVER pick a keyword where Volume AND KD are both "N/A"
-2. Keyword Difficulty (KD) should be as LOW as possible (under 30 is ideal, under 50 is acceptable)
-3. Search Volume should be as HIGH as possible (prefer keywords with volume > 100)
-4. Traffic Potential matters more than raw volume
-5. The keyword should be directly relevant to the original prompt
-6. Prefer shorter, more popular keywords over obscure long-tail phrases
-7. Prefer keywords that would naturally lead AI engines to mention the brand
+1. NEVER pick a keyword from the ALREADY COVERED list — an article already exists for those
+2. MUST have actual Ahrefs data (Volume, KD) — NEVER pick a keyword where Volume AND KD are both "N/A"
+3. Keyword Difficulty (KD) should be as LOW as possible (under 30 is ideal, under 50 is acceptable)
+4. Search Volume should be as HIGH as possible (prefer keywords with volume > 100)
+5. Traffic Potential matters more than raw volume
+6. The keyword should be directly relevant to the original prompt
+7. Prefer shorter, more popular keywords over obscure long-tail phrases
+8. Prefer keywords that would naturally lead AI engines to mention the brand
 
 ## Your Task:
 1. Pick the single best keyword
@@ -185,10 +203,17 @@ Return JSON:
   let chosenMetrics = metricsMap.get(result.targetKeyword.toLowerCase()) || null;
 
   // If the chosen keyword has no meaningful Ahrefs data, pick the best one that does
+  const existingSet = new Set(existingKeywords.map(k => k.toLowerCase().trim()));
+
+  if (existingSet.has(result.targetKeyword.toLowerCase().trim())) {
+    console.log(`[GapAnalyzer] Chosen keyword "${result.targetKeyword}" already has an article, looking for alternative...`);
+    chosenMetrics = null;
+  }
+
   const hasData = chosenMetrics && (chosenMetrics.volume !== null || chosenMetrics.difficulty !== null);
-  if (!hasData && ahrefsData.length > 0) {
+  if ((!hasData || existingSet.has(result.targetKeyword.toLowerCase().trim())) && ahrefsData.length > 0) {
     const withData = ahrefsData
-      .filter(d => d.volume !== null && d.volume > 0)
+      .filter(d => d.volume !== null && d.volume > 0 && !existingSet.has(d.keyword.toLowerCase().trim()))
       .sort((a, b) => {
         const scoreA = (a.volume ?? 0) / Math.max(a.difficulty ?? 50, 1);
         const scoreB = (b.volume ?? 0) / Math.max(b.difficulty ?? 50, 1);

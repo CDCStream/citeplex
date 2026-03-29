@@ -74,6 +74,16 @@ export async function GET(
 
     const promptMap = new Map((prompts || []).map((p) => [p.id, p.text]));
 
+    // Fetch existing article keywords to exclude covered prompts
+    const { data: existingArticles } = await supabaseAdmin
+      .from("articles")
+      .select("target_keyword")
+      .eq("domain_id", domainId);
+
+    const coveredKeywords = new Set(
+      (existingArticles || []).map((a) => a.target_keyword?.toLowerCase().trim()).filter(Boolean)
+    );
+
     const ownMentions = new Set(
       (ownResults || [])
         .filter((r) => r.brand_mentioned)
@@ -100,9 +110,12 @@ export async function GET(
       const comp = compMap.get(cr.competitor_id);
       if (!comp) continue;
 
+      const promptText = promptMap.get(cr.prompt_id) || "";
+      if (coveredKeywords.has(promptText.toLowerCase().trim())) continue;
+
       gaps.push({
         promptId: cr.prompt_id,
-        promptText: promptMap.get(cr.prompt_id) || "",
+        promptText,
         engine: cr.ai_engine,
         competitor: comp.brand_name,
         competitorUrl: comp.url,
