@@ -123,11 +123,17 @@ export default function WriteArticlePage() {
 
     async function runAnalysis() {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
         const res = await fetch(`/api/content/${domainId}/gap-analyze`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: initialPrompt }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           const data = await res.json();
@@ -141,7 +147,10 @@ export default function WriteArticlePage() {
         setPhase("review");
       } catch (err) {
         if (cancelled) return;
-        setError((err as Error).message);
+        const msg = (err as Error).name === "AbortError"
+          ? "Analysis timed out. Please try again."
+          : (err as Error).message;
+        setError(msg);
         setPhase("review");
       }
     }
@@ -185,11 +194,17 @@ export default function WriteArticlePage() {
         outline: gapAnalysis.outlines[0] || undefined,
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
       const res = await fetch(`/api/content/${domainId}/articles`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(articleBody),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("text/event-stream")) {
@@ -235,7 +250,10 @@ export default function WriteArticlePage() {
         } catch { /* skip */ }
       }
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).name === "AbortError"
+        ? "Article generation timed out. Please try again."
+        : (err as Error).message;
+      setError(msg);
       setPhase("review");
     }
   }

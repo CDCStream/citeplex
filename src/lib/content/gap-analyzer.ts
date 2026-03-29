@@ -58,9 +58,10 @@ export async function analyzeGapAndPlan(
     ? competitors.map(c => `- ${c.name} (${c.url})`).join("\n")
     : "(no competitors)";
 
-  // Step 1: Generate candidate keywords with Opus
+  // Step 1: Generate candidate keywords
   const candidateResponse = await callLLM({
     chain: "strong",
+    timeout: 90_000,
     system: "You are an expert SEO strategist. Return ONLY valid JSON, nothing else.",
     user: `A brand is NOT being mentioned by ANY AI engine for this prompt:
 "${prompt}"
@@ -89,7 +90,6 @@ Return JSON:
 }`,
     maxTokens: 2048,
     temperature: 0.7,
-    timeout: 90000,
   });
 
   let candidates: { keyword: string; intent: string; rationale: string }[] = [];
@@ -120,9 +120,10 @@ Return JSON:
     return `- "${c.keyword}" | Intent: ${c.intent} | Volume: ${m?.volume ?? "N/A"} | KD: ${m?.difficulty ?? "N/A"} | CPC: $${m?.cpc ?? "N/A"} | Traffic Potential: ${m?.traffic_potential ?? "N/A"} | Parent Topic: ${m?.parent_topic ?? "N/A"}`;
   }).join("\n");
 
-  // Step 3: Opus picks the best keyword and generates topic + title
+  // Step 3: Pick the best keyword and generate topic + title
   const finalResponse = await callLLM({
     chain: "strong",
+    timeout: 90_000,
     system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis. Return ONLY valid JSON.",
     user: `Based on the Ahrefs data below, pick the BEST target keyword for writing a gap article.
 
@@ -160,7 +161,6 @@ Return JSON:
 }`,
     maxTokens: 1024,
     temperature: 0.5,
-    timeout: 90000,
   });
 
   let result: { targetKeyword: string; topic: string; title: string; reasoning: string };
