@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { researchTopic, generateOutline, writeArticle, checkSeo, DEFAULT_ENHANCEMENTS, type EnhancementOptions } from "@/lib/content/article-generator";
+import {
+  researchTopic,
+  generateOutline,
+  writeArticle,
+  checkSeo,
+  DEFAULT_ENHANCEMENTS,
+  type EnhancementOptions,
+} from "@/lib/content/article-generator";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
 import { generateArticleImages } from "@/lib/content/image-generator";
 import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
-import { checkCoherence } from "@/lib/content/coherence-check";
+import { discoverSitePages, type SitePage } from "@/lib/content/internal-linker";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
 import { checkAndReplan } from "@/lib/content/keyword-planner";
 import { getDailyArticleLimit } from "@/lib/plans";
@@ -17,6 +24,59 @@ interface ArticlePreferences {
 }
 
 export const maxDuration = 300;
+
+async function searchRelevantSources(keyword: string): Promise<{ title: string; url: string; domain: string }[]> {
+  const serperKey = process.env.SERPER_API_KEY;
+  if (!serperKey) return [];
+
+  try {
+    const queries = [
+      `${keyword} statistics report ${new Date().getFullYear()}`,
+      `${keyword} research study`,
+    ];
+
+    const results: { title: string; url: string; domain: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const q of queries) {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ q, num: 5 }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      for (const item of data.organic || []) {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (seen.has(host)) continue;
+        seen.add(host);
+        results.push({ title: item.title, url: item.link, domain: host });
+      }
+    }
+
+    const authoritative = [
+      ".edu", ".gov", ".org",
+      "statista.com", "gartner.com", "mckinsey.com", "forrester.com",
+      "hubspot.com", "semrush.com", "ahrefs.com", "moz.com",
+      "searchengineland.com", "searchenginejournal.com",
+      "techcrunch.com", "forbes.com", "bloomberg.com",
+      "reuters.com", "google.com", "microsoft.com",
+      "wikipedia.org", "nature.com",
+    ];
+
+    results.sort((a, b) => {
+      const aAuth = authoritative.some(d => a.domain.includes(d)) ? 0 : 1;
+      const bAuth = authoritative.some(d => b.domain.includes(d)) ? 0 : 1;
+      return aAuth - bAuth;
+    });
+
+    return results.slice(0, 8);
+  } catch {
+    return [];
+  }
+}
 
 async function writeArticleForPlan(
   plan: { id: string; title: string; keyword: string },
@@ -41,16 +101,24 @@ async function writeArticleForPlan(
     .update({ status: "writing" })
     .eq("id", plan.id);
 
-  let keywordContext = "";
-  try {
-    const metrics = await fetchKeywordMetrics([targetKeyword], countryCode);
-    if (metrics[0]) {
-      const m = metrics[0];
-      keywordContext = `Ahrefs data for "${targetKeyword}": volume=${m.volume}, difficulty=${m.difficulty}/100, CPC=$${m.cpc}, traffic_potential=${m.traffic_potential}, parent_topic="${m.parent_topic || "N/A"}"`;
-    }
-  } catch { /* continue without ahrefs */ }
+  // Fetch keyword metrics, research, site pages, and sources in parallel
+  const keywordMetricsPromise = fetchKeywordMetrics([targetKeyword], countryCode).catch(() => []);
+  const researchPromise = researchTopic(plan.title, targetKeyword, domain.brand_name, domain.industry || "", languageName);
+  const sitePagesPromise = discoverSitePages(domain.url).catch(() => [] as SitePage[]);
+  const sourcesPromise = searchRelevantSources(targetKeyword);
 
-  const research = await researchTopic(plan.title, targetKeyword, domain.brand_name, domain.industry, languageName);
+  const [metricsResult, research, sitePages, sources] = await Promise.all([
+    keywordMetricsPromise,
+    researchPromise,
+    sitePagesPromise,
+    sourcesPromise,
+  ]);
+
+  const keywordMetrics = metricsResult[0] || null;
+  const keywordContext = keywordMetrics
+    ? `Volume: ${keywordMetrics.volume ?? "N/A"}, Difficulty: ${keywordMetrics.difficulty ?? "N/A"}/100, CPC: $${keywordMetrics.cpc ?? "N/A"}, Traffic Potential: ${keywordMetrics.traffic_potential ?? "N/A"}, Parent Topic: ${keywordMetrics.parent_topic ?? "N/A"}`
+    : "Keyword data unavailable";
+
   const outline = await generateOutline(plan.title, targetKeyword, research, 1500, languageName);
 
   const voiceInstruction = domain.brand_voice ? buildVoiceInstruction(domain.brand_voice) : "";
@@ -62,60 +130,73 @@ async function writeArticleForPlan(
     generateFaqs: prefs.includeFaq !== false,
   };
 
-  const article = await writeArticle(
+  const generated = await writeArticle(
     plan.title, targetKeyword, outline, research,
     domain.brand_name, domain.url, 1500,
-    languageName, keywordContext, voiceInstruction, enhancements
+    languageName, keywordContext, voiceInstruction, enhancements,
+    sitePages.map(p => ({ url: p.url, title: p.title })),
+    sources,
   );
 
-  let enrichedContent = article.content;
+  let enrichedContent = generated.content;
+  let coverImage: string | null = null;
 
+  // Media: same as manual flow
   try {
-    const [videos, images, webImages, infographics] = await Promise.all([
-      searchYouTubeVideos(targetKeyword, 2).catch(() => []),
-      generateArticleImages(plan.title, targetKeyword, 1).catch(() => []),
-      searchWebImages(targetKeyword, 2).catch(() => []),
-      searchInfographics(targetKeyword, 1).catch(() => []),
+    const [videos, images, webImgs, infographics] = await Promise.allSettled([
+      enhancements.youtubeVideos ? searchYouTubeVideos(targetKeyword, 2) : Promise.resolve([]),
+      enhancements.includeImages ? generateArticleImages(plan.title, targetKeyword, 3) : Promise.resolve([]),
+      enhancements.webImages ? searchWebImages(targetKeyword, 2) : Promise.resolve([]),
+      enhancements.webImages ? searchInfographics(targetKeyword, 2) : Promise.resolve([]),
     ]);
 
-    if (videos.length > 0) {
-      const videoHtml = buildVideoEmbedHtml(videos);
-      const h2Match = enrichedContent.match(/<\/h2>/g);
-      if (h2Match && h2Match.length >= 2) {
-        let count = 0;
-        enrichedContent = enrichedContent.replace(/<\/h2>/g, (match) => {
-          count++;
-          return count === 2 ? `${match}\n${videoHtml}` : match;
-        });
-      } else {
-        enrichedContent += `\n${videoHtml}`;
+    const videoResults = videos.status === "fulfilled" ? videos.value : [];
+    if (videoResults.length > 0) {
+      enrichedContent += buildVideoEmbedHtml(videoResults);
+    }
+
+    const imageResults = images.status === "fulfilled" ? images.value : [];
+    coverImage = imageResults[0]?.url || null;
+    if (imageResults.length > 1) {
+      const inlineImages = imageResults.slice(1);
+      const paragraphs = enrichedContent.split("</p>");
+      const step = Math.max(1, Math.floor(paragraphs.length / (inlineImages.length + 1)));
+      for (let i = 0; i < inlineImages.length; i++) {
+        const insertAt = step * (i + 1);
+        if (insertAt < paragraphs.length) {
+          paragraphs[insertAt] = `</p><figure class="my-8"><img src="${inlineImages[i].url}" alt="${inlineImages[i].alt}" class="rounded-lg w-full" loading="lazy" /></figure>${paragraphs[insertAt]}`;
+        }
       }
+      enrichedContent = paragraphs.join("</p>");
     }
 
-    const allWebImages = [...webImages, ...infographics];
+    const webImageResults = webImgs.status === "fulfilled" ? webImgs.value : [];
+    const infographicResults = infographics.status === "fulfilled" ? infographics.value : [];
+    const allWebImages = [...webImageResults, ...infographicResults];
+
     if (allWebImages.length > 0) {
-      const imgHtml = allWebImages.map((img) => buildWebImageHtml(img)).join("\n");
-      enrichedContent += `\n${imgHtml}`;
+      const sections = enrichedContent.split("</h2>");
+      const insertEvery = Math.max(1, Math.floor(sections.length / (allWebImages.length + 1)));
+      for (let i = 0; i < allWebImages.length; i++) {
+        const insertAt = insertEvery * (i + 1);
+        if (insertAt < sections.length) {
+          sections[insertAt] = `</h2>${buildWebImageHtml(allWebImages[i])}${sections[insertAt]}`;
+        }
+      }
+      enrichedContent = sections.join("</h2>");
     }
 
-    if (images.length > 0) {
-      const coverImage = images[0];
+    if (coverImage) {
       enrichedContent = `<figure class="article-cover"><img src="${coverImage}" alt="${plan.title}" />\n</figure>\n${enrichedContent}`;
     }
   } catch { /* continue without media */ }
 
-  const coherence = await checkCoherence(plan.title, targetKeyword, enrichedContent, languageName).catch(() => null);
-  if (coherence?.fixedContent) {
-    enrichedContent = coherence.fixedContent;
-  }
-
-  const seo = checkSeo(plan.title, targetKeyword, enrichedContent, article.metaDescription);
+  const seo = checkSeo(plan.title, targetKeyword, enrichedContent, generated.metaDescription);
 
   const slug = plan.title
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .slice(0, 80);
+    .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
+    .replace(/^-|-$/g, "");
 
   const { data: savedArticle, error } = await supabaseAdmin
     .from("articles")
@@ -124,14 +205,20 @@ async function writeArticleForPlan(
       content_plan_id: plan.id,
       title: plan.title,
       slug,
-      meta_description: article.metaDescription,
+      meta_description: generated.metaDescription,
+      cover_image: coverImage,
       content: enrichedContent,
-      word_count: enrichedContent.split(/\s+/).length,
+      word_count: generated.wordCount,
       target_keyword: targetKeyword,
-      tags: article.tags || [],
+      tags: generated.tags || [],
       outline: outline || [],
-      research_data: { ...research, keywordContext },
-      faq: article.faq || [],
+      research_data: {
+        ...research,
+        keywordMetrics,
+        sitePages: sitePages.length,
+        sourcesProvided: sources.length,
+      },
+      faq: generated.faq || [],
       seo_score: seo.score,
       status: "draft",
     })
