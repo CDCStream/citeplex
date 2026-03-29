@@ -21,7 +21,7 @@ interface PlannedKeyword {
   reasoning: string;
 }
 
-async function getCompetitorKeywords(domainId: string, domain: DomainContext): Promise<string[]> {
+async function getCompetitorKeywords(domainId: string, domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
   const { data: competitors } = await supabaseAdmin
     .from("competitors")
     .select("brand_name, url")
@@ -39,12 +39,14 @@ async function getCompetitorKeywords(domainId: string, domain: DomainContext): P
 Description: ${domain.description}
 Industry: ${domain.industry}
 Competitors: ${competitorNames}
+${excludeContext}
 
 Generate 30 keyword ideas that our competitors likely rank for but we might not. Focus on:
 1. Keywords where competitors have content but we don't
 2. Long-tail variations of competitor topics
 3. Comparison/alternative keywords (without brand names)
 4. Problem-solving keywords in our shared industry
+5. IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume in Ahrefs
 
 Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...]`,
     maxTokens: 8192,
@@ -60,20 +62,23 @@ Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...
   }
 }
 
-async function getBacklinkKeywords(domain: DomainContext): Promise<string[]> {
+async function getBacklinkKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
+  const currentYear = new Date().getFullYear();
   const response = await callLLM({
     chain: "fast",
     system: "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks. Return ONLY a JSON array of keyword strings.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
+${excludeContext}
 
 Generate 15 keyword ideas for articles that would naturally attract backlinks:
-1. "Statistics" or "data" keywords (e.g. "[industry] statistics 2025")
+1. "Statistics" or "data" keywords (e.g. "[industry] statistics ${currentYear}")
 2. "Ultimate guide" keywords that become reference material
 3. "How to" keywords with step-by-step value
 4. "Best tools/resources" listicle keywords
 5. "Benchmark/report" keywords that people cite
+6. IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume
 
 Return ONLY a JSON array of keyword strings.`,
     maxTokens: 8192,
@@ -89,7 +94,7 @@ Return ONLY a JSON array of keyword strings.`,
   }
 }
 
-async function getOpportunityKeywords(domain: DomainContext): Promise<string[]> {
+async function getOpportunityKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
   const response = await callLLM({
     chain: "fast",
     system: "You are an SEO content strategist. Generate keyword ideas for organic traffic growth. Return ONLY a JSON array of keyword strings.",
@@ -97,6 +102,7 @@ async function getOpportunityKeywords(domain: DomainContext): Promise<string[]> 
 Industry: ${domain.industry}
 Description: ${domain.description}
 Country: ${domain.primary_country}
+${excludeContext}
 
 Generate 25 keyword ideas across these categories:
 1. Bottom-of-funnel (buying intent) keywords - 5 keywords
@@ -108,6 +114,7 @@ Focus on keywords that are:
 - Realistic to rank for (not ultra-competitive head terms)
 - Directly relevant to what this brand offers
 - Likely to convert visitors into customers
+- IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume in Ahrefs
 
 Return ONLY a JSON array of keyword strings.`,
     maxTokens: 8192,
@@ -211,6 +218,76 @@ Select the top ${count} keywords that would be most impactful. Return ONLY the J
   }
 }
 
+async function planBatch(
+  domainId: string,
+  domain: DomainContext,
+  batchSize: number,
+  excludeKeywords: Set<string>,
+  batchIndex: number,
+): Promise<PlannedKeyword[]> {
+  const excludeList = excludeKeywords.size > 0
+    ? `\n\nDo NOT suggest any of these keywords (already planned):\n${[...excludeKeywords].map(k => `- "${k}"`).join("\n")}`
+    : "";
+
+  const sources = batchIndex === 0
+    ? ["competitor", "backlink", "opportunity"] as const
+    : ["competitor", "opportunity"] as const;
+
+  const kwPromises: Promise<{ keywords: string[]; source: string }>[] = [];
+
+  if (sources.includes("competitor")) {
+    kwPromises.push(
+      getCompetitorKeywords(domainId, domain, excludeList).then(kws => ({ keywords: kws, source: "competitor_gap" }))
+    );
+  }
+  if (sources.includes("backlink")) {
+    kwPromises.push(
+      getBacklinkKeywords(domain, excludeList).then(kws => ({ keywords: kws, source: "backlink_potential" }))
+    );
+  }
+  if (sources.includes("opportunity")) {
+    kwPromises.push(
+      getOpportunityKeywords(domain, excludeList).then(kws => ({ keywords: kws, source: "ahrefs_opportunity" }))
+    );
+  }
+
+  const results = await Promise.all(kwPromises);
+
+  const allKeywords = new Map<string, string>();
+  for (const { keywords, source } of results) {
+    for (const kw of keywords) {
+      if (!excludeKeywords.has(kw.toLowerCase()) && !allKeywords.has(kw)) {
+        allKeywords.set(kw, source);
+      }
+    }
+  }
+
+  const uniqueKeywords = Array.from(allKeywords.keys());
+  const country = (domain.primary_country || "US").toLowerCase();
+
+  let ahrefsData: AhrefsKeywordData[] = [];
+  try {
+    ahrefsData = await fetchKeywordMetrics(uniqueKeywords, country);
+  } catch (err) {
+    console.error(`[KeywordPlanner] Batch ${batchIndex + 1} Ahrefs fetch failed:`, (err as Error).message);
+  }
+
+  const metricsMap = new Map(ahrefsData.map((d) => [d.keyword, d]));
+
+  const scoredKeywords = uniqueKeywords
+    .map((kw) => ({
+      keyword: kw,
+      source: allKeywords.get(kw) || "opportunity",
+      metrics: metricsMap.get(kw) || null,
+      score: metricsMap.get(kw) ? scoreKeyword(metricsMap.get(kw)!, allKeywords.get(kw) || "opportunity") : 5,
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: ${uniqueKeywords.length} keywords, ${ahrefsData.length} Ahrefs hits, picking top ${batchSize}`);
+
+  return generateTitlesForKeywords(scoredKeywords, domain, batchSize);
+}
+
 export async function planKeywords(
   domainId: string,
   days: number = 30
@@ -235,54 +312,30 @@ export async function planKeywords(
       .eq("domain_id", domainId)
       .gte("scheduled_date", new Date().toISOString().split("T")[0]);
 
-    const existingKeywords = new Set(
+    const excludeKeywords = new Set(
       (existingPlans || []).map((p) => p.keyword?.toLowerCase()).filter(Boolean)
     );
 
-    const [competitorKws, backlinkKws, opportunityKws] = await Promise.all([
-      getCompetitorKeywords(domainId, domain),
-      getBacklinkKeywords(domain),
-      getOpportunityKeywords(domain),
-    ]);
+    const BATCH_SIZE = Math.ceil(days / 3);
+    const allPlanned: PlannedKeyword[] = [];
 
-    const allKeywords = new Map<string, string>();
-    for (const kw of competitorKws) {
-      if (!existingKeywords.has(kw.toLowerCase())) allKeywords.set(kw, "competitor_gap");
+    for (let batch = 0; batch < 3; batch++) {
+      const remaining = days - allPlanned.length;
+      if (remaining <= 0) break;
+      const size = Math.min(BATCH_SIZE, remaining);
+
+      const batchResult = await planBatch(domainId, domain, size, excludeKeywords, batch);
+      for (const kw of batchResult) {
+        excludeKeywords.add(kw.keyword.toLowerCase());
+      }
+      allPlanned.push(...batchResult);
+      console.log(`[KeywordPlanner] After batch ${batch + 1}: ${allPlanned.length}/${days} planned`);
     }
-    for (const kw of backlinkKws) {
-      if (!existingKeywords.has(kw.toLowerCase()) && !allKeywords.has(kw)) allKeywords.set(kw, "backlink_potential");
-    }
-    for (const kw of opportunityKws) {
-      if (!existingKeywords.has(kw.toLowerCase()) && !allKeywords.has(kw)) allKeywords.set(kw, "ahrefs_opportunity");
-    }
-
-    const uniqueKeywords = Array.from(allKeywords.keys());
-    const country = (domain.primary_country || "US").toLowerCase();
-
-    let ahrefsData: AhrefsKeywordData[] = [];
-    try {
-      ahrefsData = await fetchKeywordMetrics(uniqueKeywords, country);
-    } catch (err) {
-      console.error("[KeywordPlanner] Ahrefs fetch failed:", (err as Error).message);
-    }
-
-    const metricsMap = new Map(ahrefsData.map((d) => [d.keyword, d]));
-
-    const scoredKeywords = uniqueKeywords
-      .map((kw) => ({
-        keyword: kw,
-        source: allKeywords.get(kw) || "opportunity",
-        metrics: metricsMap.get(kw) || null,
-        score: metricsMap.get(kw) ? scoreKeyword(metricsMap.get(kw)!, allKeywords.get(kw) || "opportunity") : 5,
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    const planned = await generateTitlesForKeywords(scoredKeywords, domain, days);
 
     const today = new Date();
-    const rows = planned.map((kw, i) => {
+    const rows = allPlanned.map((kw, i) => {
       const date = new Date(today);
-      date.setDate(date.getDate() + i + 1);
+      date.setDate(date.getDate() + i);
 
       return {
         domain_id: domainId,
@@ -313,7 +366,7 @@ export async function planKeywords(
       })
       .eq("id", domainId);
 
-    return { planned: rows.length, keywords: planned };
+    return { planned: rows.length, keywords: allPlanned };
   } catch (err) {
     console.error("[KeywordPlanner] Error:", err);
     await supabaseAdmin
