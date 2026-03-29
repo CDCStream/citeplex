@@ -19,7 +19,7 @@ export async function POST(
 
     const { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country, user_id")
+      .select("*")
       .eq("id", domainId)
       .maybeSingle();
 

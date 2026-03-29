@@ -341,6 +341,10 @@ comment on column public.content_plans.keyword_data is 'Ahrefs metrics + analysi
 comment on column public.content_plans.source is 'How keyword was chosen: competitor_gap, ahrefs_opportunity, backlink_potential, trending, manual';
 comment on column public.content_plans.priority is 'Priority score 0-100 for scheduling order';
 
+-- Ensure brand_voice column exists (may be missing if table was created before this column was added)
+alter table public.domains
+  add column if not exists brand_voice jsonb default null;
+
 -- Track keyword planning status per domain
 alter table public.domains
   add column if not exists keyword_plan_status text default null,

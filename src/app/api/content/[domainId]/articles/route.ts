@@ -38,7 +38,7 @@ export async function POST(
 
     const { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country, brand_voice, user_id")
+      .select("*")
       .eq("id", domainId)
       .maybeSingle();
 
@@ -294,12 +294,11 @@ export async function GET(
 
     const { data: domain } = await supabaseAdmin
       .from("domains")
-      .select("id")
+      .select("id, user_id")
       .eq("id", domainId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!domain) {
+    if (!domain || domain.user_id !== user.id) {
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });
     }
 
