@@ -268,7 +268,7 @@ export default function WriteArticlePage() {
           [stepKey]: {
             status,
             message: (data.message as string) || prev[stepKey]?.message,
-            extra: data.mediaCount ? `${data.mediaCount} items found` : prev[stepKey]?.extra,
+            extra: prev[stepKey]?.extra,
           },
         }));
         break;
