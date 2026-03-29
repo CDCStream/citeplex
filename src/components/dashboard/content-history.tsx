@@ -127,13 +127,6 @@ export function ContentHistoryClient({
     }
   }
 
-  function getSeoColor(score: number | null) {
-    if (score === null) return "text-muted-foreground";
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  }
-
   function getStatusBadge(status: string) {
     switch (status) {
       case "published":
@@ -207,7 +200,7 @@ export function ContentHistoryClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">{articles.length}</p>
@@ -224,14 +217,6 @@ export function ContentHistoryClient({
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-yellow-600">{articles.filter(a => a.status === "draft").length}</p>
             <p className="text-xs text-muted-foreground">Drafts</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">
-              {articles.length > 0 ? Math.round(articles.reduce((s, a) => s + (a.seoScore || 0), 0) / articles.length) : 0}
-            </p>
-            <p className="text-xs text-muted-foreground">Avg SEO Score</p>
           </CardContent>
         </Card>
       </div>
@@ -275,12 +260,6 @@ export function ContentHistoryClient({
                           <h3 className="font-semibold text-base truncate">{article.title}</h3>
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             {getStatusBadge(article.status)}
-                            {article.seoScore !== null && (
-                              <span className={`text-xs font-semibold ${getSeoColor(article.seoScore)}`}>
-                                SEO: {article.seoScore}
-                              </span>
-                            )}
-                            <span className="text-xs text-muted-foreground">{article.wordCount.toLocaleString()} words</span>
                             {article.targetKeyword && (
                               <Badge variant="secondary" className="text-[10px]">{article.targetKeyword}</Badge>
                             )}

@@ -184,7 +184,6 @@ export function ArticleEditor({
             <h1 className="text-xl font-bold tracking-tight">{article.title}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline">{article.status}</Badge>
-              <span className="text-xs text-muted-foreground">{article.wordCount} words</span>
             </div>
           </div>
         </div>
