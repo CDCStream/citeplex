@@ -19,21 +19,11 @@ async function ContentPageContent({ domainId }: { domainId: string }) {
 
   if (!rawDomain) notFound();
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .split("T")[0];
-
   const [{ data: plans }, { count: articleCount }] = await Promise.all([
     supabaseAdmin
       .from("content_plans")
       .select("*")
       .eq("domain_id", domainId)
-      .gte("scheduled_date", monthStart)
-      .lte("scheduled_date", monthEnd)
       .order("scheduled_date", { ascending: true }),
     supabaseAdmin
       .from("articles")

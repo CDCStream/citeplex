@@ -433,15 +433,18 @@ export function ContentDashboard({
       </Card>
 
       {/* Upcoming articles list */}
-      {plans.length > 0 && (
+      {(() => {
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const upcomingPlans = plans.filter((p) => p.scheduledDate >= todayStr);
+        return upcomingPlans.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              Planned Articles ({plans.length})
+              Upcoming Articles ({upcomingPlans.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {plans.map((p) => (
+            {upcomingPlans.map((p) => (
               <div
                 key={p.id}
                 className="flex items-center gap-3 rounded-lg border p-3"
@@ -499,7 +502,8 @@ export function ContentDashboard({
             ))}
           </CardContent>
         </Card>
-      )}
+        ) : null;
+      })()}
     </div>
   );
 }
