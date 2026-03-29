@@ -54,6 +54,15 @@ const ARTICLE_TYPES = [
   { value: "round-up", label: "Round-Up" },
 ];
 
+const TYPE_COLORS: Record<string, string> = {
+  guide: "bg-blue-500",
+  "how-to": "bg-amber-500",
+  listicle: "bg-emerald-500",
+  comparison: "bg-violet-500",
+  explainer: "bg-cyan-500",
+  "round-up": "bg-rose-500",
+};
+
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -327,9 +336,9 @@ export function ContentDashboard({
 
       {/* Calendar */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
+            <CardTitle className="text-xl font-bold">
               {MONTHS[month]} {year}
             </CardTitle>
             <div className="flex items-center gap-1">
@@ -343,11 +352,11 @@ export function ContentDashboard({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
             {WEEKDAYS.map((wd) => (
               <div
                 key={wd}
-                className="bg-muted/50 p-2 text-center text-xs font-semibold text-muted-foreground"
+                className="bg-muted/50 px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground"
               >
                 {wd}
               </div>
@@ -361,22 +370,22 @@ export function ContentDashboard({
               return (
                 <div
                   key={i}
-                  className={`bg-background min-h-[80px] p-1.5 ${
+                  className={`bg-background min-h-[120px] p-2.5 ${
                     day ? "" : "bg-muted/30"
                   }`}
                 >
                   {day && (
                     <>
                       <div
-                        className={`text-xs font-medium mb-1 ${
+                        className={`text-sm font-medium mb-1.5 ${
                           isToday
-                            ? "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
+                            ? "bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center"
                             : "text-muted-foreground"
                         }`}
                       >
                         {day}
                       </div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         {dayPlans.slice(0, 3).map((p) => {
                           const vol = p.keywordData?.volume;
                           const kd = p.keywordData?.difficulty;
@@ -388,11 +397,19 @@ export function ContentDashboard({
                             ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
                             : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
 
+                          const typeLabel = ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType;
+                          const typeColor = TYPE_COLORS[p.articleType || ""] || "bg-gray-500";
+
                           const content = (
                             <>
-                              <div className="truncate">{p.keyword || p.title}</div>
+                              {p.articleType && (
+                                <span className={`inline-block text-[10px] text-white font-semibold px-1.5 py-px rounded ${typeColor} mb-0.5`}>
+                                  {typeLabel}
+                                </span>
+                              )}
+                              <div className="truncate font-medium">{p.keyword || p.title}</div>
                               {(vol != null || kd != null) && (
-                                <div className="flex justify-between mt-0.5 text-[9px] opacity-75 font-medium">
+                                <div className="flex justify-between mt-0.5 text-[11px] opacity-80 font-medium">
                                   {vol != null && <span>Vol: {vol.toLocaleString("en-US")}</span>}
                                   {kd != null && <span>KD: {kd}</span>}
                                 </div>
@@ -404,21 +421,21 @@ export function ContentDashboard({
                             <Link
                               key={p.id}
                               href={href}
-                              className={`block text-[10px] px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                              className={`block text-xs px-2 py-1 rounded-md border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
                             >
                               {content}
                             </Link>
                           ) : (
                             <div
                               key={p.id}
-                              className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                              className={`text-xs px-2 py-1 rounded-md border ${STATUS_COLORS[p.status] || "bg-muted"}`}
                             >
                               {content}
                             </div>
                           );
                         })}
                         {dayPlans.length > 3 && (
-                          <div className="text-[10px] text-muted-foreground px-1.5">
+                          <div className="text-xs text-muted-foreground px-2">
                             +{dayPlans.length - 3} more
                           </div>
                         )}
@@ -458,9 +475,9 @@ export function ContentDashboard({
                       </span>
                     )}
                     {p.articleType && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {p.articleType}
-                      </Badge>
+                      <span className={`inline-block text-[10px] text-white font-semibold px-1.5 py-px rounded ${TYPE_COLORS[p.articleType] || "bg-gray-500"}`}>
+                        {ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType}
+                      </span>
                     )}
                     {p.keywordData?.volume != null && (
                       <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
