@@ -126,18 +126,24 @@ Return ONLY a JSON array of keyword strings.`,
 function scoreKeyword(kw: AhrefsKeywordData, source: string): number {
   let score = 0;
 
-  if (kw.volume !== null) {
-    if (kw.volume >= 1000) score += 30;
-    else if (kw.volume >= 300) score += 25;
-    else if (kw.volume >= 100) score += 20;
-    else if (kw.volume >= 30) score += 10;
+  const hasVolume = kw.volume !== null && kw.volume > 0;
+  const hasDifficulty = kw.difficulty !== null;
+
+  if (hasVolume) {
+    if (kw.volume! >= 1000) score += 30;
+    else if (kw.volume! >= 300) score += 25;
+    else if (kw.volume! >= 100) score += 20;
+    else if (kw.volume! >= 30) score += 10;
   }
 
-  if (kw.difficulty !== null) {
-    if (kw.difficulty <= 20) score += 30;
-    else if (kw.difficulty <= 40) score += 20;
-    else if (kw.difficulty <= 60) score += 10;
+  if (hasDifficulty) {
+    if (kw.difficulty! <= 20) score += 30;
+    else if (kw.difficulty! <= 40) score += 20;
+    else if (kw.difficulty! <= 60) score += 10;
   }
+
+  // Bonus for having both vol + KD (complete data)
+  if (hasVolume && hasDifficulty) score += 15;
 
   if (kw.traffic_potential !== null && kw.traffic_potential > 500) score += 10;
   if (kw.cpc !== null && kw.cpc > 1) score += 5;
@@ -267,7 +273,7 @@ export async function planKeywords(
         keyword: kw,
         source: allKeywords.get(kw) || "opportunity",
         metrics: metricsMap.get(kw) || null,
-        score: metricsMap.get(kw) ? scoreKeyword(metricsMap.get(kw)!, allKeywords.get(kw) || "opportunity") : 30,
+        score: metricsMap.get(kw) ? scoreKeyword(metricsMap.get(kw)!, allKeywords.get(kw) || "opportunity") : 5,
       }))
       .sort((a, b) => b.score - a.score);
 
