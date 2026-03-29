@@ -158,7 +158,7 @@ export async function POST(
           for (let i = 0; i < inlineImages.length; i++) {
             const insertAt = step * (i + 1);
             if (insertAt < paragraphs.length) {
-              paragraphs[insertAt] = `</p><figure class="my-8"><img src="${inlineImages[i].url}" alt="${inlineImages[i].alt}" class="rounded-lg w-full" loading="lazy" /><figcaption class="text-sm text-center text-muted-foreground mt-2">${inlineImages[i].alt}</figcaption></figure>${paragraphs[insertAt]}`;
+              paragraphs[insertAt] = `</p><figure class="my-8"><img src="${inlineImages[i].url}" alt="${inlineImages[i].alt}" class="rounded-lg w-full" loading="lazy" /></figure>${paragraphs[insertAt]}`;
             }
           }
           enrichedContent = paragraphs.join("</p>");

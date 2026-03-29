@@ -229,7 +229,14 @@ export async function writeArticle(
 
   if (enhancements.generateFaqs) {
     enhancementInstructions.push(
-      `- FAQ SECTION: Include a comprehensive FAQ section at the end with 4-6 questions and detailed answers. Use proper HTML: <div class="faq-section"><h2>Frequently Asked Questions</h2><div class="faq-item"><h3>[Question]</h3><p>[Answer]</p></div></div>`
+      `- FAQ SECTION (MANDATORY): You MUST include a Frequently Asked Questions section as the LAST section of the article HTML. This is REQUIRED — do NOT skip it. Use this exact structure:
+  <div class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-item"><h3>[Question 1]</h3><p>[Detailed answer]</p></div>
+    <div class="faq-item"><h3>[Question 2]</h3><p>[Detailed answer]</p></div>
+    ... (4-6 questions total)
+  </div>
+  Questions should be real queries people search for about "${keyword}".`
     );
   }
 
