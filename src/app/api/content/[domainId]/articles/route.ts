@@ -6,6 +6,8 @@ import {
   generateOutline,
   writeArticle,
   checkSeo,
+  DEFAULT_ENHANCEMENTS,
+  type EnhancementOptions,
 } from "@/lib/content/article-generator";
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
 import { generateArticleImages } from "@/lib/content/image-generator";
@@ -55,7 +57,8 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { title, keyword, wordCount = 1500, planId } = body;
+    const { title, keyword, wordCount = 1500, planId, topArticles, secondaryKeywords, outline: preBuiltOutline, customOutline, enhancements: enhOpts } = body;
+    const enhancements: EnhancementOptions = { ...DEFAULT_ENHANCEMENTS, ...(enhOpts || {}) };
 
     if (!title?.trim()) {
       return NextResponse.json(
@@ -75,27 +78,33 @@ export async function POST(
       ? `Volume: ${keywordMetrics.volume ?? "N/A"}, Difficulty: ${keywordMetrics.difficulty ?? "N/A"}/100, CPC: $${keywordMetrics.cpc ?? "N/A"}, Traffic Potential: ${keywordMetrics.traffic_potential ?? "N/A"}, Parent Topic: ${keywordMetrics.parent_topic ?? "N/A"}`
       : "Keyword data unavailable";
 
-    // Step 1: Research (with keyword data)
+    // Step 1: Research (with keyword data + top articles for gap analysis)
     const research = await researchTopic(
       title,
       targetKeyword,
       domain.brand_name,
       domain.industry || "",
-      language
+      language,
+      topArticles,
     );
 
-    // Step 2: Outline (with keyword data)
-    const outline = await generateOutline(
-      title,
-      targetKeyword,
-      research,
-      wordCount,
-      language
-    );
+    // Step 2: Use pre-built outline or generate one
+    let outline;
+    if (preBuiltOutline && Array.isArray(preBuiltOutline) && preBuiltOutline.length > 0) {
+      outline = preBuiltOutline;
+    } else if (customOutline && typeof customOutline === "string") {
+      outline = parseCustomOutline(customOutline);
+    } else {
+      outline = await generateOutline(title, targetKeyword, research, wordCount, language);
+    }
 
-    // Step 3: Write article (with keyword data + brand voice)
+    // Step 3: Write article (with keyword data + brand voice + secondary keywords)
     const voiceInstruction = domain.brand_voice
       ? buildVoiceInstruction(domain.brand_voice as BrandVoiceProfile)
+      : "";
+
+    const secondaryKwContext = secondaryKeywords?.length
+      ? `\n\nSecondary keywords to naturally incorporate: ${(secondaryKeywords as string[]).join(", ")}`
       : "";
 
     const generated = await writeArticle(
@@ -107,17 +116,24 @@ export async function POST(
       domain.url,
       wordCount,
       language,
-      keywordContext,
-      voiceInstruction
+      keywordContext + secondaryKwContext,
+      voiceInstruction,
+      enhancements
     );
 
-    // Step 4: YouTube videos, AI images, web images & infographics (parallel)
-    const [videos, images, webImgs, infographics] = await Promise.allSettled([
-      searchYouTubeVideos(targetKeyword, 2),
-      generateArticleImages(title, targetKeyword, 3),
-      searchWebImages(targetKeyword, 2),
-      searchInfographics(targetKeyword, 2),
-    ]);
+    // Step 4: YouTube videos, AI images, web images & infographics (parallel, conditional)
+    const mediaPromises: [
+      Promise<Awaited<ReturnType<typeof searchYouTubeVideos>>>,
+      Promise<Awaited<ReturnType<typeof generateArticleImages>>>,
+      Promise<Awaited<ReturnType<typeof searchWebImages>>>,
+      Promise<Awaited<ReturnType<typeof searchInfographics>>>,
+    ] = [
+      enhancements.youtubeVideos ? searchYouTubeVideos(targetKeyword, 2) : Promise.resolve([]),
+      enhancements.includeImages ? generateArticleImages(title, targetKeyword, 3) : Promise.resolve([]),
+      enhancements.webImages ? searchWebImages(targetKeyword, 2) : Promise.resolve([]),
+      enhancements.webImages ? searchInfographics(targetKeyword, 2) : Promise.resolve([]),
+    ];
+    const [videos, images, webImgs, infographics] = await Promise.allSettled(mediaPromises);
 
     let enrichedContent = generated.content;
 
@@ -266,4 +282,29 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+function parseCustomOutline(text: string): { heading: string; level: number; points: string[] }[] {
+  const lines = text.split("\n").filter(l => l.trim());
+  const sections: { heading: string; level: number; points: string[] }[] = [];
+  let current: { heading: string; level: number; points: string[] } | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const h2Match = trimmed.match(/^H2:\s*(.+)/i);
+    const h3Match = trimmed.match(/^H3:\s*(.+)/i);
+
+    if (h2Match) {
+      if (current) sections.push(current);
+      current = { heading: h2Match[1].trim(), level: 2, points: [] };
+    } else if (h3Match) {
+      if (current) sections.push(current);
+      current = { heading: h3Match[1].trim(), level: 3, points: [] };
+    } else if (trimmed.startsWith("-") && current) {
+      current.points.push(trimmed.slice(1).trim());
+    }
+  }
+
+  if (current) sections.push(current);
+  return sections;
 }

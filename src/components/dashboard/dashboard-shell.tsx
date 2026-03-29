@@ -28,6 +28,7 @@ import {
   CreditCard,
   Eye,
   FileText,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -64,7 +65,7 @@ function getDomainNavSections(domainId: string): NavSection[] {
       title: "Content",
       items: [
         { label: "Planner", href: `/dashboard/${domainId}/content`, icon: FileText },
-        { label: "Write Article", href: `/dashboard/${domainId}/content/write`, icon: FileText },
+        { label: "Content History", href: `/dashboard/${domainId}/content/history`, icon: History },
       ],
     },
     {

@@ -1,0 +1,371 @@
+import { callLLM } from "@/lib/llm/client";
+import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
+import { findAndScrapeTopArticles, type TopArticle } from "./top-articles";
+
+export interface SecondaryKeyword {
+  keyword: string;
+  volume: number | null;
+  difficulty: number | null;
+}
+
+export interface ArticleStructure {
+  headings: number;
+  wordCount: number;
+  label: string;
+}
+
+export interface OutlineSection {
+  heading: string;
+  level: number;
+  points: string[];
+}
+
+export interface GapAnalysis {
+  targetKeyword: string;
+  topic: string;
+  title: string;
+  keywordMetrics: AhrefsKeywordData | null;
+  reasoning: string;
+  topArticles: TopArticle[];
+  secondaryKeywords: SecondaryKeyword[];
+  recommendedStructure: ArticleStructure;
+  structures: ArticleStructure[];
+  outlines: OutlineSection[][];
+}
+
+const STRUCTURES: ArticleStructure[] = [
+  { headings: 3, wordCount: 800, label: "2-3 headings (600-1000 words)" },
+  { headings: 4, wordCount: 1250, label: "3-4 headings (1000-1500 words)" },
+  { headings: 5, wordCount: 1750, label: "4-5 headings (1500-2000 words)" },
+  { headings: 6, wordCount: 2250, label: "5-6 headings (2000-2500 words)" },
+  { headings: 7, wordCount: 2750, label: "6-7 headings (2500-3000 words)" },
+];
+
+export async function analyzeGapAndPlan(
+  prompt: string,
+  brandName: string,
+  brandUrl: string,
+  industry: string,
+  competitors: { name: string; url: string }[],
+  country: string = "us",
+): Promise<GapAnalysis> {
+
+  const competitorContext = competitors.length > 0
+    ? competitors.map(c => `- ${c.name} (${c.url})`).join("\n")
+    : "(no competitors)";
+
+  // Step 1: Generate candidate keywords with Opus
+  const candidateResponse = await callLLM({
+    chain: "strong",
+    system: "You are an expert SEO strategist. Return ONLY valid JSON, nothing else.",
+    user: `A brand is NOT being mentioned by ANY AI engine for this prompt:
+"${prompt}"
+
+Brand: ${brandName} (${brandUrl})
+Industry: ${industry}
+Country: ${country.toUpperCase()}
+Competitors who ARE mentioned for this prompt:
+${competitorContext}
+
+Generate 10 candidate target keywords that could help this brand rank for this prompt.
+Consider:
+- Keywords that competitors likely use to get mentioned
+- Long-tail variations with potentially lower difficulty
+- Keywords with high search intent matching the prompt
+- Informational, commercial, and comparison intent variations
+
+Return JSON:
+{
+  "candidates": [
+    { "keyword": "...", "intent": "informational|commercial|comparison", "rationale": "..." }
+  ]
+}`,
+    maxTokens: 2048,
+    temperature: 0.7,
+    timeout: 90000,
+  });
+
+  let candidates: { keyword: string; intent: string; rationale: string }[] = [];
+  try {
+    const parsed = JSON.parse(candidateResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    candidates = parsed.candidates || [];
+  } catch {
+    candidates = [{ keyword: prompt, intent: "informational", rationale: "fallback" }];
+  }
+
+  if (candidates.length === 0) {
+    candidates = [{ keyword: prompt, intent: "informational", rationale: "fallback" }];
+  }
+
+  // Step 2: Fetch Ahrefs metrics for all candidates
+  const keywords = candidates.map(c => c.keyword);
+  let ahrefsData: AhrefsKeywordData[] = [];
+  try {
+    ahrefsData = await fetchKeywordMetrics(keywords, country);
+  } catch (err) {
+    console.error("[GapAnalyzer] Ahrefs fetch failed:", (err as Error).message);
+  }
+
+  const metricsMap = new Map(ahrefsData.map(d => [d.keyword, d]));
+
+  const metricsTable = candidates.map(c => {
+    const m = metricsMap.get(c.keyword);
+    return `- "${c.keyword}" | Intent: ${c.intent} | Volume: ${m?.volume ?? "N/A"} | KD: ${m?.difficulty ?? "N/A"} | CPC: $${m?.cpc ?? "N/A"} | Traffic Potential: ${m?.traffic_potential ?? "N/A"} | Parent Topic: ${m?.parent_topic ?? "N/A"}`;
+  }).join("\n");
+
+  // Step 3: Opus picks the best keyword and generates topic + title
+  const finalResponse = await callLLM({
+    chain: "strong",
+    system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis. Return ONLY valid JSON.",
+    user: `Based on the Ahrefs data below, pick the BEST target keyword for writing a gap article.
+
+## Original AI Prompt (brand is NOT mentioned here):
+"${prompt}"
+
+## Brand: ${brandName} (${brandUrl})
+## Industry: ${industry}
+
+## Candidate Keywords with Ahrefs Data:
+${metricsTable}
+
+## Selection Criteria (in order of priority):
+1. Keyword Difficulty (KD) should be as LOW as possible (under 30 is ideal)
+2. Search Volume should be as HIGH as possible
+3. Traffic Potential matters more than raw volume
+4. The keyword should be directly relevant to the original prompt
+5. Prefer keywords that would naturally lead AI engines to mention the brand
+
+## Your Task:
+1. Pick the single best keyword
+2. Define a content topic that comprehensively covers this keyword
+3. Create an SEO-optimized article title (compelling, includes keyword naturally, 50-65 chars)
+
+Return JSON:
+{
+  "targetKeyword": "the chosen keyword",
+  "topic": "a clear topic description (1-2 sentences)",
+  "title": "SEO-optimized article title",
+  "reasoning": "why this keyword was chosen (mention KD, volume, relevance)"
+}`,
+    maxTokens: 1024,
+    temperature: 0.5,
+    timeout: 90000,
+  });
+
+  let result: { targetKeyword: string; topic: string; title: string; reasoning: string };
+  try {
+    result = JSON.parse(finalResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+  } catch {
+    result = {
+      targetKeyword: candidates[0].keyword,
+      topic: `Comprehensive guide about ${candidates[0].keyword}`,
+      title: `The Ultimate Guide to ${candidates[0].keyword}`,
+      reasoning: "Fallback: LLM response could not be parsed",
+    };
+  }
+
+  const chosenMetrics = metricsMap.get(result.targetKeyword) || null;
+
+  // Step 4: Find and scrape top 5 ranking articles for the chosen keyword
+  let topArticles: TopArticle[] = [];
+  try {
+    topArticles = await findAndScrapeTopArticles(result.targetKeyword, 5);
+    console.log(`[GapAnalyzer] Scraped ${topArticles.length} top articles for "${result.targetKeyword}"`);
+  } catch (err) {
+    console.error("[GapAnalyzer] Top articles scrape failed:", (err as Error).message);
+  }
+
+  // Step 5: Extract secondary keywords from top articles + validate with Ahrefs
+  const secondaryKeywords = await extractSecondaryKeywords(
+    result.targetKeyword,
+    topArticles,
+    country,
+  );
+
+  // Step 6: Determine recommended structure from top articles
+  const { recommendedStructure, structures } = analyzeStructure(topArticles);
+
+  // Step 7: Generate 2 outline options
+  const outlines = await generateOutlineOptions(
+    result.title,
+    result.targetKeyword,
+    result.topic,
+    secondaryKeywords,
+    topArticles,
+    recommendedStructure,
+    industry,
+    brandName,
+  );
+
+  return {
+    targetKeyword: result.targetKeyword,
+    topic: result.topic,
+    title: result.title,
+    keywordMetrics: chosenMetrics,
+    reasoning: result.reasoning,
+    topArticles,
+    secondaryKeywords,
+    recommendedStructure,
+    structures,
+    outlines,
+  };
+}
+
+async function extractSecondaryKeywords(
+  primaryKeyword: string,
+  topArticles: TopArticle[],
+  country: string,
+): Promise<SecondaryKeyword[]> {
+  if (topArticles.length === 0) return [];
+
+  const articleSummaries = topArticles.map((a, i) =>
+    `Article ${i + 1} (${a.domain}):\nHeadings: ${a.headings.join(" | ")}\nContent: ${a.content.slice(0, 2000)}`
+  ).join("\n\n");
+
+  try {
+    const response = await callLLM({
+      chain: "fast",
+      system: "You are an SEO keyword researcher. Return ONLY valid JSON.",
+      user: `Analyze these top-ranking articles for "${primaryKeyword}" and extract 15-20 secondary/LSI keywords that appear frequently across multiple articles.
+
+${articleSummaries}
+
+Rules:
+- Do NOT include the primary keyword "${primaryKeyword}"
+- Focus on semantically related terms, not just synonyms
+- Include both short-tail and long-tail variations
+- Prioritize keywords that appear in headings across multiple articles
+
+Return JSON:
+{ "keywords": ["keyword1", "keyword2", ...] }`,
+      maxTokens: 1024,
+      temperature: 0.3,
+      timeout: 30000,
+    });
+
+    const parsed = JSON.parse(response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    const kwList: string[] = (parsed.keywords || []).slice(0, 20);
+
+    if (kwList.length === 0) return [];
+
+    let ahrefsData: AhrefsKeywordData[] = [];
+    try {
+      ahrefsData = await fetchKeywordMetrics(kwList, country);
+    } catch {
+      return kwList.map(kw => ({ keyword: kw, volume: null, difficulty: null }));
+    }
+
+    const validated: SecondaryKeyword[] = ahrefsData
+      .map(d => ({ keyword: d.keyword, volume: d.volume, difficulty: d.difficulty }))
+      .sort((a, b) => {
+        const scoreA = (a.volume ?? 0) / Math.max(a.difficulty ?? 50, 1);
+        const scoreB = (b.volume ?? 0) / Math.max(b.difficulty ?? 50, 1);
+        return scoreB - scoreA;
+      })
+      .slice(0, 8);
+
+    return validated;
+  } catch (err) {
+    console.error("[GapAnalyzer] Secondary keywords extraction failed:", (err as Error).message);
+    return [];
+  }
+}
+
+function analyzeStructure(topArticles: TopArticle[]): {
+  recommendedStructure: ArticleStructure;
+  structures: ArticleStructure[];
+} {
+  if (topArticles.length === 0) {
+    return { recommendedStructure: STRUCTURES[2], structures: STRUCTURES };
+  }
+
+  const avgWordCount = Math.round(
+    topArticles.reduce((sum, a) => sum + a.wordCount, 0) / topArticles.length
+  );
+  const avgHeadings = Math.round(
+    topArticles.reduce((sum, a) => sum + a.headings.length, 0) / topArticles.length
+  );
+
+  // Pick the structure that best matches or slightly exceeds the average
+  let best = STRUCTURES[2];
+  for (const s of STRUCTURES) {
+    if (s.wordCount >= avgWordCount * 0.8 && s.headings >= avgHeadings * 0.8) {
+      best = s;
+      break;
+    }
+  }
+
+  // If competitors average more, bump up one level to outperform
+  const bestIdx = STRUCTURES.indexOf(best);
+  if (bestIdx < STRUCTURES.length - 1 && avgWordCount > best.wordCount) {
+    best = STRUCTURES[bestIdx + 1];
+  }
+
+  return { recommendedStructure: best, structures: STRUCTURES };
+}
+
+async function generateOutlineOptions(
+  title: string,
+  keyword: string,
+  topic: string,
+  secondaryKeywords: SecondaryKeyword[],
+  topArticles: TopArticle[],
+  structure: ArticleStructure,
+  industry: string,
+  brandName: string,
+): Promise<OutlineSection[][]> {
+  const secondaryKwList = secondaryKeywords.map(k => k.keyword).join(", ");
+
+  const competitorHeadings = topArticles.length > 0
+    ? topArticles.map((a, i) => `Article ${i + 1} (${a.domain}): ${a.headings.slice(0, 15).join(" | ")}`).join("\n")
+    : "";
+
+  const outlinePrompt = `Generate 2 different article outlines for:
+Title: "${title}"
+Primary Keyword: "${keyword}"
+Topic: ${topic}
+Brand: ${brandName}
+Industry: ${industry}
+Secondary Keywords to incorporate: ${secondaryKwList || "none"}
+Target: ~${structure.headings} H2 sections, ~${structure.wordCount} words total
+
+${competitorHeadings ? `## Competitor article headings (outperform these):\n${competitorHeadings}` : ""}
+
+## Rules:
+- Each outline should have a DIFFERENT angle/approach
+- Include H2 and H3 headings
+- Each heading should have 2-4 bullet points describing what to cover
+- Include FAQ section (4-6 questions) at the end
+- Naturally incorporate secondary keywords in headings where relevant
+- Outline 1: Comprehensive/educational approach
+- Outline 2: Practical/actionable approach
+
+Return JSON:
+{
+  "outlines": [
+    [{"heading": "...", "level": 2, "points": ["...", "..."]}, ...],
+    [{"heading": "...", "level": 2, "points": ["...", "..."]}, ...]
+  ]
+}`;
+
+  try {
+    const response = await callLLM({
+      chain: "strong",
+      system: "You are an expert content strategist. Return ONLY valid JSON.",
+      user: outlinePrompt,
+      maxTokens: 4096,
+      temperature: 0.7,
+      timeout: 90000,
+    });
+
+    const parsed = JSON.parse(response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    const outlines = parsed.outlines || [];
+
+    if (outlines.length >= 2) return outlines.slice(0, 2);
+    if (outlines.length === 1) return [outlines[0], outlines[0]];
+    return [[], []];
+  } catch (err) {
+    console.error("[GapAnalyzer] Outline generation failed:", (err as Error).message);
+    return [[], []];
+  }
+}

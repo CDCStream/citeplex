@@ -11,13 +11,27 @@ export interface ResearchData {
   statistics: string[];
 }
 
+export interface TopArticleRef {
+  title: string;
+  url: string;
+  domain: string;
+  content: string;
+  headings: string[];
+  wordCount: number;
+}
+
 export async function researchTopic(
   title: string,
   keyword: string,
   brandName: string,
   industry: string,
-  language = "English"
+  language = "English",
+  topArticles?: TopArticleRef[],
 ): Promise<ResearchData> {
+  const competitorInsight = topArticles?.length
+    ? `\n\n## Top Ranking Articles for "${keyword}" (use these as reference to write a BETTER article):\n${topArticles.map((a, i) => `### ${i + 1}. ${a.title} (${a.domain}, ${a.wordCount} words)\nHeadings: ${a.headings.slice(0, 10).join(" | ")}\nContent excerpt: ${a.content.slice(0, 1500)}\n`).join("\n")}`
+    : "";
+
   const systemPrompt = `You are an SEO content researcher. Analyze the given topic and return ONLY valid JSON with this structure:
 {
   "keyPoints": ["5-8 key points to cover"],
@@ -29,13 +43,13 @@ export async function researchTopic(
   "backlinkAngles": ["3-5 unique data points, frameworks, or original insights that would make other sites want to link to this article"],
   "statistics": ["3-5 relevant industry statistics with source attribution to include in the article"]
 }
-All content must be in ${language}.`;
+All content must be in ${language}.${topArticles?.length ? "\nYou MUST analyze the top ranking articles provided and identify gaps, missing angles, and opportunities to create superior content." : ""}`;
 
   const userPrompt = `Research this article topic (write everything in ${language}):
 Title: ${title}
 Target Keyword: ${keyword}
 Brand: ${brandName}
-Industry: ${industry}`;
+Industry: ${industry}${competitorInsight}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048 });
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -99,6 +113,32 @@ Language: ${language}`;
   }
 }
 
+export interface EnhancementOptions {
+  expertQuotes: boolean;
+  includeImages: boolean;
+  internalLinking: boolean;
+  externalLinks: boolean;
+  callToAction: string;
+  keyTakeaways: boolean;
+  keyTakeawaysPlacement: "beginning" | "end";
+  generateFaqs: boolean;
+  youtubeVideos: boolean;
+  webImages: boolean;
+}
+
+export const DEFAULT_ENHANCEMENTS: EnhancementOptions = {
+  expertQuotes: true,
+  includeImages: true,
+  internalLinking: true,
+  externalLinks: true,
+  callToAction: "",
+  keyTakeaways: true,
+  keyTakeawaysPlacement: "beginning",
+  generateFaqs: true,
+  youtubeVideos: true,
+  webImages: true,
+};
+
 export interface GeneratedArticle {
   content: string;
   metaDescription: string;
@@ -117,7 +157,8 @@ export async function writeArticle(
   wordCount: number,
   language = "English",
   keywordContext = "",
-  brandVoiceInstruction = ""
+  brandVoiceInstruction = "",
+  enhancements: EnhancementOptions = DEFAULT_ENHANCEMENTS
 ): Promise<GeneratedArticle> {
   const outlineText = outline
     .map(
@@ -130,6 +171,49 @@ export async function writeArticle(
     ? `\n\n${brandVoiceInstruction}\nIMPORTANT: Match the brand voice described above throughout the entire article.\n`
     : "";
 
+  const enhancementInstructions: string[] = [];
+
+  if (enhancements.expertQuotes) {
+    enhancementInstructions.push(
+      `- EXPERT QUOTES: Include 2-3 relevant quotes from industry experts or thought leaders. Format as <blockquote class="expert-quote"><p>"[quote]"</p><cite>— [Expert Name], [Title/Company]</cite></blockquote>. Use real, well-known experts in the field when possible.`
+    );
+  }
+
+  if (enhancements.keyTakeaways) {
+    const placement = enhancements.keyTakeawaysPlacement === "beginning" ? "at the BEGINNING of the article (right after the introduction)" : "at the END of the article (before FAQ)";
+    enhancementInstructions.push(
+      `- KEY TAKEAWAYS: Add a "Key Takeaways" box ${placement} with 4-6 concise bullet points summarizing the most important insights. Format as: <div class="key-takeaways"><h3>Key Takeaways</h3><ul><li>...</li></ul></div>`
+    );
+  }
+
+  if (enhancements.callToAction && enhancements.callToAction.trim()) {
+    enhancementInstructions.push(
+      `- CALL TO ACTION: Include a compelling call-to-action section near the end of the article (before FAQ). CTA instruction: "${enhancements.callToAction}". Format as: <div class="cta-box"><h3>[CTA Heading]</h3><p>[CTA Text]</p><a href="${brandUrl}" class="cta-button">[Button Text]</a></div>`
+    );
+  }
+
+  if (enhancements.internalLinking) {
+    enhancementInstructions.push(
+      `- INTERNAL LINKING: Add 3-5 internal link placeholders as <a href="${brandUrl}/[relevant-page]">[anchor text]</a> distributed naturally throughout the article.`
+    );
+  }
+
+  if (enhancements.externalLinks) {
+    enhancementInstructions.push(
+      `- EXTERNAL LINKS: Add 3-5 external links to authoritative sources as <a href="[url]" rel="noopener" target="_blank">[text]</a>. Link to reputable industry sources, studies, or official documentation.`
+    );
+  }
+
+  if (enhancements.generateFaqs) {
+    enhancementInstructions.push(
+      `- FAQ SECTION: Include a comprehensive FAQ section at the end with 4-6 questions and detailed answers. Use proper HTML: <div class="faq-section"><h2>Frequently Asked Questions</h2><div class="faq-item"><h3>[Question]</h3><p>[Answer]</p></div></div>`
+    );
+  }
+
+  const enhancementBlock = enhancementInstructions.length > 0
+    ? `\n\nENHANCEMENT REQUIREMENTS:\n${enhancementInstructions.join("\n")}`
+    : "";
+
   const systemPrompt = `You are an expert SEO content writer. Write a complete article in HTML format.
 IMPORTANT: Write the ENTIRE article in ${language}. Every sentence, heading, and paragraph must be in ${language}.
 ${voiceBlock}
@@ -138,11 +222,8 @@ Requirements:
 - Target approximately ${wordCount} words
 - Use the target keyword naturally (2-3% density)
 - Include the brand name "${brandName}" naturally where relevant
-- Add internal link placeholders as <a href="${brandUrl}/[page]">[anchor text]</a>
-- Add external link placeholders as <a href="[url]" rel="noopener" target="_blank">[text]</a>
 - Use semantic HTML: <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <em>, <blockquote>
 - Include HTML comparison/data tables where appropriate (e.g. feature comparisons, pros vs cons, pricing breakdowns, specifications). Use <table> with <thead> and <tbody>, styled with class="comparison-table" for styling hooks
-- Include a FAQ section at the end with proper HTML structure
 - Write engaging, informative content optimized for both humans and AI search engines
 - Maintain a coherent narrative throughout — every section must logically connect to the previous one and the overall topic. Do not drift off-topic or repeat the same points
 - BACKLINK OPTIMIZATION — write content that other sites will want to link to:
@@ -154,6 +235,7 @@ Requirements:
   * Include expert-level analysis that demonstrates E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
 - Do NOT include the <h1> title tag - it will be added separately
 - Do NOT include any markdown - use only HTML
+${enhancementBlock}
 
 After the article HTML, add a JSON block wrapped in <script type="application/json" id="article-meta"> with:
 {"metaDescription":"150-160 char meta description in ${language}","tags":["5-8 tags in ${language}"],"faq":[{"question":"...","answer":"..."}]}`;
