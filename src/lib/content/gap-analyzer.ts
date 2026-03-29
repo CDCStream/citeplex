@@ -39,6 +39,8 @@ const STRUCTURES: ArticleStructure[] = [
   { headings: 5, wordCount: 1750, label: "4-5 headings (1500-2000 words)" },
   { headings: 6, wordCount: 2250, label: "5-6 headings (2000-2500 words)" },
   { headings: 7, wordCount: 2750, label: "6-7 headings (2500-3000 words)" },
+  { headings: 9, wordCount: 3500, label: "8-9 headings (3000-4000 words)" },
+  { headings: 11, wordCount: 4500, label: "10-11 headings (4000-5000 words)" },
 ];
 
 export async function analyzeGapAndPlan(
@@ -212,7 +214,7 @@ Return JSON:
   );
 
   // Step 6: Determine recommended structure from top articles
-  const { recommendedStructure, structures } = analyzeStructure(topArticles);
+  const { recommendedStructure, structures } = analyzeStructure(topArticles, secondaryKeywords.length);
 
   // Step 7: Generate 2 outline options
   const outlines = await generateOutlineOptions(
@@ -300,36 +302,51 @@ Return JSON:
   }
 }
 
-function analyzeStructure(topArticles: TopArticle[]): {
+function analyzeStructure(
+  topArticles: TopArticle[],
+  secondaryKeywordCount: number = 0,
+): {
   recommendedStructure: ArticleStructure;
   structures: ArticleStructure[];
 } {
-  if (topArticles.length === 0) {
-    return { recommendedStructure: STRUCTURES[2], structures: STRUCTURES };
-  }
+  let best = STRUCTURES[2]; // default: 1500-2000
 
-  const avgWordCount = Math.round(
-    topArticles.reduce((sum, a) => sum + a.wordCount, 0) / topArticles.length
-  );
-  const avgHeadings = Math.round(
-    topArticles.reduce((sum, a) => sum + a.headings.length, 0) / topArticles.length
-  );
+  if (topArticles.length > 0) {
+    const avgWordCount = Math.round(
+      topArticles.reduce((sum, a) => sum + a.wordCount, 0) / topArticles.length
+    );
+    const avgHeadings = Math.round(
+      topArticles.reduce((sum, a) => sum + a.headings.length, 0) / topArticles.length
+    );
 
-  // Pick the structure that best matches or slightly exceeds the average
-  let best = STRUCTURES[2];
-  for (const s of STRUCTURES) {
-    if (s.wordCount >= avgWordCount * 0.8 && s.headings >= avgHeadings * 0.8) {
-      best = s;
-      break;
+    for (const s of STRUCTURES) {
+      if (s.wordCount >= avgWordCount * 0.8 && s.headings >= avgHeadings * 0.8) {
+        best = s;
+        break;
+      }
+    }
+
+    // If competitors average more, bump up one level to outperform
+    const bestIdx = STRUCTURES.indexOf(best);
+    if (bestIdx < STRUCTURES.length - 1 && avgWordCount > best.wordCount) {
+      best = STRUCTURES[bestIdx + 1];
     }
   }
 
-  // If competitors average more, bump up one level to outperform
-  const bestIdx = STRUCTURES.indexOf(best);
-  if (bestIdx < STRUCTURES.length - 1 && avgWordCount > best.wordCount) {
-    best = STRUCTURES[bestIdx + 1];
+  // Secondary keywords push toward longer articles
+  // 5+ secondary keywords → at least 2000 words, 7+ → at least 2500
+  if (secondaryKeywordCount >= 7) {
+    const minIdx = STRUCTURES.findIndex(s => s.wordCount >= 2500);
+    if (minIdx >= 0 && STRUCTURES.indexOf(best) < minIdx) best = STRUCTURES[minIdx];
+  } else if (secondaryKeywordCount >= 5) {
+    const minIdx = STRUCTURES.findIndex(s => s.wordCount >= 2000);
+    if (minIdx >= 0 && STRUCTURES.indexOf(best) < minIdx) best = STRUCTURES[minIdx];
+  } else if (secondaryKeywordCount >= 3) {
+    const minIdx = STRUCTURES.findIndex(s => s.wordCount >= 1500);
+    if (minIdx >= 0 && STRUCTURES.indexOf(best) < minIdx) best = STRUCTURES[minIdx];
   }
 
+  console.log(`[GapAnalyzer] Structure: ${best.label} (secondaryKW=${secondaryKeywordCount}, topArticles=${topArticles.length})`);
   return { recommendedStructure: best, structures: STRUCTURES };
 }
 
@@ -377,9 +394,9 @@ ${competitorContext ? `## Top Ranking Competitor Articles (study these carefully
 - Study the competitor articles above carefully — use SPECIFIC names, tools, products, brands, and examples mentioned in them
 - NEVER use generic placeholders like "Tool #1", "Tool #2", "Product A", "Solution B" — always use REAL names from the competitor articles or well-known industry examples
 - Each outline should have a DIFFERENT angle/approach
-- Include H2 and H3 headings
+- MANDATORY: Every H2 section MUST have at least 2 H3 sub-headings underneath it. H3 headings are critical for SEO and content depth.
 - Each heading should have 2-4 bullet points describing what to cover
-- Include FAQ section (4-6 questions) at the end
+- Include FAQ section (4-6 questions) at the end — FAQ items should be H3 under an H2
 - Naturally incorporate secondary keywords in headings where relevant
 - If the topic involves comparing tools/products, name the ACTUAL top tools in the headings (e.g. "Surfer SEO vs Clearscope" not "Tool #1 vs Tool #2")
 - Outline 1: Comprehensive/educational approach
@@ -388,8 +405,14 @@ ${competitorContext ? `## Top Ranking Competitor Articles (study these carefully
 Return JSON:
 {
   "outlines": [
-    [{"heading": "...", "level": 2, "points": ["...", "..."]}, ...],
-    [{"heading": "...", "level": 2, "points": ["...", "..."]}, ...]
+    [
+      {"heading": "Main Section Title", "level": 2, "points": ["...", "..."]},
+      {"heading": "Sub Section Detail", "level": 3, "points": ["...", "..."]},
+      {"heading": "Another Sub Detail", "level": 3, "points": ["...", "..."]},
+      {"heading": "Next Main Section", "level": 2, "points": ["...", "..."]},
+      {"heading": "Sub Topic Here", "level": 3, "points": ["...", "..."]}
+    ],
+    [...]
   ]
 }`;
 
