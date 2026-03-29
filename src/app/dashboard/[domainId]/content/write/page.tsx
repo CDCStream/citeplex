@@ -25,7 +25,7 @@ import {
   BookOpen,
   PenTool,
   ImageIcon,
-  ShieldCheck,
+
   BarChart3,
   Save,
 } from "lucide-react";
@@ -84,7 +84,6 @@ const STEP_CONFIG = [
   { key: "outline", label: "Building Outline", icon: BookOpen },
   { key: "writing", label: "Writing Content", icon: PenTool },
   { key: "media", label: "Media & Images", icon: ImageIcon },
-  { key: "quality", label: "Quality Check", icon: ShieldCheck },
   { key: "seo", label: "SEO Optimization", icon: BarChart3 },
   { key: "saving", label: "Saving Article", icon: Save },
 ] as const;

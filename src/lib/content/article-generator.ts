@@ -147,6 +147,17 @@ export interface GeneratedArticle {
   wordCount: number;
 }
 
+export interface SitePageRef {
+  url: string;
+  title: string;
+}
+
+export interface SourceRef {
+  title: string;
+  url: string;
+  domain: string;
+}
+
 export async function writeArticle(
   title: string,
   keyword: string,
@@ -158,7 +169,9 @@ export async function writeArticle(
   language = "English",
   keywordContext = "",
   brandVoiceInstruction = "",
-  enhancements: EnhancementOptions = DEFAULT_ENHANCEMENTS
+  enhancements: EnhancementOptions = DEFAULT_ENHANCEMENTS,
+  sitePages: SitePageRef[] = [],
+  sources: SourceRef[] = [],
 ): Promise<GeneratedArticle> {
   const outlineText = outline
     .map(
@@ -192,13 +205,23 @@ export async function writeArticle(
     );
   }
 
-  if (enhancements.internalLinking) {
+  if (enhancements.internalLinking && sitePages.length > 0) {
+    const pageList = sitePages.slice(0, 20).map((p, i) => `  ${i + 1}. ${p.title} → ${p.url}`).join("\n");
+    enhancementInstructions.push(
+      `- INTERNAL LINKING: Add 3-5 internal links using ONLY the real site pages below. Use descriptive anchor text and distribute links naturally across different sections.\n  Available pages:\n${pageList}`
+    );
+  } else if (enhancements.internalLinking) {
     enhancementInstructions.push(
       `- INTERNAL LINKING: Add 3-5 internal link placeholders as <a href="${brandUrl}/[relevant-page]">[anchor text]</a> distributed naturally throughout the article.`
     );
   }
 
-  if (enhancements.externalLinks) {
+  if (enhancements.externalLinks && sources.length > 0) {
+    const sourceList = sources.map((s, i) => `  ${i + 1}. ${s.title} → ${s.url}`).join("\n");
+    enhancementInstructions.push(
+      `- CITATIONS & EXTERNAL LINKS: Use these real, authoritative sources as citations throughout the article. For each statistic or factual claim, add an inline citation as <sup><a href="[URL]" rel="noopener" target="_blank" class="citation">[number]</a></sup>. At the end (before FAQ), add a "Sources" section listing all cited sources:\n  <div class="sources-section"><h2>Sources</h2><ol class="sources-list"><li><a href="[URL]" rel="noopener" target="_blank">[Source Title]</a></li></ol></div>\n  Available sources:\n${sourceList}`
+    );
+  } else if (enhancements.externalLinks) {
     enhancementInstructions.push(
       `- EXTERNAL LINKS: Add 3-5 external links to authoritative sources as <a href="[url]" rel="noopener" target="_blank">[text]</a>. Link to reputable industry sources, studies, or official documentation.`
     );

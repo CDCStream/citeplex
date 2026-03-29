@@ -85,7 +85,7 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function discoverSitePages(brandUrl: string): Promise<SitePage[]> {
+export async function discoverSitePages(brandUrl: string): Promise<SitePage[]> {
   const baseUrl = brandUrl.replace(/\/$/, "");
   let pages: SitePage[] = [];
 

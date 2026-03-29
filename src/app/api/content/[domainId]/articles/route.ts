@@ -13,9 +13,7 @@ import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-
 import { generateArticleImages } from "@/lib/content/image-generator";
 import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
 import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
-import { checkCoherence } from "@/lib/content/coherence-check";
-import { factCheckAndCite } from "@/lib/content/fact-check";
-import { insertInternalLinks } from "@/lib/content/internal-linker";
+import { discoverSitePages, type SitePage } from "@/lib/content/internal-linker";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { getArticleLimit } from "@/lib/plans";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
@@ -91,7 +89,12 @@ export async function POST(
           : "Keyword data unavailable";
 
         send({ type: "step", step: "research", status: "active", message: "Researching topic & competitors..." });
-        const research = await researchTopic(title, targetKeyword, domain.brand_name, domain.industry || "", language, topArticles);
+
+        const [research, sitePages, sources] = await Promise.all([
+          researchTopic(title, targetKeyword, domain.brand_name, domain.industry || "", language, topArticles),
+          enhancements.internalLinking ? discoverSitePages(domain.url) : Promise.resolve([] as SitePage[]),
+          searchRelevantSources(targetKeyword),
+        ]);
         send({ type: "step", step: "research", status: "done" });
 
         // Step 2: Building Outline
@@ -117,7 +120,9 @@ export async function POST(
 
         const generated = await writeArticle(
           title, targetKeyword, outline, research, domain.brand_name, domain.url,
-          wordCount, language, keywordContext + secondaryKwContext, voiceInstruction, enhancements
+          wordCount, language, keywordContext + secondaryKwContext, voiceInstruction, enhancements,
+          sitePages.map(p => ({ url: p.url, title: p.title })),
+          sources,
         );
         send({ type: "step", step: "writing", status: "done" });
         send({ type: "preview", html: generated.content.slice(0, 2000) });
@@ -176,35 +181,7 @@ export async function POST(
         }
         send({ type: "step", step: "media", status: "done", mediaCount: videoResults.length + imageResults.length + allWebImages.length });
 
-        // Step 5: Quality Check
-        send({ type: "step", step: "quality", status: "active", message: "Checking coherence & facts..." });
-        const coherence = await checkCoherence(title, targetKeyword, enrichedContent, language);
-        if (coherence.fixedContent) {
-          enrichedContent = coherence.fixedContent;
-        }
-
-        const parallelTasks: Promise<void>[] = [];
-
-        let factCheck: Awaited<ReturnType<typeof factCheckAndCite>> = { claimsChecked: 0, citationsAdded: 0, fixedContent: null, issues: [] };
-        parallelTasks.push(
-          factCheckAndCite(enrichedContent, targetKeyword, language).then(r => { factCheck = r; })
-        );
-
-        if (enhancements.internalLinking) {
-          parallelTasks.push(
-            insertInternalLinks(enrichedContent, domain.url, targetKeyword, language).then(r => {
-              if (r.fixedContent) enrichedContent = r.fixedContent;
-            })
-          );
-        }
-
-        await Promise.all(parallelTasks);
-        if (factCheck.fixedContent) {
-          enrichedContent = factCheck.fixedContent;
-        }
-        send({ type: "step", step: "quality", status: "done" });
-
-        // Step 6: SEO Optimization
+        // Step 5: SEO Optimization
         send({ type: "step", step: "seo", status: "active", message: "Running SEO analysis..." });
         const seoCheck = checkSeo(title, targetKeyword, enrichedContent, generated.metaDescription);
         send({ type: "step", step: "seo", status: "done" });
@@ -236,8 +213,8 @@ export async function POST(
               images: imageResults,
               webImages: allWebImages,
               keywordMetrics: keywordMetrics ?? null,
-              coherence: { score: coherence.score, issues: coherence.issues },
-              factCheck: { claimsChecked: factCheck.claimsChecked, citationsAdded: factCheck.citationsAdded, issues: factCheck.issues },
+              sitePages: sitePages.length,
+              sourcesProvided: sources.length,
             },
             faq: generated.faq,
             seo_score: seoCheck.score,
@@ -315,6 +292,59 @@ export async function GET(
       { error: (err as Error).message || "Failed to list articles" },
       { status: 500 }
     );
+  }
+}
+
+async function searchRelevantSources(keyword: string): Promise<{ title: string; url: string; domain: string }[]> {
+  const serperKey = process.env.SERPER_API_KEY;
+  if (!serperKey) return [];
+
+  try {
+    const queries = [
+      `${keyword} statistics report ${new Date().getFullYear()}`,
+      `${keyword} research study`,
+    ];
+
+    const results: { title: string; url: string; domain: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const q of queries) {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ q, num: 5 }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      for (const item of data.organic || []) {
+        const host = new URL(item.link).hostname.toLowerCase();
+        if (seen.has(host)) continue;
+        seen.add(host);
+        results.push({ title: item.title, url: item.link, domain: host });
+      }
+    }
+
+    const authoritative = [
+      ".edu", ".gov", ".org",
+      "statista.com", "gartner.com", "mckinsey.com", "forrester.com",
+      "hubspot.com", "semrush.com", "ahrefs.com", "moz.com",
+      "searchengineland.com", "searchenginejournal.com",
+      "techcrunch.com", "forbes.com", "bloomberg.com",
+      "reuters.com", "google.com", "microsoft.com",
+      "wikipedia.org", "nature.com",
+    ];
+
+    results.sort((a, b) => {
+      const aAuth = authoritative.some(d => a.domain.includes(d)) ? 0 : 1;
+      const bAuth = authoritative.some(d => b.domain.includes(d)) ? 0 : 1;
+      return aAuth - bAuth;
+    });
+
+    return results.slice(0, 8);
+  } catch {
+    return [];
   }
 }
 
