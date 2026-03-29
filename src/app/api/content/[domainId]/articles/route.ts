@@ -251,7 +251,16 @@ export async function POST(
         });
       } catch (err) {
         console.error("Article generation error:", err);
-        send({ type: "error", message: (err as Error).message || "Failed to generate article" });
+        const raw = (err as Error).message || "";
+        let userMessage = "Failed to generate article. Please try again.";
+        if (raw.includes("timeout") || raw.includes("aborted") || raw.includes("Aborted")) {
+          userMessage = "The AI service took too long to respond. Please try again in a moment.";
+        } else if (raw.includes("All LLM providers failed")) {
+          userMessage = "Our AI services are temporarily unavailable. Please try again in a few minutes.";
+        } else if (raw.includes("limit") || raw.includes("quota")) {
+          userMessage = "AI usage limit reached. Please try again later or contact support.";
+        }
+        send({ type: "error", message: userMessage });
       } finally {
         controller.close();
       }

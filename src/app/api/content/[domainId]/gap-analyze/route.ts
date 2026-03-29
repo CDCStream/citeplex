@@ -77,9 +77,13 @@ export async function POST(
     return NextResponse.json(analysis);
   } catch (err) {
     console.error("Gap analysis error:", err);
-    return NextResponse.json(
-      { error: (err as Error).message || "Gap analysis failed" },
-      { status: 500 }
-    );
+    const raw = (err as Error).message || "";
+    let userMessage = "Analysis failed. Please try again.";
+    if (raw.includes("timeout") || raw.includes("aborted") || raw.includes("Aborted")) {
+      userMessage = "The analysis took too long. Please try again in a moment.";
+    } else if (raw.includes("All LLM providers failed")) {
+      userMessage = "Our AI services are temporarily unavailable. Please try again in a few minutes.";
+    }
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }

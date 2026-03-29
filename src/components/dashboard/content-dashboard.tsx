@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,13 +37,6 @@ interface ContentPlanItem {
   keywordData: { volume?: number | null; difficulty?: number | null } | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  planned: "bg-background text-foreground border-border",
-  writing: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
-  review: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
-  published: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
-};
-
 const ARTICLE_TYPES = [
   { value: "guide", label: "Guide" },
   { value: "how-to", label: "How-To" },
@@ -54,14 +46,16 @@ const ARTICLE_TYPES = [
   { value: "round-up", label: "Round-Up" },
 ];
 
-const TYPE_COLORS: Record<string, string> = {
-  guide: "bg-blue-500",
-  "how-to": "bg-amber-500",
-  listicle: "bg-emerald-500",
-  comparison: "bg-violet-500",
-  explainer: "bg-cyan-500",
-  "round-up": "bg-rose-500",
+const TYPE_BADGE: Record<string, { bg: string; text: string; dot: string }> = {
+  guide: { bg: "bg-blue-50 dark:bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", dot: "bg-blue-500" },
+  "how-to": { bg: "bg-amber-50 dark:bg-amber-500/10", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
+  listicle: { bg: "bg-emerald-50 dark:bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+  comparison: { bg: "bg-violet-50 dark:bg-violet-500/10", text: "text-violet-700 dark:text-violet-400", dot: "bg-violet-500" },
+  explainer: { bg: "bg-cyan-50 dark:bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-400", dot: "bg-cyan-500" },
+  "round-up": { bg: "bg-rose-50 dark:bg-rose-500/10", text: "text-rose-700 dark:text-rose-400", dot: "bg-rose-500" },
 };
+
+const TYPE_FALLBACK = { bg: "bg-muted", text: "text-muted-foreground", dot: "bg-muted-foreground" };
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -335,190 +329,235 @@ export function ContentDashboard({
       </div>
 
       {/* Calendar */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-bold">
+      <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
               {MONTHS[month]} {year}
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={prevMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={nextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {plans.filter(p => {
+                const d = new Date(p.scheduledDate);
+                return d.getFullYear() === year && d.getMonth() === month;
+              }).length} articles planned this month
+            </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
-            {WEEKDAYS.map((wd) => (
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg" onClick={prevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg" onClick={nextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7">
+          {WEEKDAYS.map((wd) => (
+            <div
+              key={wd}
+              className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b"
+            >
+              {wd}
+            </div>
+          ))}
+          {calendarDays.map((day, i) => {
+            const dayPlans = day ? plansByDay.get(day) || [] : [];
+            const isToday =
+              day === now.getDate() &&
+              month === now.getMonth() &&
+              year === now.getFullYear();
+            const isWeekend = i % 7 >= 5;
+            return (
               <div
-                key={wd}
-                className="bg-muted/50 px-3 py-2.5 text-center text-sm font-semibold text-muted-foreground"
+                key={i}
+                className={`min-h-[130px] p-2.5 border-b border-r transition-colors ${
+                  !day ? "bg-muted/20" : isToday ? "bg-primary/[0.03]" : isWeekend ? "bg-muted/10" : ""
+                } ${i % 7 === 0 ? "border-l" : ""}`}
               >
-                {wd}
-              </div>
-            ))}
-            {calendarDays.map((day, i) => {
-              const dayPlans = day ? plansByDay.get(day) || [] : [];
-              const isToday =
-                day === now.getDate() &&
-                month === now.getMonth() &&
-                year === now.getFullYear();
-              return (
-                <div
-                  key={i}
-                  className={`bg-background min-h-[120px] p-2.5 ${
-                    day ? "" : "bg-muted/30"
-                  }`}
-                >
-                  {day && (
-                    <>
-                      <div
-                        className={`text-sm font-medium mb-1.5 ${
+                {day && (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-sm font-semibold ${
                           isToday
-                            ? "bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center"
-                            : "text-muted-foreground"
+                            ? "bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
+                            : "text-muted-foreground/70"
                         }`}
                       >
                         {day}
-                      </div>
-                      <div className="space-y-1">
-                        {dayPlans.slice(0, 3).map((p) => {
-                          const vol = p.keywordData?.volume;
-                          const kd = p.keywordData?.difficulty;
-                          const planDate = new Date(year, month, day!);
-                          const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                          const isFuture = planDate > todayDate;
-                          const canClick = !isFuture || !!p.articleId;
-                          const href = p.articleId
-                            ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
-                            : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
+                      </span>
+                      {isToday && (
+                        <span className="text-[10px] font-medium text-primary">Today</span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      {dayPlans.slice(0, 2).map((p) => {
+                        const vol = p.keywordData?.volume;
+                        const kd = p.keywordData?.difficulty;
+                        const planDate = new Date(year, month, day!);
+                        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        const isFuture = planDate > todayDate;
+                        const canClick = !isFuture || !!p.articleId;
+                        const href = p.articleId
+                          ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
+                          : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
 
-                          const typeLabel = ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType;
-                          const typeColor = TYPE_COLORS[p.articleType || ""] || "bg-gray-500";
+                        const typeLabel = ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType;
+                        const badge = TYPE_BADGE[p.articleType || ""] || TYPE_FALLBACK;
 
-                          const content = (
-                            <>
-                              {p.articleType && (
-                                <span className={`inline-block text-[10px] text-white font-semibold px-1.5 py-px rounded ${typeColor} mb-0.5`}>
+                        const content = (
+                          <div className={`rounded-lg p-2 ${badge.bg} border border-transparent hover:border-border/50 transition-all`}>
+                            {p.articleType && (
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                <span className={`text-[10px] font-semibold uppercase tracking-wide ${badge.text}`}>
                                   {typeLabel}
                                 </span>
-                              )}
-                              <div className="truncate font-medium">{p.keyword || p.title}</div>
-                              {(vol != null || kd != null) && (
-                                <div className="flex justify-between mt-0.5 text-[11px] opacity-80 font-medium">
-                                  {vol != null && <span>Vol: {vol.toLocaleString("en-US")}</span>}
-                                  {kd != null && <span>KD: {kd}</span>}
-                                </div>
-                              )}
-                            </>
-                          );
-
-                          return canClick ? (
-                            <Link
-                              key={p.id}
-                              href={href}
-                              className={`block text-xs px-2 py-1 rounded-md border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
-                            >
-                              {content}
-                            </Link>
-                          ) : (
-                            <div
-                              key={p.id}
-                              className={`text-xs px-2 py-1 rounded-md border ${STATUS_COLORS[p.status] || "bg-muted"}`}
-                            >
-                              {content}
+                              </div>
+                            )}
+                            <div className={`text-xs font-medium truncate ${p.articleId ? "text-foreground" : "text-foreground/80"}`}>
+                              {p.keyword || p.title}
                             </div>
-                          );
-                        })}
-                        {dayPlans.length > 3 && (
-                          <div className="text-xs text-muted-foreground px-2">
-                            +{dayPlans.length - 3} more
+                            {(vol != null || kd != null) && (
+                              <div className="flex items-center gap-2.5 mt-1.5">
+                                {vol != null && (
+                                  <span className="text-[10px] font-medium text-muted-foreground">
+                                    <span className="text-foreground/60">{vol.toLocaleString("en-US")}</span> vol
+                                  </span>
+                                )}
+                                {kd != null && (
+                                  <span className={`text-[10px] font-semibold ${
+                                    kd <= 20 ? "text-emerald-600 dark:text-emerald-400" :
+                                    kd <= 50 ? "text-amber-600 dark:text-amber-400" :
+                                    "text-red-600 dark:text-red-400"
+                                  }`}>
+                                    KD {kd}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {p.articleId && (
+                              <div className="flex items-center gap-1 mt-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Published</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                        );
+
+                        return canClick ? (
+                          <Link key={p.id} href={href} className="block cursor-pointer">
+                            {content}
+                          </Link>
+                        ) : (
+                          <div key={p.id}>{content}</div>
+                        );
+                      })}
+                      {dayPlans.length > 2 && (
+                        <div className="text-[10px] font-medium text-muted-foreground text-center pt-0.5">
+                          +{dayPlans.length - 2} more
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 px-6 py-3 border-t bg-muted/20">
+          {ARTICLE_TYPES.map(t => {
+            const badge = TYPE_BADGE[t.value] || TYPE_FALLBACK;
+            return (
+              <div key={t.value} className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
+                <span className="text-[11px] text-muted-foreground font-medium">{t.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Upcoming articles list */}
       {(() => {
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         const upcomingPlans = plans.filter((p) => p.scheduledDate >= todayStr);
         return upcomingPlans.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Upcoming Articles ({upcomingPlans.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {upcomingPlans.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-3 rounded-lg border p-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{p.title}</div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {p.keyword && (
-                      <span className="text-xs text-muted-foreground">
-                        {p.keyword}
-                      </span>
-                    )}
-                    {p.articleType && (
-                      <span className={`inline-block text-[10px] text-white font-semibold px-1.5 py-px rounded ${TYPE_COLORS[p.articleType] || "bg-gray-500"}`}>
-                        {ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType}
-                      </span>
-                    )}
+        <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b">
+            <h2 className="text-lg font-bold tracking-tight">
+              Upcoming Articles
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{upcomingPlans.length} articles scheduled</p>
+          </div>
+          <div className="divide-y">
+            {upcomingPlans.map((p) => {
+              const badge = TYPE_BADGE[p.articleType || ""] || TYPE_FALLBACK;
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors"
+                >
+                  <div className={`w-1 h-10 rounded-full ${badge.dot} shrink-0`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{p.title}</div>
+                    <div className="flex items-center gap-3 mt-1">
+                      {p.keyword && (
+                        <span className="text-xs text-muted-foreground">{p.keyword}</span>
+                      )}
+                      {p.articleType && (
+                        <span className={`text-[10px] font-semibold uppercase tracking-wide ${badge.text}`}>
+                          {ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
                     {p.keywordData?.volume != null && (
-                      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                        Vol: {p.keywordData.volume.toLocaleString("en-US")}
-                      </span>
+                      <div className="text-center">
+                        <div className="text-xs font-bold text-foreground">{p.keywordData.volume.toLocaleString("en-US")}</div>
+                        <div className="text-[10px] text-muted-foreground">Volume</div>
+                      </div>
                     )}
                     {p.keywordData?.difficulty != null && (
-                      <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                        KD: {p.keywordData.difficulty}
-                      </span>
+                      <div className="text-center">
+                        <div className={`text-xs font-bold ${
+                          p.keywordData.difficulty <= 20 ? "text-emerald-600 dark:text-emerald-400" :
+                          p.keywordData.difficulty <= 50 ? "text-amber-600 dark:text-amber-400" :
+                          "text-red-600 dark:text-red-400"
+                        }`}>{p.keywordData.difficulty}</div>
+                        <div className="text-[10px] text-muted-foreground">KD</div>
+                      </div>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(p.scheduledDate).toLocaleDateString("en-US")}
+                    <span className="text-xs text-muted-foreground w-20 text-right">
+                      {new Date(p.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
+                    {p.articleId ? (
+                      <Button variant="outline" size="sm" className="rounded-lg" asChild>
+                        <Link href={`/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`}>
+                          <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
+                          Preview
+                        </Link>
+                      </Button>
+                    ) : new Date(p.scheduledDate) <= new Date(now.getFullYear(), now.getMonth(), now.getDate()) ? (
+                      <Button size="sm" className="rounded-lg" asChild>
+                        <Link href={`/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`}>
+                          <Pencil className="mr-1 h-3.5 w-3.5" />
+                          Write
+                        </Link>
+                      </Button>
+                    ) : (
+                      <div className="w-[76px]" />
+                    )}
                   </div>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`shrink-0 ${STATUS_COLORS[p.status] || ""}`}
-                >
-                  {p.status}
-                </Badge>
-                {p.articleId ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`}>
-                      <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
-                      Preview
-                    </Link>
-                  </Button>
-                ) : new Date(p.scheduledDate) <= new Date(now.getFullYear(), now.getMonth(), now.getDate()) ? (
-                  <Button size="sm" asChild>
-                    <Link href={`/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`}>
-                      <Pencil className="mr-1 h-3.5 w-3.5" />
-                      Write
-                    </Link>
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        </div>
         ) : null;
       })()}
     </div>
