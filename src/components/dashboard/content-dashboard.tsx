@@ -39,7 +39,7 @@ interface ContentPlanItem {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  planned: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+  planned: "bg-background text-foreground border-border",
   writing: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30",
   review: "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30",
   published: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
@@ -392,7 +392,7 @@ export function ContentDashboard({
                             <>
                               <div className="truncate">{p.keyword || p.title}</div>
                               {(vol != null || kd != null) && (
-                                <div className="flex gap-2 mt-0.5 text-[9px] opacity-75 font-medium">
+                                <div className="flex justify-between mt-0.5 text-[9px] opacity-75 font-medium">
                                   {vol != null && <span>Vol: {vol.toLocaleString("en-US")}</span>}
                                   {kd != null && <span>KD: {kd}</span>}
                                 </div>
