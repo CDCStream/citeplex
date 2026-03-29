@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,12 @@ import {
   LayoutList,
   Megaphone,
   HelpCircle,
+  BookOpen,
+  PenTool,
+  ImageIcon,
+  ShieldCheck,
+  BarChart3,
+  Save,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -65,26 +71,34 @@ interface GapAnalysis {
   outlines: OutlineSection[][];
 }
 
-interface SeoCheck {
-  score: number;
-  checks: { name: string; passed: boolean; message: string; impact: "high" | "medium" | "low" }[];
-}
-
 type Phase = "analyzing" | "review" | "generating" | "done";
 
-export default function WriteArticlePage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const domainId = params.domainId as string;
+interface StepState {
+  status: "pending" | "active" | "done";
+  message?: string;
+  extra?: string;
+}
 
-  const isGap = searchParams.get("gap") === "1";
-  const initialPrompt = searchParams.get("keyword") || searchParams.get("title") || "";
+const STEP_CONFIG = [
+  { key: "research", label: "Research & Analysis", icon: Search },
+  { key: "outline", label: "Building Outline", icon: BookOpen },
+  { key: "writing", label: "Writing Content", icon: PenTool },
+  { key: "media", label: "Media & Images", icon: ImageIcon },
+  { key: "quality", label: "Quality Check", icon: ShieldCheck },
+  { key: "seo", label: "SEO Optimization", icon: BarChart3 },
+  { key: "saving", label: "Saving Article", icon: Save },
+] as const;
+
+type StepKey = typeof STEP_CONFIG[number]["key"];
+
+export default function WriteArticlePage() {
+  const { domainId } = useParams<{ domainId: string }>();
+  const searchParams = useSearchParams();
+  const initialPrompt = searchParams.get("prompt") || "";
   const planId = searchParams.get("planId") || undefined;
+  const isGap = searchParams.get("type") === "gap";
 
   const [phase, setPhase] = useState<Phase>("analyzing");
-  const [progress, setProgress] = useState("");
-  const [articleId, setArticleId] = useState<string | null>(null);
-  const [seoCheck, setSeoCheck] = useState<SeoCheck | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gapAnalysis, setGapAnalysis] = useState<GapAnalysis | null>(null);
 
@@ -92,8 +106,19 @@ export default function WriteArticlePage() {
   const [ctaText, setCtaText] = useState("");
   const [includeFaq, setIncludeFaq] = useState(true);
 
+  // SSE streaming state
+  const [steps, setSteps] = useState<Record<StepKey, StepState>>(() => {
+    const init: Record<string, StepState> = {};
+    STEP_CONFIG.forEach(s => { init[s.key] = { status: "pending" }; });
+    return init as Record<StepKey, StepState>;
+  });
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [articleId, setArticleId] = useState<string | null>(null);
+  const [seoCheck, setSeoCheck] = useState<{ score: number; checks: { name: string; passed: boolean; message: string; impact: string }[] } | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (!initialPrompt) return;
+    if (!initialPrompt || !domainId) return;
     let cancelled = false;
 
     async function runAnalysis() {
@@ -129,7 +154,11 @@ export default function WriteArticlePage() {
     if (!gapAnalysis) return;
     setPhase("generating");
     setError(null);
-    setProgress("Researching topic...");
+
+    // Reset step states
+    const init: Record<string, StepState> = {};
+    STEP_CONFIG.forEach(s => { init[s.key] = { status: "pending" }; });
+    setSteps(init as Record<StepKey, StepState>);
 
     try {
       const enhancements = {
@@ -162,19 +191,74 @@ export default function WriteArticlePage() {
         body: JSON.stringify(articleBody),
       });
 
-      if (!res.ok) {
+      if (!res.ok && !res.body) {
         const data = await res.json();
         throw new Error(data.error || "Generation failed");
       }
 
-      setProgress("Finalizing...");
-      const data = await res.json();
-      setArticleId(data.article.id);
-      setSeoCheck(data.seoCheck);
-      setPhase("done");
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data: ")) continue;
+
+          try {
+            const data = JSON.parse(line.slice(6));
+            handleSSEEvent(data);
+          } catch { /* skip unparseable chunks */ }
+        }
+      }
+
+      // Process remaining buffer
+      if (buffer.trim().startsWith("data: ")) {
+        try {
+          const data = JSON.parse(buffer.trim().slice(6));
+          handleSSEEvent(data);
+        } catch { /* skip */ }
+      }
     } catch (err) {
       setError((err as Error).message);
       setPhase("review");
+    }
+  }
+
+  function handleSSEEvent(data: Record<string, unknown>) {
+    switch (data.type) {
+      case "step": {
+        const stepKey = data.step as StepKey;
+        const status = data.status as "active" | "done";
+        setSteps(prev => ({
+          ...prev,
+          [stepKey]: {
+            status,
+            message: (data.message as string) || prev[stepKey]?.message,
+            extra: data.mediaCount ? `${data.mediaCount} items found` : prev[stepKey]?.extra,
+          },
+        }));
+        break;
+      }
+      case "preview":
+        setPreviewHtml(data.html as string);
+        break;
+      case "done":
+        setArticleId((data.article as { id: string }).id);
+        setSeoCheck(data.seoCheck as typeof seoCheck);
+        setPhase("done");
+        break;
+      case "error":
+        setError(data.message as string);
+        setPhase("review");
+        break;
     }
   }
 
@@ -183,6 +267,10 @@ export default function WriteArticlePage() {
     if (score >= 60) return "text-yellow-600";
     return "text-red-600";
   }
+
+  const completedSteps = Object.values(steps).filter(s => s.status === "done").length;
+  const totalSteps = STEP_CONFIG.length;
+  const progressPct = Math.round((completedSteps / totalSteps) * 100);
 
   return (
     <div className="space-y-6">
@@ -278,39 +366,57 @@ export default function WriteArticlePage() {
                   </div>
                 ))}
               </div>
-
-              <div className="flex items-start gap-2 text-sm">
-                <TrendingUp className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                <p className="text-muted-foreground">{gapAnalysis.reasoning}</p>
-              </div>
-
-              <div className="rounded-lg border p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Structure</p>
-                <p className="text-sm font-medium">{gapAnalysis.recommendedStructure.label}</p>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Top Ranking Articles */}
+          {gapAnalysis.topArticles.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-yellow-600" />
+                  Top Ranking Articles
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {gapAnalysis.topArticles.map((article, i) => (
+                    <a key={i} href={article.url} target="_blank" rel="noopener" className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors group">
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${article.domain}&sz=32`}
+                        alt={article.domain}
+                        width={20}
+                        height={20}
+                        className="rounded mt-0.5 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{article.title}</p>
+                        <p className="text-xs text-muted-foreground">{article.domain} &middot; {article.wordCount.toLocaleString()} words &middot; {article.headings.length} headings</p>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Secondary Keywords */}
           {gapAnalysis.secondaryKeywords.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Key className="h-4 w-4 text-violet-600" />
+                  <Key className="h-4 w-4 text-purple-600" />
                   Secondary Keywords
+                  <Badge variant="secondary" className="text-[10px]">{gapAnalysis.secondaryKeywords.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {gapAnalysis.secondaryKeywords.map((kw, i) => (
-                    <Badge key={i} variant="outline" className="text-xs py-1 px-2.5 gap-1.5">
+                    <Badge key={i} variant="outline" className="text-xs py-1">
                       {kw.keyword}
-                      {kw.volume !== null && <span className="text-muted-foreground">vol:{kw.volume}</span>}
-                      {kw.difficulty !== null && (
-                        <span className={kw.difficulty <= 30 ? "text-green-600" : kw.difficulty <= 60 ? "text-yellow-600" : "text-red-500"}>
-                          KD:{kw.difficulty}
-                        </span>
-                      )}
+                      {kw.volume != null && <span className="ml-1 text-muted-foreground">({kw.volume})</span>}
                     </Badge>
                   ))}
                 </div>
@@ -318,49 +424,24 @@ export default function WriteArticlePage() {
             </Card>
           )}
 
-          {/* Top Ranking Articles */}
-          {gapAnalysis.topArticles.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-amber-600" />
-                    Top Ranking Articles
-                  </CardTitle>
-                  <Badge variant="secondary" className="text-[10px]">{gapAnalysis.topArticles.length} found</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">Your article will outperform these.</p>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {gapAnalysis.topArticles.map((article, i) => (
-                  <div key={i} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/10 text-xs font-bold text-amber-700 shrink-0">{i + 1}</div>
-                    <img
-                      src={`https://www.google.com/s2/favicons?domain=${article.domain}&sz=32`}
-                      alt={article.domain}
-                      width={20}
-                      height={20}
-                      className="rounded mt-0.5 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{article.title}</p>
-                      <p className="text-xs text-muted-foreground">{article.domain} · {article.wordCount.toLocaleString()} words · {article.headings.length} headings</p>
-                    </div>
-                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted transition-colors shrink-0">
-                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                    </a>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Outline Preview */}
-          {gapAnalysis.outlines[0]?.length > 0 && (
+          {/* Structure & Outline */}
+          <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <LayoutList className="h-4 w-4" />
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  Structure
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm font-medium">{gapAnalysis.recommendedStructure.label}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <LayoutList className="h-4 w-4 text-blue-600" />
                   Article Outline
                 </CardTitle>
               </CardHeader>
@@ -381,19 +462,18 @@ export default function WriteArticlePage() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          </div>
 
           {/* User Options: CTA & FAQ */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Options</CardTitle>
-              <p className="text-xs text-muted-foreground">Everything else is included automatically (expert quotes, images, videos, links, key takeaways).</p>
             </CardHeader>
             <CardContent className="space-y-3">
               <ToggleOption
                 icon={<HelpCircle className="h-4 w-4" />}
-                title="Generate FAQs"
-                description="Add a FAQ section at the end of the article."
+                title="Include FAQ Section"
+                description="Auto-generate frequently asked questions."
                 checked={includeFaq}
                 onChange={() => setIncludeFaq(prev => !prev)}
               />
@@ -448,32 +528,119 @@ export default function WriteArticlePage() {
         </Card>
       )}
 
-      {/* Phase: Generating */}
+      {/* Phase: Generating (SSE streaming) */}
       {phase === "generating" && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-            <h3 className="text-lg font-semibold">Writing Article</h3>
-            <p className="mt-2 text-sm text-muted-foreground">{progress}</p>
-            <div className="mt-6 w-full max-w-sm space-y-2">
-              {["Research & Analysis", "Writing Content", "Adding Media & Images", "Coherence Check", "SEO Optimization"].map((step) => (
-                <div key={step} className="flex items-center gap-3 text-sm">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                  <span className="text-muted-foreground">{step}</span>
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="py-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">Writing Article</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">{gapAnalysis?.title}</p>
                 </div>
-              ))}
-            </div>
-            <p className="mt-6 text-xs text-muted-foreground">This may take 2-3 minutes...</p>
-          </CardContent>
-        </Card>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary">{progressPct}%</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Progress</p>
+                </div>
+              </div>
+
+              {/* Animated progress bar */}
+              <div className="h-2 bg-muted rounded-full overflow-hidden mb-8">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-700 ease-out"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-1">
+                {STEP_CONFIG.map(({ key, label, icon: Icon }) => {
+                  const step = steps[key];
+                  const isDone = step.status === "done";
+                  const isActive = step.status === "active";
+                  const isPending = step.status === "pending";
+
+                  return (
+                    <div
+                      key={key}
+                      className={`flex items-center gap-4 rounded-lg px-4 py-3 transition-all duration-500 ${
+                        isActive ? "bg-primary/5 border border-primary/20" :
+                        isDone ? "bg-green-50 dark:bg-green-500/5 border border-green-200 dark:border-green-500/20" :
+                        "border border-transparent"
+                      }`}
+                    >
+                      <div className={`shrink-0 rounded-full p-2 transition-all duration-500 ${
+                        isDone ? "bg-green-100 dark:bg-green-500/20" :
+                        isActive ? "bg-primary/10" :
+                        "bg-muted"
+                      }`}>
+                        {isDone ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 animate-in zoom-in-50 duration-300" />
+                        ) : isActive ? (
+                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                        ) : (
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium transition-colors duration-300 ${
+                          isDone ? "text-green-700 dark:text-green-400" :
+                          isActive ? "text-foreground" :
+                          "text-muted-foreground"
+                        }`}>
+                          {label}
+                        </p>
+                        {isActive && step.message && (
+                          <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                            {step.message}
+                          </p>
+                        )}
+                        {isDone && step.extra && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">{step.extra}</p>
+                        )}
+                      </div>
+                      {isDone && (
+                        <Badge variant="outline" className="text-[10px] border-green-300 text-green-600 shrink-0 animate-in fade-in zoom-in-75 duration-300">
+                          Done
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Live Preview */}
+          {previewHtml && (
+            <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Live Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  ref={previewRef}
+                  className="prose prose-sm dark:prose-invert max-w-none max-h-[300px] overflow-y-auto rounded-lg bg-muted/30 p-4 animate-in fade-in duration-700"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+                <p className="text-xs text-muted-foreground mt-2 text-center">Content preview — full article will be available when complete</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Phase: Done */}
       {phase === "done" && seoCheck && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <CheckCircle2 className="h-10 w-10 text-green-600 mb-4" />
+              <div className="rounded-full bg-green-100 dark:bg-green-500/20 p-4 mb-4 animate-in zoom-in-50 duration-500">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
+              </div>
               <h3 className="text-lg font-semibold">Article Generated!</h3>
               <p className="mt-2 text-sm text-muted-foreground">Your article has been saved as a draft.</p>
               <div className="mt-4 flex items-center gap-4">
