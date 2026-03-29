@@ -22,7 +22,7 @@ const FALLBACK_CHAINS: Record<string, LLMConfig[]> = {
     { provider: "gemini", model: "gemini-2.5-flash" },
   ],
   strong: [
-    { provider: "anthropic", model: "claude-opus-4-20250514" },
+    { provider: "anthropic", model: "claude-opus-4-6" },
     { provider: "openai", model: "gpt-4o" },
     { provider: "anthropic", model: "claude-sonnet-4-20250514" },
   ],
@@ -217,7 +217,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const chain = typeof opts.chain === "string" ? FALLBACK_CHAINS[opts.chain] : opts.chain;
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature ?? 0.7;
-  const timeout = opts.timeout ?? 60_000;
+  const timeout = opts.timeout ?? 120_000;
   const errors: string[] = [];
 
   for (let i = 0; i < chain.length; i++) {

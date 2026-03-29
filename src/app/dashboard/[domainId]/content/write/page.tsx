@@ -191,9 +191,17 @@ export default function WriteArticlePage() {
         body: JSON.stringify(articleBody),
       });
 
-      if (!res.ok && !res.body) {
-        const data = await res.json();
-        throw new Error(data.error || "Generation failed");
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("text/event-stream")) {
+        let errorMsg = "Generation failed";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          const text = await res.text();
+          errorMsg = text.slice(0, 200) || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       const reader = res.body!.getReader();
