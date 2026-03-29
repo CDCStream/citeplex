@@ -5,6 +5,8 @@ import { runDomainScan } from "@/lib/scan/scan-service";
 import { checkAndCreateAlerts } from "@/lib/alerts/check-alerts";
 import { logActivity } from "@/lib/activity-logger";
 
+export const maxDuration = 300;
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }

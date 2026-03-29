@@ -39,7 +39,7 @@ export async function generateScanInsights(domainId: string) {
     .in("scan_result_id", scanResults.map((r) => r.id));
 
   const existingSet = new Set((existingInsights ?? []).map((i) => i.scan_result_id));
-  const newResults = scanResults.filter((r) => !existingSet.has(r.id));
+  const newResults = scanResults.filter((r) => !existingSet.has(r.id) && !r.response.startsWith("[Error:"));
 
   if (newResults.length === 0) return;
 
