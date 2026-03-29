@@ -14,6 +14,8 @@ import { generateArticleImages } from "@/lib/content/image-generator";
 import { buildVoiceInstruction, type BrandVoiceProfile } from "@/lib/content/brand-voice";
 import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
 import { checkCoherence } from "@/lib/content/coherence-check";
+import { factCheckAndCite } from "@/lib/content/fact-check";
+import { insertInternalLinks } from "@/lib/content/internal-linker";
 import { fetchKeywordMetrics } from "@/lib/ahrefs/client";
 import { getArticleLimit } from "@/lib/plans";
 import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
@@ -180,7 +182,23 @@ export async function POST(
       enrichedContent = coherence.fixedContent;
     }
 
-    // Step 6: SEO Check
+    // Step 6: Fact-check & citations
+    const factCheck = await factCheckAndCite(enrichedContent, targetKeyword, language);
+    if (factCheck.fixedContent) {
+      enrichedContent = factCheck.fixedContent;
+      console.log(`[Article] Fact-check: ${factCheck.claimsChecked} claims checked, ${factCheck.citationsAdded} citations added`);
+    }
+
+    // Step 7: Real internal linking
+    if (enhancements.internalLinking) {
+      const internalLinks = await insertInternalLinks(enrichedContent, domain.url, targetKeyword, language);
+      if (internalLinks.fixedContent) {
+        enrichedContent = internalLinks.fixedContent;
+        console.log(`[Article] Internal links: ${internalLinks.pagesFound} pages found, ${internalLinks.linksInserted} links inserted`);
+      }
+    }
+
+    // Step 8: SEO Check
     const seoCheck = checkSeo(
       title,
       targetKeyword,
@@ -207,7 +225,15 @@ export async function POST(
         target_keyword: targetKeyword,
         tags: generated.tags,
         outline: outline,
-        research_data: { ...research, videos: videoResults, images: imageResults, webImages: allWebImages, keywordMetrics: keywordMetrics ?? null, coherence: { score: coherence.score, issues: coherence.issues } },
+        research_data: {
+          ...research,
+          videos: videoResults,
+          images: imageResults,
+          webImages: allWebImages,
+          keywordMetrics: keywordMetrics ?? null,
+          coherence: { score: coherence.score, issues: coherence.issues },
+          factCheck: { claimsChecked: factCheck.claimsChecked, citationsAdded: factCheck.citationsAdded, issues: factCheck.issues },
+        },
         faq: generated.faq,
         seo_score: seoCheck.score,
         status: "draft",

@@ -112,8 +112,8 @@ export async function searchInfographics(
 export function buildWebImageHtml(image: WebImage): string {
   return `<figure class="my-8">
   <img src="${image.url}" alt="${image.alt}" class="rounded-lg w-full" loading="lazy" />
-  <figcaption class="text-sm text-center text-muted-foreground mt-2">
-    ${image.alt} — Source: <a href="${image.sourceUrl}" rel="noopener" target="_blank">${image.sourceDomain}</a>
+  <figcaption class="text-sm text-muted-foreground mt-2">
+    Image Source: <a href="${image.sourceUrl}" rel="noopener" target="_blank">${image.sourceDomain}</a>
   </figcaption>
 </figure>`;
 }
