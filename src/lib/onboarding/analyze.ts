@@ -1,8 +1,8 @@
 import { callLLM } from "@/lib/llm/client";
 
 const ANALYZE_CHAIN = [
-  { provider: "openai" as const, model: "gpt-4.1-mini" },
-  { provider: "anthropic" as const, model: "claude-sonnet-4-20250514" },
+  { provider: "openai" as const, model: "gpt-5.4" },
+  { provider: "anthropic" as const, model: "claude-sonnet-4-6" },
   { provider: "gemini" as const, model: "gemini-2.5-flash" },
 ];
 

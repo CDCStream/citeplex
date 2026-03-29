@@ -94,9 +94,9 @@ type StepKey = typeof STEP_CONFIG[number]["key"];
 export default function WriteArticlePage() {
   const { domainId } = useParams<{ domainId: string }>();
   const searchParams = useSearchParams();
-  const initialPrompt = searchParams.get("prompt") || "";
+  const initialPrompt = searchParams.get("prompt") || searchParams.get("title") || "";
   const planId = searchParams.get("planId") || undefined;
-  const isGap = searchParams.get("type") === "gap";
+  const isGap = searchParams.get("type") === "gap" || searchParams.get("gap") === "1";
 
   const [phase, setPhase] = useState<Phase>("analyzing");
   const [error, setError] = useState<string | null>(null);

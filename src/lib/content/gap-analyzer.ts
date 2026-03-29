@@ -53,12 +53,15 @@ export async function analyzeGapAndPlan(
 ): Promise<GapAnalysis> {
 
   const currentYear = new Date().getFullYear();
+  const t0 = Date.now();
+  const elapsed = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
 
   const competitorContext = competitors.length > 0
     ? competitors.map(c => `- ${c.name} (${c.url})`).join("\n")
     : "(no competitors)";
 
   // Step 1: Generate candidate keywords
+  console.log(`[GapAnalyzer] Step 1: Generating candidates... (${elapsed()})`);
   const candidateResponse = await callLLM({
     chain: "strong",
     timeout: 90_000,
@@ -105,6 +108,8 @@ Return JSON:
   }
 
   // Step 2: Fetch Ahrefs metrics for all candidates
+  console.log(`[GapAnalyzer] Step 1 done (${elapsed()}). Got ${candidates.length} candidates`);
+  console.log(`[GapAnalyzer] Step 2: Fetching Ahrefs metrics... (${elapsed()})`);
   const keywords = candidates.map(c => c.keyword);
   let ahrefsData: AhrefsKeywordData[] = [];
   try {
@@ -121,6 +126,8 @@ Return JSON:
   }).join("\n");
 
   // Step 3: Pick the best keyword and generate topic + title
+  console.log(`[GapAnalyzer] Step 2 done (${elapsed()}). Got ${ahrefsData.length} Ahrefs results`);
+  console.log(`[GapAnalyzer] Step 3: Picking keyword + title... (${elapsed()})`);
   const finalResponse = await callLLM({
     chain: "strong",
     timeout: 90_000,
@@ -198,15 +205,18 @@ Return JSON:
   }
 
   // Step 4: Find and scrape top 5 ranking articles for the chosen keyword
+  console.log(`[GapAnalyzer] Step 3 done (${elapsed()}). Keyword: "${result.targetKeyword}"`);
+  console.log(`[GapAnalyzer] Step 4: Scraping top articles... (${elapsed()})`);
   let topArticles: TopArticle[] = [];
   try {
     topArticles = await findAndScrapeTopArticles(result.targetKeyword, 5);
-    console.log(`[GapAnalyzer] Scraped ${topArticles.length} top articles for "${result.targetKeyword}"`);
+    console.log(`[GapAnalyzer] Step 4 done (${elapsed()}). Scraped ${topArticles.length} articles`);
   } catch (err) {
-    console.error("[GapAnalyzer] Top articles scrape failed:", (err as Error).message);
+    console.error(`[GapAnalyzer] Step 4 failed (${elapsed()}):`, (err as Error).message);
   }
 
   // Step 5: Extract secondary keywords from top articles + validate with Ahrefs
+  console.log(`[GapAnalyzer] Step 5: Extracting secondary keywords... (${elapsed()})`);
   const secondaryKeywords = await extractSecondaryKeywords(
     result.targetKeyword,
     topArticles,
@@ -214,9 +224,11 @@ Return JSON:
   );
 
   // Step 6: Determine recommended structure from top articles
+  console.log(`[GapAnalyzer] Step 5 done (${elapsed()}). Got ${secondaryKeywords.length} secondary keywords`);
   const { recommendedStructure, structures } = analyzeStructure(topArticles, secondaryKeywords.length);
 
   // Step 7: Generate 2 outline options
+  console.log(`[GapAnalyzer] Step 7: Generating outlines... (${elapsed()})`);
   const outlines = await generateOutlineOptions(
     result.title,
     result.targetKeyword,
@@ -227,6 +239,9 @@ Return JSON:
     industry,
     brandName,
   );
+
+  console.log(`[GapAnalyzer] Step 7 done (${elapsed()}). All steps complete!`);
+  console.log(`[GapAnalyzer] Total time: ${elapsed()}`);
 
   return {
     targetKeyword: result.targetKeyword,
@@ -271,7 +286,7 @@ Return JSON:
 { "keywords": ["keyword1", "keyword2", ...] }`,
       maxTokens: 1024,
       temperature: 0.3,
-      timeout: 30000,
+      timeout: 60000,
     });
 
     const parsed = JSON.parse(response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
@@ -395,48 +410,74 @@ ${competitorContext ? `## Top Ranking Competitor Articles (study these carefully
 - Study the competitor articles above carefully — use SPECIFIC names, tools, products, brands, and examples mentioned in them
 - NEVER use generic placeholders like "Tool #1", "Tool #2", "Product A", "Solution B" — always use REAL names from the competitor articles or well-known industry examples
 - Each outline should have a DIFFERENT angle/approach
-- MANDATORY STRUCTURE: Generate exactly ${structure.headings} H2 headings. Under EACH H2, include 2-3 H3 sub-headings. This means the outline should have ${structure.headings} H2s and ${structure.headings * 2}-${structure.headings * 3} H3s total. H3 headings are critical for SEO.
-- Each heading (H2 and H3) should have 2-4 bullet points describing what to cover
+- MANDATORY STRUCTURE: Generate exactly ${structure.headings} H2 headings. Under EACH H2, include 2-3 H3 sub-headings. H3 headings are critical for SEO.
+- Do NOT include "points" or bullet descriptions — ONLY heading text and level
 - Include FAQ section as the last H2 with 4-6 FAQ questions as H3s underneath
 - Naturally incorporate secondary keywords in H2 and H3 headings where relevant
 - If the topic involves comparing tools/products, name the ACTUAL top tools in the headings (e.g. "Surfer SEO vs Clearscope" not "Tool #1 vs Tool #2")
-- Outline 1: Comprehensive/educational approach
-- Outline 2: Practical/actionable approach
 
-Return JSON (follow this exact pattern — H2 followed by its H3 children):
+Return JSON (ONLY headings and levels, NO points):
 {
-  "outlines": [
-    [
-      {"heading": "Main Section Title", "level": 2, "points": ["...", "..."]},
-      {"heading": "First Sub-topic", "level": 3, "points": ["...", "..."]},
-      {"heading": "Second Sub-topic", "level": 3, "points": ["...", "..."]},
-      {"heading": "Third Sub-topic", "level": 3, "points": ["...", "..."]},
-      {"heading": "Next Main Section", "level": 2, "points": ["...", "..."]},
-      {"heading": "Sub Detail A", "level": 3, "points": ["...", "..."]},
-      {"heading": "Sub Detail B", "level": 3, "points": ["...", "..."]},
-      {"heading": "Frequently Asked Questions", "level": 2, "points": ["..."]},
-      {"heading": "What is X?", "level": 3, "points": ["..."]},
-      {"heading": "How does Y work?", "level": 3, "points": ["..."]}
-    ],
-    [...]
+  "outline": [
+    {"heading": "Main Section Title", "level": 2},
+    {"heading": "First Sub-topic", "level": 3},
+    {"heading": "Second Sub-topic", "level": 3},
+    {"heading": "Next Main Section", "level": 2},
+    {"heading": "Sub Detail A", "level": 3},
+    {"heading": "Sub Detail B", "level": 3},
+    {"heading": "Frequently Asked Questions", "level": 2},
+    {"heading": "What is X?", "level": 3},
+    {"heading": "How does Y work?", "level": 3}
   ]
 }`;
 
   try {
     const response = await callLLM({
       chain: "strong",
-      system: "You are an expert content strategist. Return ONLY valid JSON.",
+      system: "You are an expert content strategist. Return ONLY valid JSON. Keep response compact — no extra whitespace.",
       user: outlinePrompt,
-      maxTokens: 4096,
+      maxTokens: 2048,
       temperature: 0.7,
       timeout: 90000,
     });
 
-    const parsed = JSON.parse(response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-    const outlines = parsed.outlines || [];
+    let cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
-    if (outlines.length >= 2) return outlines.slice(0, 2);
-    if (outlines.length === 1) return [outlines[0], outlines[0]];
+    // Try to repair truncated JSON
+    if (!cleaned.endsWith("}")) {
+      const lastBracket = cleaned.lastIndexOf("}");
+      if (lastBracket > 0) {
+        cleaned = cleaned.slice(0, lastBracket + 1);
+        if (!cleaned.endsWith("]}")) cleaned += "]}";
+      }
+    }
+
+    const parsed = JSON.parse(cleaned);
+    // Handle various LLM response formats
+    let outline: unknown[] = [];
+    if (Array.isArray(parsed.outline)) {
+      outline = parsed.outline;
+    } else if (Array.isArray(parsed.outlines)) {
+      const first = parsed.outlines[0];
+      if (Array.isArray(first)) {
+        outline = first;
+      } else if (first && typeof first === "object" && Array.isArray(first.outline)) {
+        outline = first.outline;
+      } else {
+        outline = parsed.outlines;
+      }
+    } else if (Array.isArray(parsed)) {
+      outline = parsed;
+    }
+
+    const normalized = outline
+      .filter((s: unknown) => s && typeof s === "object" && "heading" in (s as Record<string, unknown>))
+      .map((s: unknown) => {
+        const sec = s as { heading: string; level?: number; points?: string[] };
+        return { heading: sec.heading, level: sec.level || 2, points: sec.points || [] };
+      });
+
+    if (normalized.length > 0) return [normalized, normalized];
     return [[], []];
   } catch (err) {
     console.error("[GapAnalyzer] Outline generation failed:", (err as Error).message);

@@ -17,14 +17,14 @@ export interface CallLLMOptions {
 
 const FALLBACK_CHAINS: Record<string, LLMConfig[]> = {
   fast: [
-    { provider: "anthropic", model: "claude-sonnet-4-20250514" },
-    { provider: "openai", model: "gpt-4o-mini" },
+    { provider: "anthropic", model: "claude-sonnet-4-6" },
+    { provider: "openai", model: "gpt-5.4" },
     { provider: "gemini", model: "gemini-2.5-flash" },
   ],
   strong: [
     { provider: "anthropic", model: "claude-opus-4-6" },
-    { provider: "openai", model: "gpt-4o" },
-    { provider: "anthropic", model: "claude-sonnet-4-20250514" },
+    { provider: "openai", model: "gpt-5.4" },
+    { provider: "anthropic", model: "claude-sonnet-4-6" },
   ],
 };
 
@@ -93,7 +93,7 @@ async function callOpenAI(
   const key = getKey("openai");
   if (!key) throw new Error("OPENAI_API_KEY not set");
 
-  const isResponses = model.startsWith("gpt-4.1") || model.startsWith("o");
+  const isResponses = model.startsWith("gpt-4.1") || model.startsWith("gpt-5") || model.startsWith("o");
 
   if (isResponses) {
     const body: Record<string, unknown> = {
@@ -207,8 +207,8 @@ const PROVIDER_FN: Record<
 /**
  * Centralized LLM call with automatic 2-level fallback.
  *
- * @param opts.chain - "fast" (Sonnet → GPT-4o-mini → Gemini Flash),
- *                     "strong" (Opus → GPT-4o → Sonnet),
+ * @param opts.chain - "fast" (Sonnet 4.6 → GPT-5.4 → Gemini 2.5 Flash),
+ *                     "strong" (Opus 4.6 → GPT-5.4 → Sonnet 4.6),
  *                     or a custom LLMConfig array.
  * @param opts.webSearch - If true, enables web search on providers that support it (OpenAI Responses API).
  *                         When falling back to a provider without web search, a note is appended to the user prompt.

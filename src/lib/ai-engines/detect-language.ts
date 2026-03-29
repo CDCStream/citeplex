@@ -40,11 +40,14 @@ const PROVIDERS: ProviderConfig[] = [
     extract: (data: any) => data.choices?.[0]?.message?.content ?? "",
   },
   {
-    url: "https://api.openai.com/v1/chat/completions",
+    url: "https://api.openai.com/v1/responses",
     keyEnv: "OPENAI_API_KEY",
     headers: (key) => ({ "Content-Type": "application/json", Authorization: `Bearer ${key}` }),
-    body: (prompt) => ({ model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }], max_tokens: 30, temperature: 0 }),
-    extract: (data: any) => data.choices?.[0]?.message?.content ?? "",
+    body: (prompt) => ({ model: "gpt-5.4", input: [{ role: "user", content: prompt }] }),
+    extract: (data: any) =>
+      data.output?.filter((i: any) => i.type === "message")
+        .map((i: any) => i.content?.map((c: any) => c.text).join(""))
+        .join("") ?? "",
   },
   {
     url: "https://api.anthropic.com/v1/messages",
