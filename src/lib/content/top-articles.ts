@@ -18,7 +18,7 @@ export async function findAndScrapeTopArticles(
   keyword: string,
   count = 5,
 ): Promise<TopArticle[]> {
-  const searchResults = await searchGoogle(keyword, count + 3);
+  const searchResults = await searchWeb(keyword, count + 3);
   if (searchResults.length === 0) {
     console.warn(`[TopArticles] No Google search results for "${keyword}"`);
     return [];
@@ -75,14 +75,66 @@ interface SearchResult {
   domain: string;
 }
 
-async function searchGoogle(query: string, count: number): Promise<SearchResult[]> {
-  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-  const cx = process.env.GOOGLE_SEARCH_CX;
-  if (!apiKey || !cx) {
-    console.warn("[TopArticles] GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX not set");
-    return [];
+async function searchWeb(query: string, count: number): Promise<SearchResult[]> {
+  // Try Serper.dev first (primary), then Google Custom Search (fallback)
+  const serperKey = process.env.SERPER_API_KEY;
+  if (serperKey) {
+    const results = await searchSerper(query, count, serperKey);
+    if (results.length > 0) return results;
   }
 
+  const googleKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const cx = process.env.GOOGLE_SEARCH_CX;
+  if (googleKey && cx) {
+    const results = await searchGoogle(query, count, googleKey, cx);
+    if (results.length > 0) return results;
+  }
+
+  console.warn("[TopArticles] No search API configured (set SERPER_API_KEY or GOOGLE_SEARCH_API_KEY + GOOGLE_SEARCH_CX)");
+  return [];
+}
+
+async function searchSerper(query: string, count: number, apiKey: string): Promise<SearchResult[]> {
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ q: query, num: Math.min(count + 2, 10) }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      console.error(`[TopArticles] Serper API error: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    const organic: { title: string; link: string; snippet?: string }[] = data.organic || [];
+
+    console.log(`[TopArticles] Serper returned ${organic.length} results for "${query}"`);
+
+    return organic
+      .filter((item) => {
+        const url = item.link.toLowerCase();
+        return !url.includes("youtube.com") && !url.includes("reddit.com") && !url.includes("twitter.com") && !url.includes("facebook.com");
+      })
+      .slice(0, count)
+      .map((item) => ({
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet || "",
+        domain: new URL(item.link).hostname.replace("www.", ""),
+      }));
+  } catch (err) {
+    console.error("[TopArticles] Serper search failed:", (err as Error).message);
+    return [];
+  }
+}
+
+async function searchGoogle(query: string, count: number, apiKey: string, cx: string): Promise<SearchResult[]> {
   try {
     const params = new URLSearchParams({
       key: apiKey,

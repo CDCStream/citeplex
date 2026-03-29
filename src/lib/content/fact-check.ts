@@ -141,38 +141,44 @@ async function findSourcesForClaims(
   claims: { claim: string; type: string; suggestedSource: string }[],
   keyword: string,
 ): Promise<VerifiedClaim[]> {
-  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const serperKey = process.env.SERPER_API_KEY;
+  const googleKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_CX;
-  if (!apiKey || !cx) return [];
+
+  if (!serperKey && (!googleKey || !cx)) return [];
 
   const results: VerifiedClaim[] = [];
 
-  // Search for sources in batches of 3 to avoid rate limits
   for (let i = 0; i < Math.min(claims.length, 6); i++) {
     const claim = claims[i];
     try {
       const searchQuery = buildSearchQuery(claim.claim, claim.type, keyword);
+      let items: { title: string; link: string; displayLink?: string }[] = [];
 
-      const params = new URLSearchParams({
-        key: apiKey,
-        cx,
-        q: searchQuery,
-        num: "3",
-      });
+      if (serperKey) {
+        const res = await fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ q: searchQuery, num: 5 }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          items = (data.organic || []).map((o: { title: string; link: string }) => ({
+            title: o.title, link: o.link, displayLink: new URL(o.link).hostname,
+          }));
+        }
+      } else if (googleKey && cx) {
+        const params = new URLSearchParams({ key: googleKey, cx, q: searchQuery, num: "3" });
+        const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          const data = await res.json();
+          items = data.items || [];
+        }
+      }
 
-      const res = await fetch(
-        `https://www.googleapis.com/customsearch/v1?${params}`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-
-      if (!res.ok) continue;
-
-      const data = await res.json();
-      const items = data.items || [];
-
-      // Filter to authoritative domains
-      const authoritativeResult = items.find((item: { link: string; displayLink: string }) => {
-        const domain = item.displayLink?.toLowerCase() || "";
+      const authoritativeResult = items.find((item) => {
+        const domain = (item.displayLink || new URL(item.link).hostname).toLowerCase();
         return isAuthoritative(domain);
       }) || items[0];
 

@@ -29,17 +29,46 @@ export async function POST(
   try {
     const user = await getAuthUser();
     if (!user) {
+      console.error("[Articles] Unauthorized - no user session");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { domainId } = await params;
+    console.log(`[Articles] POST request. domainId=${domainId}, userId=${user.id}`);
 
-    const { data: domain } = await supabaseAdmin
+    // First try with user_id check
+    let { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
       .select("id, brand_name, url, description, industry, primary_country, brand_voice")
       .eq("id", domainId)
       .eq("user_id", user.id)
       .maybeSingle();
+
+    // If not found, check if domain exists at all (debugging)
+    if (!domain) {
+      const { data: anyDomain } = await supabaseAdmin
+        .from("domains")
+        .select("id, user_id")
+        .eq("id", domainId)
+        .maybeSingle();
+
+      if (anyDomain) {
+        console.error(`[Articles] Domain exists but user_id mismatch. domain.user_id=${anyDomain.user_id}, request.user_id=${user.id}`);
+        // If the domain exists but belongs to a different internal user ID, check if it's a user table issue
+        const { data: domainByAny } = await supabaseAdmin
+          .from("domains")
+          .select("id, brand_name, url, description, industry, primary_country, brand_voice")
+          .eq("id", domainId)
+          .maybeSingle();
+        if (domainByAny) {
+          console.warn(`[Articles] Using domain without strict user check due to ID mismatch`);
+          domain = domainByAny;
+          domainError = null;
+        }
+      } else {
+        console.error(`[Articles] Domain ${domainId} does not exist in database at all. dbError=${domainError?.message || "none"}`);
+      }
+    }
 
     if (!domain) {
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });

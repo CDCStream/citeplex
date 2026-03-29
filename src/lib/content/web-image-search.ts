@@ -11,20 +11,23 @@ export async function searchWebImages(
   query: string,
   count = 3
 ): Promise<WebImage[]> {
+  // Try Serper image search first
+  const serperKey = process.env.SERPER_API_KEY;
+  if (serperKey) {
+    const results = await searchSerperImages(query, count, serperKey);
+    if (results.length > 0) return results;
+  }
+
+  // Fallback to Google Custom Search
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_CX;
   if (!apiKey || !cx) return [];
 
   try {
     const params = new URLSearchParams({
-      key: apiKey,
-      cx,
-      q: query,
-      searchType: "image",
-      num: String(Math.min(count, 10)),
-      imgSize: "large",
-      imgType: "photo",
-      safe: "active",
+      key: apiKey, cx, q: query,
+      searchType: "image", num: String(Math.min(count, 10)),
+      imgSize: "large", imgType: "photo", safe: "active",
       rights: "cc_publicdomain|cc_attribute|cc_sharealike",
     });
 
@@ -32,29 +35,17 @@ export async function searchWebImages(
       `https://www.googleapis.com/customsearch/v1?${params}`,
       { signal: AbortSignal.timeout(10000) }
     );
-
     if (!res.ok) return [];
 
     const data = await res.json();
-    const items = data.items || [];
-
-    return items.slice(0, count).map(
-      (item: {
-        link: string;
-        title: string;
-        displayLink: string;
-        image: { contextLink: string; width: number; height: number };
-      }) => ({
-        url: item.link,
-        alt: item.title || query,
-        sourceUrl: item.image?.contextLink || "",
-        sourceDomain: item.displayLink || "",
-        width: item.image?.width || 0,
-        height: item.image?.height || 0,
+    return (data.items || []).slice(0, count).map(
+      (item: { link: string; title: string; displayLink: string; image: { contextLink: string; width: number; height: number } }) => ({
+        url: item.link, alt: item.title || query,
+        sourceUrl: item.image?.contextLink || "", sourceDomain: item.displayLink || "",
+        width: item.image?.width || 0, height: item.image?.height || 0,
       })
     );
-  } catch (err) {
-    console.error("[WebImageSearch] Failed:", err);
+  } catch {
     return [];
   }
 }
@@ -63,48 +54,32 @@ export async function searchInfographics(
   query: string,
   count = 2
 ): Promise<WebImage[]> {
-  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-  const cx = process.env.GOOGLE_SEARCH_CX;
-  if (!apiKey || !cx) return [];
+  return searchWebImages(`${query} infographic OR diagram OR comparison chart`, count);
+}
 
+async function searchSerperImages(query: string, count: number, apiKey: string): Promise<WebImage[]> {
   try {
-    const params = new URLSearchParams({
-      key: apiKey,
-      cx,
-      q: `${query} infographic OR diagram OR comparison chart`,
-      searchType: "image",
-      num: String(Math.min(count, 10)),
-      imgSize: "xlarge",
-      safe: "active",
+    const res = await fetch("https://google.serper.dev/images", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: Math.min(count + 2, 10) }),
+      signal: AbortSignal.timeout(10000),
     });
-
-    const res = await fetch(
-      `https://www.googleapis.com/customsearch/v1?${params}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
 
     if (!res.ok) return [];
 
     const data = await res.json();
-    const items = data.items || [];
+    const images: { title: string; imageUrl: string; link: string; source: string; imageWidth: number; imageHeight: number }[] = data.images || [];
 
-    return items.slice(0, count).map(
-      (item: {
-        link: string;
-        title: string;
-        displayLink: string;
-        image: { contextLink: string; width: number; height: number };
-      }) => ({
-        url: item.link,
-        alt: item.title || query,
-        sourceUrl: item.image?.contextLink || "",
-        sourceDomain: item.displayLink || "",
-        width: item.image?.width || 0,
-        height: item.image?.height || 0,
-      })
-    );
-  } catch (err) {
-    console.error("[InfographicSearch] Failed:", err);
+    return images.slice(0, count).map((img) => ({
+      url: img.imageUrl,
+      alt: img.title || query,
+      sourceUrl: img.link || "",
+      sourceDomain: img.source || "",
+      width: img.imageWidth || 0,
+      height: img.imageHeight || 0,
+    }));
+  } catch {
     return [];
   }
 }
