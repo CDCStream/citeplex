@@ -36,42 +36,24 @@ export async function POST(
     const { domainId } = await params;
     console.log(`[Articles] POST request. domainId=${domainId}, userId=${user.id}`);
 
-    // First try with user_id check
-    let { data: domain, error: domainError } = await supabaseAdmin
+    const { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country, brand_voice")
+      .select("id, brand_name, url, description, industry, primary_country, brand_voice, user_id")
       .eq("id", domainId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
-    // If not found, check if domain exists at all (debugging)
-    if (!domain) {
-      const { data: anyDomain } = await supabaseAdmin
-        .from("domains")
-        .select("id, user_id")
-        .eq("id", domainId)
-        .maybeSingle();
-
-      if (anyDomain) {
-        console.error(`[Articles] Domain exists but user_id mismatch. domain.user_id=${anyDomain.user_id}, request.user_id=${user.id}`);
-        // If the domain exists but belongs to a different internal user ID, check if it's a user table issue
-        const { data: domainByAny } = await supabaseAdmin
-          .from("domains")
-          .select("id, brand_name, url, description, industry, primary_country, brand_voice")
-          .eq("id", domainId)
-          .maybeSingle();
-        if (domainByAny) {
-          console.warn(`[Articles] Using domain without strict user check due to ID mismatch`);
-          domain = domainByAny;
-          domainError = null;
-        }
-      } else {
-        console.error(`[Articles] Domain ${domainId} does not exist in database at all. dbError=${domainError?.message || "none"}`);
-      }
+    if (domainError) {
+      console.error(`[Articles] Supabase error fetching domain: ${domainError.message}`);
     }
 
     if (!domain) {
+      console.error(`[Articles] Domain ${domainId} not found. error=${domainError?.message || "none"}`);
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+    }
+
+    if (domain.user_id !== user.id) {
+      console.error(`[Articles] Unauthorized: domain.user_id=${domain.user_id}, request.user_id=${user.id}`);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const limit = getArticleLimit(user.plan || "starter");

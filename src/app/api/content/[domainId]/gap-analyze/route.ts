@@ -17,15 +17,22 @@ export async function POST(
 
     const { domainId } = await params;
 
-    const { data: domain } = await supabaseAdmin
+    const { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
-      .select("id, brand_name, url, description, industry, primary_country")
+      .select("id, brand_name, url, description, industry, primary_country, user_id")
       .eq("id", domainId)
-      .eq("user_id", user.id)
       .maybeSingle();
+
+    if (domainError) {
+      console.error(`[GapAnalyze] Supabase error: ${domainError.message}`);
+    }
 
     if (!domain) {
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+    }
+
+    if (domain.user_id !== user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const body = await req.json();
