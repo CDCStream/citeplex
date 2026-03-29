@@ -18,30 +18,54 @@ export async function findAndScrapeTopArticles(
   keyword: string,
   count = 5,
 ): Promise<TopArticle[]> {
-  const searchResults = await searchGoogle(keyword, count);
-  if (searchResults.length === 0) return [];
+  const searchResults = await searchGoogle(keyword, count + 3);
+  if (searchResults.length === 0) {
+    console.warn(`[TopArticles] No Google search results for "${keyword}"`);
+    return [];
+  }
+
+  console.log(`[TopArticles] Google returned ${searchResults.length} results for "${keyword}"`);
 
   const scraped = await Promise.allSettled(
     searchResults.map(async (result) => {
       const parsed = await scrapeArticle(result.url);
-      if (!parsed || parsed.content.length < 200) return null;
+
+      if (parsed && parsed.content.length >= 200) {
+        return {
+          title: result.title,
+          url: result.url,
+          snippet: result.snippet,
+          domain: result.domain,
+          content: parsed.content,
+          headings: parsed.headings,
+          wordCount: parsed.wordCount,
+        };
+      }
+
+      // Fallback: use Google snippet as content when scraping fails
+      console.log(`[TopArticles] Scraping failed for ${result.domain}, using snippet fallback`);
       return {
         title: result.title,
         url: result.url,
         snippet: result.snippet,
         domain: result.domain,
-        content: parsed.content,
-        headings: parsed.headings,
-        wordCount: parsed.wordCount,
+        content: result.snippet || result.title,
+        headings: [],
+        wordCount: (result.snippet || "").split(/\s+/).length,
       };
     })
   );
 
-  return scraped
-    .filter((r): r is PromiseFulfilledResult<TopArticle | null> => r.status === "fulfilled")
+  const articles = scraped
+    .filter((r): r is PromiseFulfilledResult<TopArticle> => r.status === "fulfilled")
     .map((r) => r.value)
-    .filter((a): a is TopArticle => a !== null)
     .slice(0, count);
+
+  // Sort: fully scraped articles first, snippet-only fallbacks last
+  articles.sort((a, b) => b.content.length - a.content.length);
+
+  console.log(`[TopArticles] Returning ${articles.length} articles (${articles.filter(a => a.headings.length > 0).length} fully scraped)`);
+  return articles;
 }
 
 interface SearchResult {
@@ -113,10 +137,13 @@ async function scrapeArticle(url: string): Promise<ParsedArticle | null> {
         "Accept-Language": "en-US,en;q=0.5",
       },
       redirect: "follow",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(12000),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`[TopArticles] Scrape HTTP ${res.status} for ${url}`);
+      return null;
+    }
 
     const html = await res.text();
     if (!html || html.length < 500) return null;
@@ -125,8 +152,9 @@ async function scrapeArticle(url: string): Promise<ParsedArticle | null> {
     const headings = extractHeadings(html);
     const wordCount = content.split(/\s+/).filter(Boolean).length;
 
-    return { content: content.slice(0, 8000), headings, wordCount };
-  } catch {
+    return { content: content.slice(0, 10000), headings, wordCount };
+  } catch (err) {
+    console.log(`[TopArticles] Scrape error for ${url}: ${(err as Error).message}`);
     return null;
   }
 }

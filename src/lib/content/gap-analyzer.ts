@@ -69,12 +69,15 @@ Country: ${country.toUpperCase()}
 Competitors who ARE mentioned for this prompt:
 ${competitorContext}
 
-Generate 10 candidate target keywords that could help this brand rank for this prompt.
-Consider:
+Generate 15 candidate target keywords that could help this brand rank for this prompt.
+
+IMPORTANT RULES for keyword generation:
+- Include a MIX of keyword lengths: at least 5 short-tail (1-2 words), 5 medium-tail (2-3 words), and 5 long-tail (3-5 words)
+- Short-tail keywords are critical because they have more Ahrefs data and higher search volumes
+- Focus on POPULAR, commonly searched keywords — avoid overly niche or obscure terms
 - Keywords that competitors likely use to get mentioned
-- Long-tail variations with potentially lower difficulty
-- Keywords with high search intent matching the prompt
-- Informational, commercial, and comparison intent variations
+- Include informational, commercial, and comparison intent variations
+- Each keyword should be a realistic search query that real users would type
 
 Return JSON:
 {
@@ -131,11 +134,13 @@ Return JSON:
 ${metricsTable}
 
 ## Selection Criteria (in order of priority):
-1. Keyword Difficulty (KD) should be as LOW as possible (under 30 is ideal)
-2. Search Volume should be as HIGH as possible
-3. Traffic Potential matters more than raw volume
-4. The keyword should be directly relevant to the original prompt
-5. Prefer keywords that would naturally lead AI engines to mention the brand
+1. MUST have actual Ahrefs data (Volume, KD) — NEVER pick a keyword where Volume AND KD are both "N/A"
+2. Keyword Difficulty (KD) should be as LOW as possible (under 30 is ideal, under 50 is acceptable)
+3. Search Volume should be as HIGH as possible (prefer keywords with volume > 100)
+4. Traffic Potential matters more than raw volume
+5. The keyword should be directly relevant to the original prompt
+6. Prefer shorter, more popular keywords over obscure long-tail phrases
+7. Prefer keywords that would naturally lead AI engines to mention the brand
 
 ## Your Task:
 1. Pick the single best keyword
@@ -168,7 +173,27 @@ Return JSON:
     };
   }
 
-  const chosenMetrics = metricsMap.get(result.targetKeyword.toLowerCase()) || null;
+  let chosenMetrics = metricsMap.get(result.targetKeyword.toLowerCase()) || null;
+
+  // If the chosen keyword has no meaningful Ahrefs data, pick the best one that does
+  const hasData = chosenMetrics && (chosenMetrics.volume !== null || chosenMetrics.difficulty !== null);
+  if (!hasData && ahrefsData.length > 0) {
+    const withData = ahrefsData
+      .filter(d => d.volume !== null && d.volume > 0)
+      .sort((a, b) => {
+        const scoreA = (a.volume ?? 0) / Math.max(a.difficulty ?? 50, 1);
+        const scoreB = (b.volume ?? 0) / Math.max(b.difficulty ?? 50, 1);
+        return scoreB - scoreA;
+      });
+
+    if (withData.length > 0) {
+      const better = withData[0];
+      console.log(`[GapAnalyzer] Overriding keyword "${result.targetKeyword}" (N/A) → "${better.keyword}" (vol:${better.volume}, KD:${better.difficulty})`);
+      result.targetKeyword = better.keyword;
+      chosenMetrics = better;
+      result.reasoning += ` (Auto-corrected: original keyword had no Ahrefs data, switched to "${better.keyword}" with volume ${better.volume})`;
+    }
+  }
 
   // Step 4: Find and scrape top 5 ranking articles for the chosen keyword
   let topArticles: TopArticle[] = [];
@@ -320,11 +345,21 @@ async function generateOutlineOptions(
 ): Promise<OutlineSection[][]> {
   const secondaryKwList = secondaryKeywords.map(k => k.keyword).join(", ");
 
-  const competitorHeadings = topArticles.length > 0
-    ? topArticles.map((a, i) => `Article ${i + 1} (${a.domain}): ${a.headings.slice(0, 15).join(" | ")}`).join("\n")
-    : "";
-
   const currentYear = new Date().getFullYear();
+
+  // Build rich competitor context: headings + content excerpts
+  let competitorContext = "";
+  if (topArticles.length > 0) {
+    competitorContext = topArticles.map((a, i) => {
+      const headingsStr = a.headings.length > 0
+        ? `Headings: ${a.headings.slice(0, 15).join(" | ")}`
+        : "";
+      const contentSnippet = a.content.length > 100
+        ? `Content excerpt: ${a.content.slice(0, 1500)}`
+        : "";
+      return `### Article ${i + 1}: "${a.title}" (${a.domain}, ${a.wordCount} words)\n${headingsStr}\n${contentSnippet}`;
+    }).join("\n\n");
+  }
 
   const outlinePrompt = `Generate 2 different article outlines for:
 Title: "${title}"
@@ -336,14 +371,17 @@ Current Year: ${currentYear}
 Secondary Keywords to incorporate: ${secondaryKwList || "none"}
 Target: ~${structure.headings} H2 sections, ~${structure.wordCount} words total
 
-${competitorHeadings ? `## Competitor article headings (outperform these):\n${competitorHeadings}` : ""}
+${competitorContext ? `## Top Ranking Competitor Articles (study these carefully and outperform them):\n${competitorContext}` : ""}
 
-## Rules:
+## CRITICAL Rules:
+- Study the competitor articles above carefully — use SPECIFIC names, tools, products, brands, and examples mentioned in them
+- NEVER use generic placeholders like "Tool #1", "Tool #2", "Product A", "Solution B" — always use REAL names from the competitor articles or well-known industry examples
 - Each outline should have a DIFFERENT angle/approach
 - Include H2 and H3 headings
 - Each heading should have 2-4 bullet points describing what to cover
 - Include FAQ section (4-6 questions) at the end
 - Naturally incorporate secondary keywords in headings where relevant
+- If the topic involves comparing tools/products, name the ACTUAL top tools in the headings (e.g. "Surfer SEO vs Clearscope" not "Tool #1 vs Tool #2")
 - Outline 1: Comprehensive/educational approach
 - Outline 2: Practical/actionable approach
 
