@@ -162,9 +162,10 @@ export async function GET(req: NextRequest) {
 
     const { data: todayPlans } = await supabaseAdmin
       .from("content_plans")
-      .select("id, domain_id, title, keyword")
+      .select("id, domain_id, title, keyword, article_id")
       .eq("scheduled_date", today)
-      .eq("status", "planned");
+      .eq("status", "planned")
+      .is("article_id", null);
 
     if (!todayPlans?.length) {
       return NextResponse.json({ success: true, written: 0, message: "No articles scheduled for today" });

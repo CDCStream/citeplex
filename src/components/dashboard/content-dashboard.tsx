@@ -380,10 +380,14 @@ export function ContentDashboard({
                         {dayPlans.slice(0, 3).map((p) => {
                           const vol = p.keywordData?.volume;
                           const kd = p.keywordData?.difficulty;
+                          const href = p.articleId
+                            ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
+                            : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
                           return (
-                            <div
+                            <Link
                               key={p.id}
-                              className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                              href={href}
+                              className={`block text-[10px] px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
                             >
                               <div className="truncate">{p.title}</div>
                               {(vol != null || kd != null) && (
@@ -392,7 +396,7 @@ export function ContentDashboard({
                                   {kd != null && <span>KD: {kd}</span>}
                                 </div>
                               )}
-                            </div>
+                            </Link>
                           );
                         })}
                         {dayPlans.length > 3 && (
@@ -459,15 +463,17 @@ export function ContentDashboard({
                   {p.status}
                 </Badge>
                 {p.articleId ? (
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/dashboard/${domainId}/content/article/${p.articleId}`}>
-                      <Pencil className="h-3.5 w-3.5" />
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`}>
+                      <ArrowUpRight className="mr-1 h-3.5 w-3.5" />
+                      Preview
                     </Link>
                   </Button>
                 ) : (
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button size="sm" asChild>
                     <Link href={`/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`}>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      Write
                     </Link>
                   </Button>
                 )}

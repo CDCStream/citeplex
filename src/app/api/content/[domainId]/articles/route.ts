@@ -241,7 +241,7 @@ export async function POST(
         if (planId) {
           await supabaseAdmin
             .from("content_plans")
-            .update({ article_id: article.id, status: "writing" })
+            .update({ article_id: article.id, status: "published" })
             .eq("id", planId);
         }
 
