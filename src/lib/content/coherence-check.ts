@@ -40,7 +40,7 @@ Set isCoherent to true and score >= 80 if the article is publication-ready.`,
       user: `Review this article for coherence:\n\nTitle: ${title}\nKeyword: ${keyword}\nLanguage: ${language}\n\n${truncated}`,
       maxTokens: 2048,
       temperature: 0.2,
-      timeout: 30000,
+      timeout: 15000,
     });
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -94,7 +94,7 @@ Keep the article in ${language}. Return ONLY the fixed HTML content.`,
       user: `Fix these coherence issues:\n${issues.map((i, idx) => `${idx + 1}. ${i}`).join("\n")}\n\nTitle: ${title}\nKeyword: ${keyword}\n\nArticle:\n${content}`,
       maxTokens: 8192,
       temperature: 0.3,
-      timeout: 60000,
+      timeout: 30000,
     });
 
     if (text.includes("<h2") || text.includes("<p")) {

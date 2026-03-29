@@ -51,7 +51,7 @@ Return JSON:
 }`,
       maxTokens: 2048,
       temperature: 0.2,
-      timeout: 30000,
+      timeout: 15000,
     });
 
     let claims: { claim: string; context: string; type: string; suggestedSource: string }[] = [];
@@ -108,7 +108,7 @@ Article HTML:
 ${content}`,
       maxTokens: 8192,
       temperature: 0.2,
-      timeout: 60000,
+      timeout: 30000,
     });
 
     const hasHtml = fixedResponse.includes("<h2") || fixedResponse.includes("<p");

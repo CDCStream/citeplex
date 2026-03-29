@@ -183,16 +183,24 @@ export async function POST(
           enrichedContent = coherence.fixedContent;
         }
 
-        const factCheck = await factCheckAndCite(enrichedContent, targetKeyword, language);
-        if (factCheck.fixedContent) {
-          enrichedContent = factCheck.fixedContent;
-        }
+        const parallelTasks: Promise<void>[] = [];
+
+        let factCheck: Awaited<ReturnType<typeof factCheckAndCite>> = { claimsChecked: 0, citationsAdded: 0, fixedContent: null, issues: [] };
+        parallelTasks.push(
+          factCheckAndCite(enrichedContent, targetKeyword, language).then(r => { factCheck = r; })
+        );
 
         if (enhancements.internalLinking) {
-          const internalLinks = await insertInternalLinks(enrichedContent, domain.url, targetKeyword, language);
-          if (internalLinks.fixedContent) {
-            enrichedContent = internalLinks.fixedContent;
-          }
+          parallelTasks.push(
+            insertInternalLinks(enrichedContent, domain.url, targetKeyword, language).then(r => {
+              if (r.fixedContent) enrichedContent = r.fixedContent;
+            })
+          );
+        }
+
+        await Promise.all(parallelTasks);
+        if (factCheck.fixedContent) {
+          enrichedContent = factCheck.fixedContent;
         }
         send({ type: "step", step: "quality", status: "done" });
 

@@ -60,7 +60,7 @@ Article HTML:
 ${content}`,
       maxTokens: 8192,
       temperature: 0.3,
-      timeout: 60000,
+      timeout: 30000,
     });
 
     const hasHtml = response.includes("<h2") || response.includes("<p");
