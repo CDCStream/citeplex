@@ -380,23 +380,41 @@ export function ContentDashboard({
                         {dayPlans.slice(0, 3).map((p) => {
                           const vol = p.keywordData?.volume;
                           const kd = p.keywordData?.difficulty;
+                          const planDate = new Date(year, month, day!);
+                          const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isFuture = planDate > todayDate;
+                          const canClick = !isFuture || !!p.articleId;
                           const href = p.articleId
                             ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
                             : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
-                          return (
-                            <Link
-                              key={p.id}
-                              href={href}
-                              className={`block text-[10px] px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
-                            >
-                              <div className="truncate">{p.title}</div>
+
+                          const content = (
+                            <>
+                              <div className="truncate">{p.keyword || p.title}</div>
                               {(vol != null || kd != null) && (
                                 <div className="flex gap-2 mt-0.5 text-[9px] opacity-75 font-medium">
                                   {vol != null && <span>Vol: {vol.toLocaleString("en-US")}</span>}
                                   {kd != null && <span>KD: {kd}</span>}
                                 </div>
                               )}
+                            </>
+                          );
+
+                          return canClick ? (
+                            <Link
+                              key={p.id}
+                              href={href}
+                              className={`block text-[10px] px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                            >
+                              {content}
                             </Link>
+                          ) : (
+                            <div
+                              key={p.id}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                            >
+                              {content}
+                            </div>
                           );
                         })}
                         {dayPlans.length > 3 && (
@@ -469,14 +487,14 @@ export function ContentDashboard({
                       Preview
                     </Link>
                   </Button>
-                ) : (
+                ) : new Date(p.scheduledDate) <= new Date(now.getFullYear(), now.getMonth(), now.getDate()) ? (
                   <Button size="sm" asChild>
                     <Link href={`/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`}>
                       <Pencil className="mr-1 h-3.5 w-3.5" />
                       Write
                     </Link>
                   </Button>
-                )}
+                ) : null}
               </div>
             ))}
           </CardContent>
