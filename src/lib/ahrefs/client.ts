@@ -78,6 +78,10 @@ export async function fetchKeywordMetrics(
 
     const data: AhrefsKeywordsOverviewResponse = await res.json();
     console.log(`[Ahrefs] Got ${data.keywords?.length ?? 0} results`);
+    if (data.keywords?.length > 0) {
+      const sample = data.keywords[0];
+      console.log(`[Ahrefs] Sample: keyword="${sample.keyword}" vol=${sample.volume} kd=${sample.difficulty} cpc=${sample.cpc} tp=${sample.traffic_potential} parent="${sample.parent_topic}"`);
+    }
 
     const map = new Map(
       (data.keywords || []).map((k) => [k.keyword.toLowerCase(), k])

@@ -34,13 +34,13 @@ export interface GapAnalysis {
 }
 
 const STRUCTURES: ArticleStructure[] = [
-  { headings: 3, wordCount: 800, label: "2-3 headings (600-1000 words)" },
-  { headings: 4, wordCount: 1250, label: "3-4 headings (1000-1500 words)" },
-  { headings: 5, wordCount: 1750, label: "4-5 headings (1500-2000 words)" },
-  { headings: 6, wordCount: 2250, label: "5-6 headings (2000-2500 words)" },
-  { headings: 7, wordCount: 2750, label: "6-7 headings (2500-3000 words)" },
-  { headings: 9, wordCount: 3500, label: "8-9 headings (3000-4000 words)" },
-  { headings: 11, wordCount: 4500, label: "10-11 headings (4000-5000 words)" },
+  { headings: 3, wordCount: 800, label: "3 H2 sections (600-1000 words)" },
+  { headings: 4, wordCount: 1250, label: "4 H2 sections (1000-1500 words)" },
+  { headings: 5, wordCount: 1750, label: "5 H2 sections (1500-2000 words)" },
+  { headings: 6, wordCount: 2250, label: "6 H2 sections (2000-2500 words)" },
+  { headings: 7, wordCount: 2750, label: "7 H2 sections (2500-3000 words)" },
+  { headings: 9, wordCount: 3500, label: "9 H2 sections (3000-4000 words)" },
+  { headings: 11, wordCount: 4500, label: "11 H2 sections (4000-5000 words)" },
 ];
 
 export async function analyzeGapAndPlan(
@@ -386,7 +386,8 @@ Brand: ${brandName}
 Industry: ${industry}
 Current Year: ${currentYear}
 Secondary Keywords to incorporate: ${secondaryKwList || "none"}
-Target: ~${structure.headings} H2 sections, ~${structure.wordCount} words total
+Target structure: exactly ${structure.headings} H2 sections, each H2 MUST have 2-3 H3 sub-sections underneath it.
+Target word count: ~${structure.wordCount} words total
 
 ${competitorContext ? `## Top Ranking Competitor Articles (study these carefully and outperform them):\n${competitorContext}` : ""}
 
@@ -394,23 +395,28 @@ ${competitorContext ? `## Top Ranking Competitor Articles (study these carefully
 - Study the competitor articles above carefully — use SPECIFIC names, tools, products, brands, and examples mentioned in them
 - NEVER use generic placeholders like "Tool #1", "Tool #2", "Product A", "Solution B" — always use REAL names from the competitor articles or well-known industry examples
 - Each outline should have a DIFFERENT angle/approach
-- MANDATORY: Every H2 section MUST have at least 2 H3 sub-headings underneath it. H3 headings are critical for SEO and content depth.
-- Each heading should have 2-4 bullet points describing what to cover
-- Include FAQ section (4-6 questions) at the end — FAQ items should be H3 under an H2
-- Naturally incorporate secondary keywords in headings where relevant
+- MANDATORY STRUCTURE: Generate exactly ${structure.headings} H2 headings. Under EACH H2, include 2-3 H3 sub-headings. This means the outline should have ${structure.headings} H2s and ${structure.headings * 2}-${structure.headings * 3} H3s total. H3 headings are critical for SEO.
+- Each heading (H2 and H3) should have 2-4 bullet points describing what to cover
+- Include FAQ section as the last H2 with 4-6 FAQ questions as H3s underneath
+- Naturally incorporate secondary keywords in H2 and H3 headings where relevant
 - If the topic involves comparing tools/products, name the ACTUAL top tools in the headings (e.g. "Surfer SEO vs Clearscope" not "Tool #1 vs Tool #2")
 - Outline 1: Comprehensive/educational approach
 - Outline 2: Practical/actionable approach
 
-Return JSON:
+Return JSON (follow this exact pattern — H2 followed by its H3 children):
 {
   "outlines": [
     [
       {"heading": "Main Section Title", "level": 2, "points": ["...", "..."]},
-      {"heading": "Sub Section Detail", "level": 3, "points": ["...", "..."]},
-      {"heading": "Another Sub Detail", "level": 3, "points": ["...", "..."]},
+      {"heading": "First Sub-topic", "level": 3, "points": ["...", "..."]},
+      {"heading": "Second Sub-topic", "level": 3, "points": ["...", "..."]},
+      {"heading": "Third Sub-topic", "level": 3, "points": ["...", "..."]},
       {"heading": "Next Main Section", "level": 2, "points": ["...", "..."]},
-      {"heading": "Sub Topic Here", "level": 3, "points": ["...", "..."]}
+      {"heading": "Sub Detail A", "level": 3, "points": ["...", "..."]},
+      {"heading": "Sub Detail B", "level": 3, "points": ["...", "..."]},
+      {"heading": "Frequently Asked Questions", "level": 2, "points": ["..."]},
+      {"heading": "What is X?", "level": 3, "points": ["..."]},
+      {"heading": "How does Y work?", "level": 3, "points": ["..."]}
     ],
     [...]
   ]
