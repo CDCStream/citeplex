@@ -88,7 +88,7 @@ export default function WriteArticlePage() {
   const [error, setError] = useState<string | null>(null);
   const [gapAnalysis, setGapAnalysis] = useState<GapAnalysis | null>(null);
 
-  const [includeCta, setIncludeCta] = useState(false);
+  const [includeCta, setIncludeCta] = useState(true);
   const [ctaText, setCtaText] = useState("");
   const [includeFaq, setIncludeFaq] = useState(true);
 
