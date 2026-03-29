@@ -54,10 +54,10 @@ function getDomainNavSections(domainId: string): NavSection[] {
     {
       title: "AI Visibility",
       items: [
+        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
         { label: "Overview", href: `/dashboard/${domainId}/ai-visibility`, icon: Eye },
         { label: "Prompts", href: `/dashboard/${domainId}/prompts`, icon: MessageSquare },
         { label: "Competitor Gaps", href: `/dashboard/${domainId}/ai-visibility/gaps`, icon: Globe },
-        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
       ],
     },
     {
