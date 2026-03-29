@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,20 +11,15 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  FileText,
-  Save,
-  Loader2,
-  ArrowLeft,
   Eye,
-  Code,
-  Tag,
+  ArrowLeft,
   HelpCircle,
   Download,
   Copy,
   Check,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 interface FaqItem {
   question: string;
@@ -148,78 +141,35 @@ function buildFullHtml(article: ArticleData): string {
 export function ArticleEditor({
   domainId,
   article,
-  integrations,
 }: {
   domainId: string;
   article: ArticleData;
   integrations: Integration[];
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") || "preview";
-
-  const [title, setTitle] = useState(article.title);
-  const [slug, setSlug] = useState(article.slug);
-  const [metaDescription, setMetaDescription] = useState(article.metaDescription || "");
-  const [coverImage, setCoverImage] = useState(article.coverImage || "");
-  const [content, setContent] = useState(article.content || "");
-  const [tags, setTags] = useState(article.tags.join(", "));
-  const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const previewRef = useRef<HTMLIFrameElement>(null);
 
-  const currentArticle: ArticleData = {
-    ...article,
-    title,
-    slug,
-    metaDescription,
-    coverImage: coverImage || null,
-    content,
-    tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-  };
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await fetch(`/api/content/${domainId}/articles/${article.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          slug,
-          metaDescription,
-          coverImage: coverImage || null,
-          content,
-          tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-        }),
-      });
-      router.refresh();
-    } catch {
-      // keep editing
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function handleDownloadHtml() {
-    const html = buildFullHtml(currentArticle);
+    const html = buildFullHtml(article);
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${slug || "article"}.html`;
+    a.download = `${article.slug || "article"}.html`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
   async function handleCopyHtml() {
-    const html = buildFullHtml(currentArticle);
+    const html = buildFullHtml(article);
     await navigator.clipboard.writeText(html);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const previewHtml = buildFullHtml(currentArticle);
+  const previewHtml = buildFullHtml(article);
 
   return (
     <div className="space-y-6">
@@ -247,10 +197,6 @@ export function ArticleEditor({
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Download HTML
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
-          </Button>
         </div>
       </div>
 
@@ -259,10 +205,6 @@ export function ArticleEditor({
           <TabsTrigger value="preview">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Preview
-          </TabsTrigger>
-          <TabsTrigger value="content">
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            Edit
           </TabsTrigger>
           <TabsTrigger value="faq">
             <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -281,59 +223,6 @@ export function ArticleEditor({
                 style={{ minHeight: "800px" }}
                 title="Article Preview"
                 sandbox="allow-same-origin"
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Edit Tab */}
-        <TabsContent value="content" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Slug</Label>
-                  <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cover Image URL</Label>
-                  <Input value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Meta Description</Label>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground">{metaDescription.length}/160 characters</p>
-              </div>
-              <div className="space-y-2">
-                <Label><Tag className="inline h-3.5 w-3.5 mr-1" />Tags</Label>
-                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="SEO, AI, Marketing" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Code className="h-4 w-4" />
-                  Article HTML
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full min-h-[500px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
               />
             </CardContent>
           </Card>

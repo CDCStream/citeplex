@@ -298,12 +298,6 @@ export function ContentHistoryClient({
                               Preview
                             </Link>
                           </Button>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/dashboard/${domainId}/content/article/${article.id}`}>
-                              <FileText className="mr-1.5 h-3.5 w-3.5" />
-                              Edit
-                            </Link>
-                          </Button>
                           {confirmDeleteId === article.id ? (
                             <div className="flex items-center gap-1">
                               <Button
