@@ -80,7 +80,7 @@ export function AlertsList({ alerts, domainId }: { alerts: Alert[]; domainId: st
                     </div>
                     <div className="mt-1 flex items-center gap-3">
                       <span className="text-xs text-muted-foreground">
-                        {new Date(alert.createdAt).toLocaleDateString()} at{" "}
+                        {new Date(alert.createdAt).toLocaleDateString("en-US")} at{" "}
                         {new Date(alert.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                       {!alert.isRead && (

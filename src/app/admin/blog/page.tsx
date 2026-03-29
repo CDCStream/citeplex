@@ -444,7 +444,7 @@ export default function AdminBlogPage() {
                       /blog/{post.slug}
                       {post.published_at && (
                         <span className="ml-3">
-                          {new Date(post.published_at).toLocaleDateString()}
+                          {new Date(post.published_at).toLocaleDateString("en-US")}
                         </span>
                       )}
                     </p>

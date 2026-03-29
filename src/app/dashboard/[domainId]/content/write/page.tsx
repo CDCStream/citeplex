@@ -409,7 +409,7 @@ export default function WriteArticlePage() {
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{article.title}</p>
-                        <p className="text-xs text-muted-foreground">{article.domain} &middot; {article.wordCount.toLocaleString()} words &middot; {article.headings.length} headings</p>
+                        <p className="text-xs text-muted-foreground">{article.domain} &middot; {article.wordCount.toLocaleString("en-US")} words &middot; {article.headings.length} headings</p>
                       </div>
                       <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </a>

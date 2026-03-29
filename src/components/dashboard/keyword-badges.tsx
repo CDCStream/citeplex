@@ -87,15 +87,15 @@ export function PromptKeywordBadge({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Monthly search volume: {kw.volume?.toLocaleString()}</p>
+              <p>Monthly search volume: {kw.volume?.toLocaleString("en-US")}</p>
               {kw.globalVolume !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Global: {kw.globalVolume.toLocaleString()}
+                  Global: {kw.globalVolume.toLocaleString("en-US")}
                 </p>
               )}
               {kw.trafficPotential !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Traffic potential: {kw.trafficPotential.toLocaleString()}
+                  Traffic potential: {kw.trafficPotential.toLocaleString("en-US")}
                 </p>
               )}
             </TooltipContent>

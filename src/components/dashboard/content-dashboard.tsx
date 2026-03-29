@@ -448,7 +448,7 @@ export function ContentDashboard({
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground">
-                      {new Date(p.scheduledDate).toLocaleDateString()}
+                      {new Date(p.scheduledDate).toLocaleDateString("en-US")}
                     </span>
                   </div>
                 </div>
