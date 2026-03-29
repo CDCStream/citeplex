@@ -388,7 +388,7 @@ export function ContentDashboard({
                               <div className="truncate">{p.title}</div>
                               {(vol != null || kd != null) && (
                                 <div className="flex gap-2 mt-0.5 text-[9px] opacity-75 font-medium">
-                                  {vol != null && <span>Vol: {vol.toLocaleString()}</span>}
+                                  {vol != null && <span>Vol: {vol.toLocaleString("en-US")}</span>}
                                   {kd != null && <span>KD: {kd}</span>}
                                 </div>
                               )}
@@ -439,7 +439,7 @@ export function ContentDashboard({
                     )}
                     {p.keywordData?.volume != null && (
                       <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                        Vol: {p.keywordData.volume.toLocaleString()}
+                        Vol: {p.keywordData.volume.toLocaleString("en-US")}
                       </span>
                     )}
                     {p.keywordData?.difficulty != null && (
