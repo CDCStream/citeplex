@@ -7,15 +7,38 @@ export interface WebImage {
   height: number;
 }
 
+async function validateImageUrl(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(5000),
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Citeplex/1.0)" },
+    });
+    if (!res.ok) return false;
+    const ct = (res.headers.get("content-type") || "").toLowerCase();
+    return ct.startsWith("image/");
+  } catch {
+    return false;
+  }
+}
+
+async function filterValidImages(images: WebImage[], count: number): Promise<WebImage[]> {
+  const checks = await Promise.all(images.map(async (img) => ({ img, valid: await validateImageUrl(img.url) })));
+  return checks.filter(c => c.valid).map(c => c.img).slice(0, count);
+}
+
 export async function searchWebImages(
   query: string,
   count = 3
 ): Promise<WebImage[]> {
+  const extra = 4;
+
   // Try Serper image search first
   const serperKey = process.env.SERPER_API_KEY;
   if (serperKey) {
-    const results = await searchSerperImages(query, count, serperKey);
-    if (results.length > 0) return results;
+    const results = await searchSerperImages(query, count + extra, serperKey);
+    if (results.length > 0) return filterValidImages(results, count);
   }
 
   // Fallback to Google Custom Search
@@ -26,7 +49,7 @@ export async function searchWebImages(
   try {
     const params = new URLSearchParams({
       key: apiKey, cx, q: query,
-      searchType: "image", num: String(Math.min(count, 10)),
+      searchType: "image", num: String(Math.min(count + extra, 10)),
       imgSize: "large", imgType: "photo", safe: "active",
       rights: "cc_publicdomain|cc_attribute|cc_sharealike",
     });
@@ -38,13 +61,14 @@ export async function searchWebImages(
     if (!res.ok) return [];
 
     const data = await res.json();
-    return (data.items || []).slice(0, count).map(
+    const images = (data.items || []).slice(0, count + extra).map(
       (item: { link: string; title: string; displayLink: string; image: { contextLink: string; width: number; height: number } }) => ({
         url: item.link, alt: item.title || query,
         sourceUrl: item.image?.contextLink || "", sourceDomain: item.displayLink || "",
         width: item.image?.width || 0, height: item.image?.height || 0,
       })
     );
+    return filterValidImages(images, count);
   } catch {
     return [];
   }

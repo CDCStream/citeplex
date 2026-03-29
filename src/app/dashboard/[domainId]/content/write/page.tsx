@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,7 @@ import {
   PenTool,
   ImageIcon,
 
-  BarChart3,
+
   Save,
 } from "lucide-react";
 import Link from "next/link";
@@ -71,7 +71,7 @@ interface GapAnalysis {
   outlines: OutlineSection[][];
 }
 
-type Phase = "analyzing" | "review" | "generating" | "done";
+type Phase = "analyzing" | "review" | "generating";
 
 interface StepState {
   status: "pending" | "active" | "done";
@@ -84,7 +84,6 @@ const STEP_CONFIG = [
   { key: "outline", label: "Building Outline", icon: BookOpen },
   { key: "writing", label: "Writing Content", icon: PenTool },
   { key: "media", label: "Media & Images", icon: ImageIcon },
-  { key: "seo", label: "SEO Optimization", icon: BarChart3 },
   { key: "saving", label: "Saving Article", icon: Save },
 ] as const;
 
@@ -92,6 +91,7 @@ type StepKey = typeof STEP_CONFIG[number]["key"];
 
 export default function WriteArticlePage() {
   const { domainId } = useParams<{ domainId: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialPrompt = searchParams.get("prompt") || searchParams.get("title") || "";
   const planId = searchParams.get("planId") || undefined;
@@ -112,8 +112,6 @@ export default function WriteArticlePage() {
     return init as Record<StepKey, StepState>;
   });
   const [previewHtml, setPreviewHtml] = useState("");
-  const [articleId, setArticleId] = useState<string | null>(null);
-  const [seoCheck, setSeoCheck] = useState<{ score: number; checks: { name: string; passed: boolean; message: string; impact: string }[] } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -275,11 +273,11 @@ export default function WriteArticlePage() {
       case "preview":
         setPreviewHtml(data.html as string);
         break;
-      case "done":
-        setArticleId((data.article as { id: string }).id);
-        setSeoCheck(data.seoCheck as typeof seoCheck);
-        setPhase("done");
+      case "done": {
+        const id = (data.article as { id: string }).id;
+        router.push(`/dashboard/${domainId}/content/article/${id}?tab=preview`);
         break;
+      }
       case "error":
         setError(data.message as string);
         setPhase("review");
@@ -287,11 +285,6 @@ export default function WriteArticlePage() {
     }
   }
 
-  function getSeoScoreColor(score: number) {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  }
 
   const completedSteps = Object.values(steps).filter(s => s.status === "done").length;
   const totalSteps = STEP_CONFIG.length;
@@ -318,7 +311,7 @@ export default function WriteArticlePage() {
       </div>
 
       {/* Progress bar */}
-      {phase !== "done" && (
+      {(
         <div className="flex gap-2">
           {(["analyzing", "review", "generating"] as const).map((step, i) => {
             const labels = { analyzing: "Analysis", review: "Review & Generate", generating: "Writing" };
@@ -658,56 +651,6 @@ export default function WriteArticlePage() {
         </div>
       )}
 
-      {/* Phase: Done */}
-      {phase === "done" && seoCheck && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="rounded-full bg-green-100 dark:bg-green-500/20 p-4 mb-4 animate-in zoom-in-50 duration-500">
-                <CheckCircle2 className="h-10 w-10 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold">Article Generated!</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Your article has been saved as a draft.</p>
-              <div className="mt-4 flex items-center gap-4">
-                <div className="text-center">
-                  <div className={`text-3xl font-bold ${getSeoScoreColor(seoCheck.score)}`}>{seoCheck.score}</div>
-                  <div className="text-xs text-muted-foreground">SEO Score</div>
-                </div>
-              </div>
-              <div className="mt-6 flex gap-3">
-                <Button asChild>
-                  <Link href={`/dashboard/${domainId}/content/article/${articleId}?tab=preview`}>
-                    <FileText className="mr-2 h-4 w-4" />Preview Article
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link href={`/dashboard/${domainId}/content/history`}>Content History</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-lg">SEO Analysis</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              {seoCheck.checks.map((check, i) => (
-                <div key={i} className="flex items-start gap-3 py-2 border-b last:border-0">
-                  {check.passed ? <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" /> : <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{check.name}</span>
-                      <Badge variant="outline" className={`text-[10px] ${check.impact === "high" ? "border-red-300 text-red-600" : check.impact === "medium" ? "border-yellow-300 text-yellow-600" : "border-gray-300 text-gray-600"}`}>
-                        {check.impact}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{check.message}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

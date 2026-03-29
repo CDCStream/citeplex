@@ -181,12 +181,10 @@ export async function POST(
         }
         send({ type: "step", step: "media", status: "done", mediaCount: videoResults.length + imageResults.length + allWebImages.length });
 
-        // Step 5: SEO Optimization
-        send({ type: "step", step: "seo", status: "active", message: "Running SEO analysis..." });
+        // SEO score (local, no LLM)
         const seoCheck = checkSeo(title, targetKeyword, enrichedContent, generated.metaDescription);
-        send({ type: "step", step: "seo", status: "done" });
 
-        // Save to database
+        // Step 5: Saving
         send({ type: "step", step: "saving", status: "active", message: "Saving article..." });
         const slug = title
           .toLowerCase()
@@ -234,8 +232,7 @@ export async function POST(
 
         send({
           type: "done",
-          article: { id: article.id, title: article.title, slug: article.slug, wordCount: generated.wordCount, seoScore: seoCheck.score },
-          seoCheck,
+          article: { id: article.id, title: article.title, slug: article.slug, wordCount: generated.wordCount },
         });
       } catch (err) {
         console.error("Article generation error:", err);
