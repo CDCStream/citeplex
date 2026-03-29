@@ -21,8 +21,6 @@ import {
   Code,
   Tag,
   HelpCircle,
-  CheckCircle2,
-  AlertCircle,
   Download,
   Copy,
   Check,
@@ -223,13 +221,6 @@ export function ArticleEditor({
 
   const previewHtml = buildFullHtml(currentArticle);
 
-  function getSeoScoreColor(score: number | null) {
-    if (score === null) return "text-muted-foreground";
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -243,11 +234,6 @@ export function ArticleEditor({
             <h1 className="text-xl font-bold tracking-tight">{article.title}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline">{article.status}</Badge>
-              {article.seoScore !== null && (
-                <span className={`text-xs font-semibold ${getSeoScoreColor(article.seoScore)}`}>
-                  SEO: {article.seoScore}/100
-                </span>
-              )}
               <span className="text-xs text-muted-foreground">{article.wordCount} words</span>
             </div>
           </div>
@@ -277,10 +263,6 @@ export function ArticleEditor({
           <TabsTrigger value="content">
             <FileText className="mr-1.5 h-3.5 w-3.5" />
             Edit
-          </TabsTrigger>
-          <TabsTrigger value="seo">
-            <Code className="mr-1.5 h-3.5 w-3.5" />
-            SEO
           </TabsTrigger>
           <TabsTrigger value="faq">
             <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -323,6 +305,15 @@ export function ArticleEditor({
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>Meta Description</Label>
+                <textarea
+                  value={metaDescription}
+                  onChange={(e) => setMetaDescription(e.target.value)}
+                  className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <p className="text-xs text-muted-foreground">{metaDescription.length}/160 characters</p>
+              </div>
+              <div className="space-y-2">
                 <Label><Tag className="inline h-3.5 w-3.5 mr-1" />Tags</Label>
                 <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="SEO, AI, Marketing" />
               </div>
@@ -346,47 +337,6 @@ export function ArticleEditor({
               />
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* SEO Tab */}
-        <TabsContent value="seo" className="space-y-4 mt-4">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Meta Description</Label>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <p className="text-xs text-muted-foreground">{metaDescription.length}/160 characters</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Target Keyword</Label>
-                <Input value={article.targetKeyword || ""} disabled className="bg-muted" />
-              </div>
-              {article.secondaryKeywords?.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Secondary Keywords</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {article.secondaryKeywords.map((kw, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{kw}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          {article.seoScore !== null && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  SEO Score
-                  <span className={`text-2xl ${getSeoScoreColor(article.seoScore)}`}>{article.seoScore}/100</span>
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          )}
         </TabsContent>
 
         {/* FAQ Tab */}
