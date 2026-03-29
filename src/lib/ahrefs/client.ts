@@ -44,23 +44,23 @@ export async function fetchKeywordMetrics(
     const params = new URLSearchParams({
       output: "json",
       select: "keyword,volume,difficulty,cpc,global_volume,traffic_potential,parent_topic",
-      where: JSON.stringify({ keyword: batch }),
+      keywords: batch.join(","),
       country,
     });
 
-    const res = await fetch(
-      `${AHREFS_API_BASE}/keywords-explorer/overview?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",
-        },
-      }
-    );
+    const url = `${AHREFS_API_BASE}/keywords-explorer/overview?${params}`;
+    console.log(`[Ahrefs] Fetching metrics for ${batch.length} keywords (country=${country})`);
+
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
 
     if (!res.ok) {
       const body = await res.text();
-      console.error(`Ahrefs API error (${res.status}):`, body);
+      console.error(`[Ahrefs] API error (${res.status}):`, body);
       for (const kw of batch) {
         results.push({
           keyword: kw,
@@ -77,10 +77,14 @@ export async function fetchKeywordMetrics(
     }
 
     const data: AhrefsKeywordsOverviewResponse = await res.json();
-    const map = new Map(data.keywords.map((k) => [k.keyword, k]));
+    console.log(`[Ahrefs] Got ${data.keywords?.length ?? 0} results`);
+
+    const map = new Map(
+      (data.keywords || []).map((k) => [k.keyword.toLowerCase(), k])
+    );
 
     for (const kw of batch) {
-      const row = map.get(kw);
+      const row = map.get(kw.toLowerCase());
       results.push({
         keyword: kw,
         country,

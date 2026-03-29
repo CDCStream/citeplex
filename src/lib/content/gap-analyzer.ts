@@ -50,6 +50,8 @@ export async function analyzeGapAndPlan(
   country: string = "us",
 ): Promise<GapAnalysis> {
 
+  const currentYear = new Date().getFullYear();
+
   const competitorContext = competitors.length > 0
     ? competitors.map(c => `- ${c.name} (${c.url})`).join("\n")
     : "(no competitors)";
@@ -106,10 +108,10 @@ Return JSON:
     console.error("[GapAnalyzer] Ahrefs fetch failed:", (err as Error).message);
   }
 
-  const metricsMap = new Map(ahrefsData.map(d => [d.keyword, d]));
+  const metricsMap = new Map(ahrefsData.map(d => [d.keyword.toLowerCase(), d]));
 
   const metricsTable = candidates.map(c => {
-    const m = metricsMap.get(c.keyword);
+    const m = metricsMap.get(c.keyword.toLowerCase());
     return `- "${c.keyword}" | Intent: ${c.intent} | Volume: ${m?.volume ?? "N/A"} | KD: ${m?.difficulty ?? "N/A"} | CPC: $${m?.cpc ?? "N/A"} | Traffic Potential: ${m?.traffic_potential ?? "N/A"} | Parent Topic: ${m?.parent_topic ?? "N/A"}`;
   }).join("\n");
 
@@ -140,6 +142,8 @@ ${metricsTable}
 2. Define a content topic that comprehensively covers this keyword
 3. Create an SEO-optimized article title (compelling, includes keyword naturally, 50-65 chars)
 
+IMPORTANT: The current year is ${currentYear}. If you include a year in the title, use ${currentYear}. NEVER use outdated years like 2024 or 2025.
+
 Return JSON:
 {
   "targetKeyword": "the chosen keyword",
@@ -164,7 +168,7 @@ Return JSON:
     };
   }
 
-  const chosenMetrics = metricsMap.get(result.targetKeyword) || null;
+  const chosenMetrics = metricsMap.get(result.targetKeyword.toLowerCase()) || null;
 
   // Step 4: Find and scrape top 5 ranking articles for the chosen keyword
   let topArticles: TopArticle[] = [];
@@ -320,12 +324,15 @@ async function generateOutlineOptions(
     ? topArticles.map((a, i) => `Article ${i + 1} (${a.domain}): ${a.headings.slice(0, 15).join(" | ")}`).join("\n")
     : "";
 
+  const currentYear = new Date().getFullYear();
+
   const outlinePrompt = `Generate 2 different article outlines for:
 Title: "${title}"
 Primary Keyword: "${keyword}"
 Topic: ${topic}
 Brand: ${brandName}
 Industry: ${industry}
+Current Year: ${currentYear}
 Secondary Keywords to incorporate: ${secondaryKwList || "none"}
 Target: ~${structure.headings} H2 sections, ~${structure.wordCount} words total
 

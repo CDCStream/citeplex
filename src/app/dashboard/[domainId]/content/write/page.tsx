@@ -333,8 +333,15 @@ export default function WriteArticlePage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {gapAnalysis.topArticles.map((article, i) => (
-                  <div key={i} className="flex items-start gap-3 rounded-lg border p-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/10 text-xs font-bold text-amber-700 shrink-0">{i + 1}</div>
+                  <div key={i} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/10 text-xs font-bold text-amber-700 shrink-0">{i + 1}</div>
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${article.domain}&sz=32`}
+                      alt={article.domain}
+                      width={20}
+                      height={20}
+                      className="rounded mt-0.5 shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{article.title}</p>
                       <p className="text-xs text-muted-foreground">{article.domain} · {article.wordCount.toLocaleString()} words · {article.headings.length} headings</p>
@@ -359,12 +366,18 @@ export default function WriteArticlePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-1">
-                  {gapAnalysis.outlines[0].map((section, i) => (
-                    <div key={i} className={`flex items-center gap-2 py-1.5 ${section.level === 3 ? "ml-6" : ""}`}>
-                      <Badge variant="outline" className="text-[10px] shrink-0 font-mono">H{section.level}</Badge>
-                      <span className="text-sm">{section.heading}</span>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-2 py-1.5 mb-1">
+                    <Badge className="text-[10px] shrink-0 font-mono bg-primary text-primary-foreground">H1</Badge>
+                    <span className="text-sm font-semibold">{gapAnalysis.title}</span>
+                  </div>
+                  <div className="border-l-2 border-muted ml-3 pl-3 space-y-1">
+                    {gapAnalysis.outlines[0].map((section, i) => (
+                      <div key={i} className={`flex items-center gap-2 py-1.5 ${section.level === 3 ? "ml-6" : ""}`}>
+                        <Badge variant="outline" className="text-[10px] shrink-0 font-mono">H{section.level}</Badge>
+                        <span className="text-sm">{section.heading}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>

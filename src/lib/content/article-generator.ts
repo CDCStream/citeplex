@@ -240,6 +240,8 @@ ${enhancementBlock}
 After the article HTML, add a JSON block wrapped in <script type="application/json" id="article-meta"> with:
 {"metaDescription":"150-160 char meta description in ${language}","tags":["5-8 tags in ${language}"],"faq":[{"question":"...","answer":"..."}]}`;
 
+  const currentYear = new Date().getFullYear();
+
   const userPrompt = `Title: ${title}
 Target Keyword: ${keyword}
 Keyword Data (Ahrefs): ${keywordContext || "N/A"}
@@ -248,6 +250,7 @@ External Sources: ${research.externalSources.join(", ")}
 Image Suggestions: ${research.suggestedImages.join(", ")}
 Backlink Angles: ${(research.backlinkAngles || []).join("; ") || "N/A"}
 Statistics to Include: ${(research.statistics || []).join("; ") || "N/A"}
+Current Year: ${currentYear} (use this year for any date references, NEVER use outdated years)
 Language: ${language}
 
 Outline:
