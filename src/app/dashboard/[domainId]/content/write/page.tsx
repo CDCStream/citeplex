@@ -232,7 +232,7 @@ export default function WriteArticlePage() {
               Finding the best keyword, analyzing top articles, building outline...
             </p>
             <p className="mt-2 text-sm font-medium text-center max-w-md">&ldquo;{initialPrompt}&rdquo;</p>
-            <p className="mt-4 text-xs text-muted-foreground">This may take 1-2 minutes...</p>
+            <p className="mt-4 text-xs text-muted-foreground">This may take 4-5 minutes...</p>
           </CardContent>
         </Card>
       )}
