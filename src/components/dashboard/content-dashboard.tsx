@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  FileText,
   ChevronLeft,
   ChevronRight,
   Pencil,
@@ -113,19 +112,11 @@ export function ContentDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-primary/10 p-2.5">
-            <FileText className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Content</h1>
-            <p className="text-sm text-muted-foreground">
-              Plan, write, and publish AI-optimized articles for {brandName}
-            </p>
-          </div>
-        </div>
-        
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Content</h1>
+        <p className="text-sm text-muted-foreground">
+          Plan, write, and publish AI-optimized articles for {brandName}
+        </p>
       </div>
 
       {/* Calendar */}
