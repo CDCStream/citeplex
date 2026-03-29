@@ -52,16 +52,12 @@ interface NavSection {
 function getDomainNavSections(domainId: string): NavSection[] {
   return [
     {
-      items: [
-        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
-      ],
-    },
-    {
       title: "AI Visibility",
       items: [
         { label: "Overview", href: `/dashboard/${domainId}/ai-visibility`, icon: Eye },
         { label: "Prompts", href: `/dashboard/${domainId}/prompts`, icon: MessageSquare },
         { label: "Competitor Gaps", href: `/dashboard/${domainId}/ai-visibility/gaps`, icon: Globe },
+        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
       ],
     },
     {
