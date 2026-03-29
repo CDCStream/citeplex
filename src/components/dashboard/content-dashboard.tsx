@@ -2,29 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   FileText,
-  Plus,
-  Sparkles,
-  Loader2,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   Pencil,
   ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 interface ContentPlanItem {
   id: string;
@@ -82,7 +67,6 @@ export function ContentDashboard({
   industry,
   plans,
   articlesUsed,
-  articleLimit,
 }: {
   domainId: string;
   brandName: string;
@@ -92,24 +76,9 @@ export function ContentDashboard({
   articlesUsed: number;
   articleLimit: number;
 }) {
-  const router = useRouter();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-
-  const [addOpen, setAddOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [articleType, setArticleType] = useState("guide");
-  const [selectedDate, setSelectedDate] = useState(
-    now.toISOString().split("T")[0]
-  );
-
-  const [suggesting, setSuggesting] = useState(false);
-  const [suggestions, setSuggestions] = useState<
-    { title: string; keyword: string; type: string }[]
-  >([]);
 
   const calendarDays = getCalendarDays(year, month);
 
@@ -141,57 +110,6 @@ export function ContentDashboard({
     }
   }
 
-  async function handleAdd() {
-    if (!title.trim()) return;
-    setSaving(true);
-    try {
-      await fetch(`/api/content/${domainId}/plans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          keyword: keyword.trim() || null,
-          articleType,
-          scheduledDate: selectedDate,
-        }),
-      });
-      setAddOpen(false);
-      setTitle("");
-      setKeyword("");
-      router.refresh();
-    } catch {
-      // keep dialog open
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSuggest() {
-    setSuggesting(true);
-    setSuggestions([]);
-    try {
-      const res = await fetch(`/api/content/${domainId}/suggest`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandName, description, industry }),
-      });
-      const data = await res.json();
-      if (data.suggestions) setSuggestions(data.suggestions);
-    } catch {
-      // ignore
-    } finally {
-      setSuggesting(false);
-    }
-  }
-
-  function useSuggestion(s: { title: string; keyword: string; type: string }) {
-    setTitle(s.title);
-    setKeyword(s.keyword);
-    setArticleType(s.type);
-    setSuggestions([]);
-  }
-
-  const remaining = Math.max(0, articleLimit - articlesUsed);
 
   return (
     <div className="space-y-6">
@@ -207,125 +125,7 @@ export function ContentDashboard({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{articlesUsed}</span> / {articleLimit} articles
-          </span>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={remaining <= 0}>
-                <Plus className="mr-2 h-4 w-4" />
-                Plan Article
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Plan a new article</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. How to Improve Your SEO in 2026"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Target Keyword</Label>
-                  <Input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="e.g. SEO tips 2026"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <select
-                      value={articleType}
-                      onChange={(e) => setArticleType(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      {ARTICLE_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {suggestions.length === 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={handleSuggest}
-                    disabled={suggesting}
-                    className="w-full"
-                  >
-                    {suggesting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating ideas...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        AI Topic Suggestions
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                {suggestions.length > 0 && (
-                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">
-                      Suggestions
-                    </p>
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={() => useSuggestion(s)}
-                        className="flex items-center gap-2 w-full rounded-lg border p-2.5 text-sm text-left hover:bg-muted/50 transition-colors"
-                      >
-                        <Badge variant="outline" className="text-[10px] shrink-0">
-                          {s.type}
-                        </Badge>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{s.title}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {s.keyword}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleAdd}
-                  disabled={!title.trim() || saving}
-                  className="w-full"
-                >
-                  {saving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Calendar className="mr-2 h-4 w-4" />
-                  )}
-                  Add to Calendar
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        
       </div>
 
       {/* Calendar */}
