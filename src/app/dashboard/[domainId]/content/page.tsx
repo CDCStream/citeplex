@@ -58,6 +58,7 @@ async function ContentPageContent({ domainId }: { domainId: string }) {
           scheduledDate: p.scheduled_date,
           status: p.status,
           articleId: p.article_id,
+          keywordData: p.keyword_data as { volume?: number | null; difficulty?: number | null } | null,
         }))
       }
       articlesUsed={articleCount || 0}

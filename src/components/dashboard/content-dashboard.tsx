@@ -35,6 +35,7 @@ interface ContentPlanItem {
   scheduledDate: string;
   status: string;
   articleId: string | null;
+  keywordData: { volume?: number | null; difficulty?: number | null } | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -376,14 +377,24 @@ export function ContentDashboard({
                         {day}
                       </div>
                       <div className="space-y-0.5">
-                        {dayPlans.slice(0, 3).map((p) => (
-                          <div
-                            key={p.id}
-                            className={`text-[10px] px-1.5 py-0.5 rounded truncate border ${STATUS_COLORS[p.status] || "bg-muted"}`}
-                          >
-                            {p.title}
-                          </div>
-                        ))}
+                        {dayPlans.slice(0, 3).map((p) => {
+                          const vol = p.keywordData?.volume;
+                          const kd = p.keywordData?.difficulty;
+                          return (
+                            <div
+                              key={p.id}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border ${STATUS_COLORS[p.status] || "bg-muted"}`}
+                            >
+                              <div className="truncate">{p.title}</div>
+                              {(vol != null || kd != null) && (
+                                <div className="flex gap-2 mt-0.5 text-[9px] opacity-75 font-medium">
+                                  {vol != null && <span>Vol: {vol.toLocaleString()}</span>}
+                                  {kd != null && <span>KD: {kd}</span>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {dayPlans.length > 3 && (
                           <div className="text-[10px] text-muted-foreground px-1.5">
                             +{dayPlans.length - 3} more
@@ -415,7 +426,7 @@ export function ContentDashboard({
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{p.title}</div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {p.keyword && (
                       <span className="text-xs text-muted-foreground">
                         {p.keyword}
@@ -425,6 +436,16 @@ export function ContentDashboard({
                       <Badge variant="outline" className="text-[10px]">
                         {p.articleType}
                       </Badge>
+                    )}
+                    {p.keywordData?.volume != null && (
+                      <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                        Vol: {p.keywordData.volume.toLocaleString()}
+                      </span>
+                    )}
+                    {p.keywordData?.difficulty != null && (
+                      <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                        KD: {p.keywordData.difficulty}
+                      </span>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(p.scheduledDate).toLocaleDateString()}
