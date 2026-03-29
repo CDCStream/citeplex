@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   Eye,
-  Download,
   Send,
   Loader2,
   CheckCircle2,
@@ -16,6 +15,7 @@ import {
   Search,
   ExternalLink,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -70,6 +70,8 @@ export function ContentHistoryClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<{ articleId: string; success: boolean; message: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const filtered = articles.filter((a) => {
     if (filter === "draft" && a.status !== "draft") return false;
@@ -104,6 +106,24 @@ export function ContentHistoryClient({
       setPublishResult({ articleId, success: false, message: (err as Error).message });
     } finally {
       setPublishingId(null);
+    }
+  }
+
+  async function handleDelete(articleId: string) {
+    setDeletingId(articleId);
+    try {
+      const res = await fetch(`/api/content/${domainId}/articles/${articleId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to delete");
+      } else {
+        window.location.reload();
+      }
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   }
 
@@ -284,6 +304,28 @@ export function ContentHistoryClient({
                               Edit
                             </Link>
                           </Button>
+                          {confirmDeleteId === article.id ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={deletingId === article.id}
+                                onClick={() => handleDelete(article.id)}
+                              >
+                                {deletingId === article.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setConfirmDeleteId(article.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
 

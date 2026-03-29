@@ -15,13 +15,21 @@ export async function generateArticleImages(
   const prompts = buildImagePrompts(title, keyword, count);
   const results: GeneratedImage[] = [];
 
-  for (const p of prompts) {
-    try {
-      const image = await generateSingleImage(apiKey, p.prompt, p.alt);
-      if (image) results.push(image);
-    } catch (err) {
-      console.error("[ImageGen] Failed:", err);
+  for (let i = 0; i < prompts.length; i++) {
+    const p = prompts[i];
+    const isCover = i === 0;
+    let image = await generateSingleImage(apiKey, p.prompt, p.alt);
+
+    if (!image && isCover) {
+      console.log("[ImageGen] Cover image failed, retrying with simpler prompt...");
+      image = await generateSingleImage(
+        apiKey,
+        `A clean, professional blog header image with abstract geometric shapes and gradients. Modern digital art style, no text, suitable for a tech blog article. Blue and purple tones.`,
+        p.alt,
+      );
     }
+
+    if (image) results.push(image);
   }
 
   return results;

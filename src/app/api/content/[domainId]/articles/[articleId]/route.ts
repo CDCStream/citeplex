@@ -63,6 +63,47 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ domainId: string; articleId: string }> }
+) {
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { domainId, articleId } = await params;
+
+    const { data: domain } = await supabaseAdmin
+      .from("domains")
+      .select("id")
+      .eq("id", domainId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!domain) {
+      return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("articles")
+      .delete()
+      .eq("id", articleId)
+      .eq("domain_id", domainId);
+
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Article delete error:", err);
+    return NextResponse.json(
+      { error: (err as Error).message || "Failed to delete" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(
   _req: NextRequest,
   {
