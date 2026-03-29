@@ -68,6 +68,21 @@ export async function POST(
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
+  const targetKw = (keyword?.trim() || title).toLowerCase();
+  const { data: existingArticle } = await supabaseAdmin
+    .from("articles")
+    .select("id, title")
+    .eq("domain_id", domainId)
+    .ilike("target_keyword", targetKw)
+    .maybeSingle();
+
+  if (existingArticle) {
+    return NextResponse.json(
+      { error: `An article for "${targetKw}" already exists: "${existingArticle.title}"` },
+      { status: 409 }
+    );
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
