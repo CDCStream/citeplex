@@ -34,21 +34,23 @@ export function DomainCards({ domains }: { domains: Domain[] }) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-1 pointer-events-auto">
-                <ConfirmDeleteDialog
-                  title="Delete Domain"
-                  description={`Are you sure you want to delete "${domain.brandName}"? All prompts, competitors, and scan data will be permanently deleted.`}
-                  confirmText={domain.brandName}
-                  onConfirm={() => deleteDomain(domain.id)}
-                  trigger={
-                    <button
-                      className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Delete domain"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  }
-                />
+              <div className="flex items-center gap-1 mt-1">
+                <div className="pointer-events-auto">
+                  <ConfirmDeleteDialog
+                    title="Delete Domain"
+                    description={`Are you sure you want to delete "${domain.brandName}"? All prompts, competitors, and scan data will be permanently deleted.`}
+                    confirmText={domain.brandName}
+                    onConfirm={() => deleteDomain(domain.id)}
+                    trigger={
+                      <button
+                        className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete domain"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    }
+                  />
+                </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
               </div>
             </div>
