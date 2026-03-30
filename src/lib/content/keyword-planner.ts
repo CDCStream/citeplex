@@ -378,16 +378,18 @@ export async function planKeywords(
 }
 
 export async function checkAndReplan(domainId: string): Promise<boolean> {
-  const { data: futurePlans } = await supabaseAdmin
+  const { count } = await supabaseAdmin
     .from("content_plans")
     .select("id", { count: "exact", head: true })
     .eq("domain_id", domainId)
     .eq("status", "planned")
     .gte("scheduled_date", new Date().toISOString().split("T")[0]);
 
-  const remaining = futurePlans ?? 0;
+  const remaining = count ?? 0;
 
-  if (typeof remaining === "number" && remaining <= 5) {
+  console.log(`[checkAndReplan] domain=${domainId} remaining planned=${remaining}`);
+
+  if (remaining <= 5) {
     await planKeywords(domainId, 30);
     return true;
   }
