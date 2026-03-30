@@ -1,5 +1,14 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 
+export interface PromptMover {
+  promptText: string;
+  promptId: string;
+  metric: "mentionRate" | "rank";
+  previousValue: number;
+  currentValue: number;
+  changePercent: number;
+}
+
 export async function getDomainStats(domainId: string) {
   const { data: latestScanRow } = await supabaseAdmin
     .from("scan_results")
@@ -29,6 +38,7 @@ export async function getDomainStats(domainId: string) {
       trendRaw: [] as { date: string; engine: string; promptId: string; promptText: string; brandMentioned: boolean; position: number | null }[],
       competitorTrendRaw: [] as { date: string; engine: string; promptId: string; promptText: string; competitorId: string; competitorName: string; brandMentioned: boolean; position: number | null }[],
       competitorComparison: [] as { name: string; url: string; mentionRate: number; avgPosition: number | null; isOwn: boolean }[],
+      topMovers: { risers: [] as PromptMover[], decliners: [] as PromptMover[] },
     };
   }
 
@@ -306,6 +316,9 @@ export async function getDomainStats(domainId: string) {
     }
   }
 
+  // Top Movers: compare last 2 scan batches per prompt
+  const topMovers = computeTopMovers(allScansRaw, allPromptMap);
+
   return {
     mentionRate,
     avgPosition,
@@ -317,6 +330,7 @@ export async function getDomainStats(domainId: string) {
     trendRaw,
     competitorTrendRaw,
     competitorComparison,
+    topMovers,
   };
 }
 
@@ -324,4 +338,93 @@ function formatDate(isoDate: string): string {
   const d = new Date(isoDate);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+function computeTopMovers(
+  allScans: { scanned_at: string; brand_mentioned: boolean; position: number | null; prompt_id: string }[],
+  promptMap: Record<string, string>,
+): { risers: PromptMover[]; decliners: PromptMover[] } {
+  const empty = { risers: [], decliners: [] };
+  if (allScans.length === 0) return empty;
+
+  const dates = [...new Set(allScans.map(s => s.scanned_at.split("T")[0]))].sort();
+  if (dates.length < 2) return empty;
+
+  const currentDate = dates[dates.length - 1];
+  const previousDate = dates[dates.length - 2];
+
+  const bucketByPrompt = (rows: typeof allScans) => {
+    const map = new Map<string, { total: number; mentioned: number; positions: number[] }>();
+    for (const r of rows) {
+      let entry = map.get(r.prompt_id);
+      if (!entry) { entry = { total: 0, mentioned: 0, positions: [] }; map.set(r.prompt_id, entry); }
+      entry.total++;
+      if (r.brand_mentioned) entry.mentioned++;
+      if (r.position !== null) entry.positions.push(r.position);
+    }
+    return map;
+  };
+
+  const prevRows = allScans.filter(s => s.scanned_at.split("T")[0] === previousDate);
+  const currRows = allScans.filter(s => s.scanned_at.split("T")[0] === currentDate);
+
+  const prevBucket = bucketByPrompt(prevRows);
+  const currBucket = bucketByPrompt(currRows);
+
+  const allMovers: PromptMover[] = [];
+
+  const allPromptIds = new Set([...prevBucket.keys(), ...currBucket.keys()]);
+  for (const pid of allPromptIds) {
+    const prev = prevBucket.get(pid);
+    const curr = currBucket.get(pid);
+    if (!prev || !curr) continue;
+
+    const prevMR = prev.total > 0 ? Math.round((prev.mentioned / prev.total) * 100) : 0;
+    const currMR = curr.total > 0 ? Math.round((curr.mentioned / curr.total) * 100) : 0;
+    const mrDiff = currMR - prevMR;
+
+    if (mrDiff !== 0) {
+      const changePercent = prevMR > 0 ? Math.round((mrDiff / prevMR) * 100) : (currMR > 0 ? 100 : 0);
+      allMovers.push({
+        promptText: promptMap[pid] ?? "",
+        promptId: pid,
+        metric: "mentionRate",
+        previousValue: prevMR,
+        currentValue: currMR,
+        changePercent,
+      });
+    }
+
+    const prevAvgPos = prev.positions.length > 0
+      ? Math.round((prev.positions.reduce((a, b) => a + b, 0) / prev.positions.length) * 10) / 10
+      : null;
+    const currAvgPos = curr.positions.length > 0
+      ? Math.round((curr.positions.reduce((a, b) => a + b, 0) / curr.positions.length) * 10) / 10
+      : null;
+
+    if (prevAvgPos !== null && currAvgPos !== null && prevAvgPos !== currAvgPos) {
+      const rankImprovement = prevAvgPos - currAvgPos;
+      const changePercent = Math.round((rankImprovement / prevAvgPos) * 100);
+      allMovers.push({
+        promptText: promptMap[pid] ?? "",
+        promptId: pid,
+        metric: "rank",
+        previousValue: prevAvgPos,
+        currentValue: currAvgPos,
+        changePercent,
+      });
+    }
+  }
+
+  const risers = allMovers
+    .filter(m => m.changePercent > 0)
+    .sort((a, b) => b.changePercent - a.changePercent)
+    .slice(0, 2);
+
+  const decliners = allMovers
+    .filter(m => m.changePercent < 0)
+    .sort((a, b) => a.changePercent - b.changePercent)
+    .slice(0, 2);
+
+  return { risers, decliners };
 }

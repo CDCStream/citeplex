@@ -12,6 +12,7 @@ import { VisibilityScoreCard } from "@/components/dashboard/visibility-score-car
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { CompetitorChart } from "@/components/dashboard/competitor-chart";
 import { PromptEngineMatrix } from "@/components/dashboard/prompt-engine-matrix";
+import { PromptMovers } from "@/components/dashboard/prompt-movers";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { ScanStatusBanner } from "@/components/dashboard/scan-status-banner";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
@@ -124,6 +125,7 @@ async function DomainDashboardContent({ domainId }: { domainId: string }) {
             lastScan={stats.lastScan}
             engineBreakdown={stats.engineBreakdown}
           />
+          <PromptMovers topMovers={stats.topMovers} />
           <div className="grid gap-6 lg:grid-cols-2">
             <TrendChart
               data={stats.dailyTrend}
