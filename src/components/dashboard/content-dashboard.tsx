@@ -166,98 +166,119 @@ export function ContentDashboard({
                   !day ? "bg-muted/20" : isToday ? "bg-primary/[0.03]" : isWeekend ? "bg-muted/10" : ""
                 } ${i % 7 === 0 ? "border-l" : ""}`}
               >
-                {day && (
-                  <>
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className={`text-sm font-semibold ${
-                          isToday
-                            ? "bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
-                            : "text-muted-foreground/70"
-                        }`}
-                      >
-                        {day}
-                      </span>
-                      {isToday && (
-                        <span className="text-[10px] font-medium text-primary">Today</span>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      {dayPlans.slice(0, 2).map((p) => {
-                        const vol = p.keywordData?.volume;
-                        const kd = p.keywordData?.difficulty;
-                        const planDate = new Date(year, month, day!);
-                        const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                        const isFuture = planDate > todayDate;
-                        const canClick = !isFuture || !!p.articleId;
-                        const href = p.articleId
-                          ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
-                          : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
+                {day && (() => {
+                  const planDate = new Date(year, month, day);
+                  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  const isFuture = planDate > todayDate;
+                  const hasArticle = dayPlans.some(p => !!p.articleId);
+                  const firstPlan = dayPlans[0];
 
-                        const typeLabel = ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType;
-                        const badge = TYPE_BADGE[p.articleType || ""] || TYPE_FALLBACK;
+                  return (
+                    <div className="flex flex-col h-full">
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className={`text-sm font-semibold ${
+                            isToday
+                              ? "bg-primary text-primary-foreground w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
+                              : "text-muted-foreground/70"
+                          }`}
+                        >
+                          {day}
+                        </span>
+                        {isToday && (
+                          <span className="text-[10px] font-medium text-primary">Today</span>
+                        )}
+                      </div>
+                      <div className="space-y-1.5 flex-1">
+                        {dayPlans.slice(0, 2).map((p) => {
+                          const vol = p.keywordData?.volume;
+                          const kd = p.keywordData?.difficulty;
+                          const canClick = !isFuture || !!p.articleId;
+                          const href = p.articleId
+                            ? `/dashboard/${domainId}/content/article/${p.articleId}?tab=preview`
+                            : `/dashboard/${domainId}/content/write?planId=${p.id}&title=${encodeURIComponent(p.title)}&keyword=${encodeURIComponent(p.keyword || "")}`;
 
-                        const content = (
-                          <div className={`rounded-lg p-2 ${badge.bg} border border-transparent hover:border-border/50 transition-all`}>
-                            {p.articleType && (
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                                <span className={`text-[10px] font-semibold uppercase tracking-wide ${badge.text}`}>
-                                  {typeLabel}
-                                </span>
+                          const typeLabel = ARTICLE_TYPES.find(t => t.value === p.articleType)?.label || p.articleType;
+                          const badge = TYPE_BADGE[p.articleType || ""] || TYPE_FALLBACK;
+
+                          const content = (
+                            <div className={`rounded-lg p-2 ${badge.bg} border border-transparent hover:border-border/50 transition-all`}>
+                              {p.articleType && (
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                                  <span className={`text-[10px] font-semibold uppercase tracking-wide ${badge.text}`}>
+                                    {typeLabel}
+                                  </span>
+                                </div>
+                              )}
+                              <div className={`text-xs font-medium truncate ${p.articleId ? "text-foreground" : "text-foreground/80"}`}>
+                                {p.keyword || p.title}
                               </div>
-                            )}
-                            <div className={`text-xs font-medium truncate ${p.articleId ? "text-foreground" : "text-foreground/80"}`}>
-                              {p.keyword || p.title}
+                              {(vol != null || kd != null) && (
+                                <div className="flex items-center gap-2.5 mt-1.5">
+                                  {vol != null && (
+                                    <span className="text-[10px] font-medium text-muted-foreground">
+                                      <span className="text-foreground/60">{vol.toLocaleString("en-US")}</span> vol
+                                    </span>
+                                  )}
+                                  {kd != null && (
+                                    <span className={`text-[10px] font-semibold ${
+                                      kd <= 20 ? "text-emerald-600 dark:text-emerald-400" :
+                                      kd <= 50 ? "text-amber-600 dark:text-amber-400" :
+                                      "text-red-600 dark:text-red-400"
+                                    }`}>
+                                      KD {kd}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {p.articleId && (
+                                <div className="flex items-center gap-1 mt-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                  <span className="text-[10px] font-medium text-green-600 dark:text-green-400">Published</span>
+                                </div>
+                              )}
                             </div>
-                            {(vol != null || kd != null) && (
-                              <div className="flex items-center gap-2.5 mt-1.5">
-                                {vol != null && (
-                                  <span className="text-[10px] font-medium text-muted-foreground">
-                                    <span className="text-foreground/60">{vol.toLocaleString("en-US")}</span> vol
-                                  </span>
-                                )}
-                                {kd != null && (
-                                  <span className={`text-[10px] font-semibold ${
-                                    kd <= 20 ? "text-emerald-600 dark:text-emerald-400" :
-                                    kd <= 50 ? "text-amber-600 dark:text-amber-400" :
-                                    "text-red-600 dark:text-red-400"
-                                  }`}>
-                                    KD {kd}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {p.articleId ? (
-                              <div className="flex items-center gap-1 mt-1.5">
-                                <ArrowUpRight className="h-3 w-3 text-green-600 dark:text-green-400" />
-                                <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">Preview</span>
-                              </div>
-                            ) : !isFuture && (
-                              <div className="flex items-center gap-1 mt-1.5">
-                                <Pencil className="h-3 w-3 text-primary" />
-                                <span className="text-[10px] font-semibold text-primary">Write</span>
-                              </div>
-                            )}
-                          </div>
-                        );
+                          );
 
-                        return canClick ? (
-                          <Link key={p.id} href={href} className="block cursor-pointer">
-                            {content}
-                          </Link>
-                        ) : (
-                          <div key={p.id}>{content}</div>
-                        );
-                      })}
-                      {dayPlans.length > 2 && (
-                        <div className="text-[10px] font-medium text-muted-foreground text-center pt-0.5">
-                          +{dayPlans.length - 2} more
+                          return canClick ? (
+                            <Link key={p.id} href={href} className="block cursor-pointer">
+                              {content}
+                            </Link>
+                          ) : (
+                            <div key={p.id}>{content}</div>
+                          );
+                        })}
+                        {dayPlans.length > 2 && (
+                          <div className="text-[10px] font-medium text-muted-foreground text-center pt-0.5">
+                            +{dayPlans.length - 2} more
+                          </div>
+                        )}
+                      </div>
+                      {dayPlans.length > 0 && !isFuture && (
+                        <div className="mt-2">
+                          {hasArticle ? (
+                            <Link
+                              href={`/dashboard/${domainId}/content/article/${firstPlan.articleId}?tab=preview`}
+                              className="flex items-center justify-center gap-1 rounded-md bg-green-500/10 hover:bg-green-500/20 px-2 py-1.5 transition-colors"
+                            >
+                              <ArrowUpRight className="h-3 w-3 text-green-600 dark:text-green-400" />
+                              <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">Preview</span>
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/dashboard/${domainId}/content/write?planId=${firstPlan.id}&title=${encodeURIComponent(firstPlan.title)}&keyword=${encodeURIComponent(firstPlan.keyword || "")}`}
+                              className="flex items-center justify-center gap-1 rounded-md bg-primary/10 hover:bg-primary/20 px-2 py-1.5 transition-colors"
+                            >
+                              <Pencil className="h-3 w-3 text-primary" />
+                              <span className="text-[10px] font-semibold text-primary">Write</span>
+                            </Link>
+                          )}
                         </div>
                       )}
                     </div>
-                  </>
-                )}
+                  );
+                })()}
               </div>
             );
           })}
