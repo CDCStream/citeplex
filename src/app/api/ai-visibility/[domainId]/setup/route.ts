@@ -4,7 +4,7 @@ import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { runDomainScan } from "@/lib/scan/scan-service";
 import { logActivity } from "@/lib/activity-logger";
-import { getPromptLimit } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 
 export const maxDuration = 300;
 
@@ -40,7 +40,7 @@ export async function POST(
     }
 
     const plan = user.plan || "starter";
-    const limit = getPromptLimit(plan);
+    const limit = await getEffectivePromptLimit(user.id, plan);
 
     const { data: userDomains } = await supabaseAdmin
       .from("domains")

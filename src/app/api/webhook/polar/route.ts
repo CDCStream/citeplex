@@ -1,6 +1,14 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { getPlanByProductId, PLAN_PRICES, getPriceTier } from "@/lib/plans";
+import {
+  getPlanByProductId,
+  PLAN_PRICES,
+  getPriceTier,
+  isAddonProductId,
+  getAddonTierByProductId,
+  PROMPT_ADDON_TIERS,
+  type AddonTierKey,
+} from "@/lib/plans";
 import { getPayingCustomerCount } from "@/lib/customer-count";
 
 async function getUserByEmail(email: string) {
@@ -62,8 +70,38 @@ export const POST = Webhooks({
 
     if (!email || !productId) return;
 
-    const plan = getPlanByProductId(productId);
     const user = await getUserByEmail(email);
+
+    if (isAddonProductId(productId)) {
+      const addonTier = getAddonTierByProductId(productId)!;
+      const config = PROMPT_ADDON_TIERS[addonTier];
+
+      if (user) {
+        await supabaseAdmin.from("prompt_addon_subscriptions").insert({
+          user_id: user.id,
+          tier: addonTier,
+          prompt_count: config.count,
+          status: "active",
+          polar_subscription_id: data.data.id,
+          polar_customer_id: data.data.customer?.id,
+        });
+        console.log(`[Polar Webhook] ${email} added prompt addon: ${addonTier} (+${config.count})`);
+      }
+
+      await recordBillingEvent({
+        userId: user?.id ?? null,
+        type: "addon_created",
+        plan: addonTier,
+        amount: config.price * 100,
+        polarSubscriptionId: data.data.id,
+        polarCustomerId: data.data.customer?.id,
+        description: `Added ${config.label}`,
+        metadata: { email, product_id: productId, addon_tier: addonTier },
+      });
+      return;
+    }
+
+    const plan = getPlanByProductId(productId);
     const customerCount = await getPayingCustomerCount();
     const tier = getPriceTier(customerCount);
     const price = PLAN_PRICES[plan]?.[tier] ?? 0;
@@ -103,6 +141,32 @@ export const POST = Webhooks({
     if (!email || !productId) return;
 
     const user = await getUserByEmail(email);
+
+    if (isAddonProductId(productId)) {
+      const addonTier = getAddonTierByProductId(productId)!;
+      const config = PROMPT_ADDON_TIERS[addonTier];
+
+      if (status === "canceled" || status === "revoked") {
+        await supabaseAdmin
+          .from("prompt_addon_subscriptions")
+          .update({ status: "canceled", canceled_at: new Date().toISOString() })
+          .eq("polar_subscription_id", data.data.id);
+        console.log(`[Polar Webhook] ${email} addon ${addonTier} ${status}`);
+
+        await recordBillingEvent({
+          userId: user?.id ?? null,
+          type: "addon_canceled",
+          plan: addonTier,
+          amount: 0,
+          status,
+          polarSubscriptionId: data.data.id,
+          polarCustomerId: data.data.customer?.id,
+          description: `${config.label} canceled`,
+          metadata: { email, product_id: productId, addon_tier: addonTier },
+        });
+      }
+      return;
+    }
 
     if (status === "canceled" || status === "revoked") {
       await supabaseAdmin

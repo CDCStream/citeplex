@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePrompts, type CountryInput } from "@/lib/onboarding/analyze";
 import { getAuthUser } from "@/lib/auth";
-import { getPromptLimit } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     let promptsUsed = 0;
 
     if (user) {
-      promptLimit = getPromptLimit(user.plan || "starter");
+      promptLimit = await getEffectivePromptLimit(user.id, user.plan || "starter");
       const { count } = await supabaseAdmin
         .from("prompts")
         .select("id", { count: "exact", head: true })

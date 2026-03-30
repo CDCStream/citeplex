@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
-import { getPromptLimit } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 import { getDomainStats } from "@/lib/scan/get-domain-stats";
 import { AiVisibilitySetup } from "@/components/dashboard/ai-visibility-setup";
 import { AiVisibilityActive } from "@/components/dashboard/ai-visibility-active";
@@ -33,7 +33,7 @@ async function AiVisibilityContent({ domainId }: { domainId: string }) {
 
   if (!rawDomain) notFound();
 
-  const promptLimit = getPromptLimit(user.plan || "starter");
+  const promptLimit = await getEffectivePromptLimit(user.id, user.plan || "starter");
 
   const { data: userDomains } = await supabaseAdmin
     .from("domains")

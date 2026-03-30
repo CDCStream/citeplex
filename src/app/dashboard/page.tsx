@@ -7,14 +7,14 @@ import { SignupConversion } from "@/app/dashboard/signup-conversion";
 import { Button } from "@/components/ui/button";
 import { Globe, Plus, ArrowUpRight, Zap } from "lucide-react";
 import { DomainCards } from "@/components/dashboard/domain-cards";
-import { getPromptLimit } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 
 export default async function DashboardPage() {
   const user = await getAuthUser();
   if (!user) redirect("/login");
 
   const plan = user.plan || "starter";
-  const promptLimit = getPromptLimit(plan);
+  const promptLimit = await getEffectivePromptLimit(user.id, plan);
 
   const { data: rawDomains } = await supabaseAdmin
     .from("domains")

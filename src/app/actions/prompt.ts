@@ -6,14 +6,14 @@ import { revalidatePath } from "next/cache";
 import { runSinglePromptScan } from "@/lib/scan/scan-service";
 import { analyzePrompt } from "@/lib/ai-engines/detect-language";
 import { logActivity } from "@/lib/activity-logger";
-import { getPromptLimit } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 
 export async function createPrompt(domainId: string, formData: FormData) {
   const user = await getAuthUser();
   if (!user) throw new Error("Unauthorized");
 
   const plan = user.plan || "starter";
-  const limit = getPromptLimit(plan);
+  const limit = await getEffectivePromptLimit(user.id, plan);
 
   const { data: userDomains } = await supabaseAdmin
     .from("domains")

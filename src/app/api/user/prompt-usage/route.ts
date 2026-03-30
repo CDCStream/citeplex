@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { getPromptLimit } from "@/lib/plans";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { getEffectivePromptLimit, getAddonPromptCount } from "@/lib/prompt-limits";
 
 export async function GET() {
   const user = await getAuthUser();
   if (!user) {
-    return NextResponse.json({ limit: 15, used: 0, remaining: 15, plan: "starter" });
+    return NextResponse.json({ limit: 15, used: 0, remaining: 15, plan: "starter", addonCount: 0 });
   }
 
   const plan = user.plan || "starter";
-  const limit = getPromptLimit(plan);
+  const [limit, addonCount] = await Promise.all([
+    getEffectivePromptLimit(user.id, plan),
+    getAddonPromptCount(user.id),
+  ]);
 
   const { data: domains } = await supabaseAdmin
     .from("domains")
@@ -33,5 +36,6 @@ export async function GET() {
     used,
     remaining: Math.max(0, limit - used),
     plan,
+    addonCount,
   });
 }

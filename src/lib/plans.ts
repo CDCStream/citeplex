@@ -89,3 +89,34 @@ export function getArticleLimit(plan: string): number {
 export function getPlanByProductId(productId: string): string {
   return PRODUCT_ID_TO_PLAN[productId] ?? "starter";
 }
+
+// --- Prompt Add-on Subscriptions ---
+
+export const PROMPT_ADDON_TIERS = {
+  addon_50:  { count: 50,  price: 39,  label: "50 Extra Prompts" },
+  addon_100: { count: 100, price: 69,  label: "100 Extra Prompts" },
+  addon_250: { count: 250, price: 149, label: "250 Extra Prompts" },
+} as const;
+
+export type AddonTierKey = keyof typeof PROMPT_ADDON_TIERS;
+
+export const ADDON_TIER_ORDER: AddonTierKey[] = ["addon_50", "addon_100", "addon_250"];
+
+export const ADDON_PRODUCT_IDS: Record<string, string> = {
+  addon_50:  "POLAR_ADDON_50_ID",
+  addon_100: "POLAR_ADDON_100_ID",
+  addon_250: "POLAR_ADDON_250_ID",
+};
+
+export const ADDON_PRODUCT_ID_TO_TIER: Record<string, AddonTierKey> = {};
+for (const [tier, productId] of Object.entries(ADDON_PRODUCT_IDS)) {
+  ADDON_PRODUCT_ID_TO_TIER[productId] = tier as AddonTierKey;
+}
+
+export function getAddonTierByProductId(productId: string): AddonTierKey | null {
+  return ADDON_PRODUCT_ID_TO_TIER[productId] ?? null;
+}
+
+export function isAddonProductId(productId: string): boolean {
+  return productId in ADDON_PRODUCT_ID_TO_TIER;
+}

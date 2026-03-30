@@ -18,12 +18,14 @@ import {
   Check,
   MessageSquare,
   Globe,
-  BarChart3,
   PenLine,
   Target,
   ArrowUpCircle,
   XCircle,
   Receipt,
+  Plus,
+  Package,
+  X,
 } from "lucide-react";
 import {
   PLAN_LABELS,
@@ -34,7 +36,12 @@ import {
   GAP_ARTICLE_LIMITS,
   getPromptLimit,
   getProductIdForPlan,
+  PROMPT_ADDON_TIERS,
+  ADDON_TIER_ORDER,
+  ADDON_PRODUCT_IDS,
+  type AddonTierKey,
 } from "@/lib/plans";
+import { getEffectivePromptLimit } from "@/lib/prompt-limits";
 import { getCurrentPriceTier } from "@/lib/customer-count";
 
 const PLAN_FEATURES: Record<string, string[]> = {
@@ -69,11 +76,20 @@ export default async function BillingPage() {
   if (!user) redirect("/login");
 
   const plan = user.plan || "starter";
-  const promptLimit = getPromptLimit(plan);
+  const basePromptLimit = getPromptLimit(plan);
+  const promptLimit = await getEffectivePromptLimit(user.id, plan);
+  const addonExtra = promptLimit - basePromptLimit;
   const planLabel = PLAN_LABELS[plan] || "Starter";
   const tier = await getCurrentPriceTier();
   const planPrice = PLAN_PRICES[plan]?.[tier] ?? 0;
   const features = PLAN_FEATURES[plan] || PLAN_FEATURES.starter;
+
+  const { data: activeAddons } = await supabaseAdmin
+    .from("prompt_addon_subscriptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
 
   const { data: domains } = await supabaseAdmin
     .from("domains")
@@ -142,6 +158,11 @@ export default async function BillingPage() {
               <span className="text-muted-foreground">Prompt usage</span>
               <span className="font-semibold">
                 {totalPromptsUsed} / {promptLimit} prompts
+                {addonExtra > 0 && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    (base {basePromptLimit} + {addonExtra} add-on)
+                  </span>
+                )}
               </span>
             </div>
             <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
@@ -175,6 +196,126 @@ export default async function BillingPage() {
               </Link>
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Prompt Add-ons */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Prompt Add-ons
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Need more prompts? Add extra prompt packs to your subscription. Stackable and cancelable anytime.
+              </CardDescription>
+            </div>
+            {addonExtra > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                +{addonExtra} extra prompts active
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Active Add-ons */}
+          {(activeAddons?.length ?? 0) > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold">Active Add-ons</h4>
+              {activeAddons!.map((addon) => (
+                <div
+                  key={addon.id}
+                  className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                      <Plus className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">+{addon.prompt_count} Prompts</p>
+                      <p className="text-xs text-muted-foreground">
+                        Added {new Date(addon.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold">
+                      ${PROMPT_ADDON_TIERS[addon.tier as AddonTierKey]?.price ?? "?"}/mo
+                    </span>
+                    <form action={`/api/user/prompt-addons`} method="POST">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={undefined}
+                        title="Cancel this add-on"
+                      >
+                        <X className="mr-1 h-3 w-3" />
+                        Cancel
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Available Packs */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Available Packs</h4>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {ADDON_TIER_ORDER.map((tierKey) => {
+                const config = PROMPT_ADDON_TIERS[tierKey];
+                const productId = ADDON_PRODUCT_IDS[tierKey];
+                const perPrompt = (config.price / config.count).toFixed(2);
+
+                return (
+                  <div
+                    key={tierKey}
+                    className="rounded-xl border p-5 transition-shadow hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                        <Plus className="h-4 w-4 text-primary" />
+                      </div>
+                      <h3 className="font-semibold">{config.label}</h3>
+                    </div>
+                    <p className="mt-3 text-2xl font-extrabold">
+                      ${config.price}
+                      <span className="text-sm font-medium text-muted-foreground">/mo</span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      ${perPrompt} per prompt/month
+                    </p>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="mt-4 w-full"
+                    >
+                      <Link href={`/checkout?products=${productId}`}>
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        Add Pack
+                      </Link>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {addonExtra > 0 && (
+            <div className="rounded-lg border bg-muted/30 px-4 py-3">
+              <p className="text-sm">
+                <span className="font-semibold">Total prompt capacity:</span>{" "}
+                {basePromptLimit} (base) + {addonExtra} (add-ons) ={" "}
+                <span className="font-bold text-primary">{promptLimit} prompts</span>
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
