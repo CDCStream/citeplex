@@ -1,7 +1,45 @@
+import { supabaseAdmin } from "@/lib/supabase/server";
+
 export interface GeneratedImage {
   url: string;
   alt: string;
   revisedPrompt?: string;
+}
+
+const BUCKET = "article-images";
+
+async function ensureBucket() {
+  const { data } = await supabaseAdmin.storage.getBucket(BUCKET);
+  if (!data) {
+    await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
+  }
+}
+
+async function uploadToStorage(tempUrl: string, filename: string): Promise<string | null> {
+  try {
+    const res = await fetch(tempUrl, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) return null;
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") || "image/png";
+
+    await ensureBucket();
+
+    const { error } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(filename, buffer, { contentType, upsert: true });
+
+    if (error) {
+      console.error("[ImageGen] Storage upload error:", error.message);
+      return null;
+    }
+
+    const { data: urlData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(filename);
+    return urlData.publicUrl;
+  } catch (err) {
+    console.error("[ImageGen] Upload failed:", (err as Error).message);
+    return null;
+  }
 }
 
 export async function generateArticleImages(
@@ -14,6 +52,7 @@ export async function generateArticleImages(
 
   const prompts = buildImagePrompts(title, keyword, count);
   const results: GeneratedImage[] = [];
+  const timestamp = Date.now();
 
   for (let i = 0; i < prompts.length; i++) {
     const p = prompts[i];
@@ -29,7 +68,15 @@ export async function generateArticleImages(
       );
     }
 
-    if (image) results.push(image);
+    if (image) {
+      const slug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+      const filename = `${slug}-${timestamp}-${i}.png`;
+      const permanentUrl = await uploadToStorage(image.url, filename);
+      if (permanentUrl) {
+        image.url = permanentUrl;
+      }
+      results.push(image);
+    }
   }
 
   return results;
