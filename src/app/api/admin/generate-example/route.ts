@@ -7,6 +7,8 @@ import {
   DEFAULT_ENHANCEMENTS,
 } from "@/lib/content/article-generator";
 import { generateArticleImages } from "@/lib/content/image-generator";
+import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
+import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
 
 export const maxDuration = 300;
 
@@ -44,10 +46,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json(
-        { error: `Example with slug "${slug}" already exists`, slug },
-        { status: 409 }
-      );
+      await supabaseAdmin.from("writing_examples").delete().eq("id", existing.id);
+      console.log(`[GenerateExample] Deleted existing example: ${slug}`);
     }
 
     console.log(`[GenerateExample] Starting: "${title}" for ${brandName}`);
@@ -80,13 +80,62 @@ export async function POST(req: NextRequest) {
     );
     console.log(`[GenerateExample] Article written: ${article.wordCount} words`);
 
+    let enrichedContent = article.content;
     let coverImageUrl: string | null = null;
+
     try {
-      const images = await generateArticleImages(title, keyword, 1);
-      coverImageUrl = images[0]?.url ?? null;
-      console.log(`[GenerateExample] Cover image generated: ${coverImageUrl ? "yes" : "no"}`);
+      const [videos, images, webImgs, infographics] = await Promise.allSettled([
+        searchYouTubeVideos(keyword, 2),
+        generateArticleImages(title, keyword, 3),
+        searchWebImages(keyword, 2),
+        searchInfographics(keyword, 2),
+      ]);
+
+      const videoResults = videos.status === "fulfilled" ? videos.value : [];
+      if (videoResults.length > 0) {
+        enrichedContent += buildVideoEmbedHtml(videoResults);
+        console.log(`[GenerateExample] YouTube videos: ${videoResults.length}`);
+      }
+
+      const imageResults = images.status === "fulfilled" ? images.value : [];
+      coverImageUrl = imageResults[0]?.url || null;
+      if (imageResults.length > 1) {
+        const inlineImages = imageResults.slice(1);
+        const paragraphs = enrichedContent.split("</p>");
+        const step = Math.max(1, Math.floor(paragraphs.length / (inlineImages.length + 1)));
+        for (let i = 0; i < inlineImages.length; i++) {
+          const insertAt = step * (i + 1);
+          if (insertAt < paragraphs.length) {
+            paragraphs[insertAt] = `</p><figure class="my-8"><img src="${inlineImages[i].url}" alt="${inlineImages[i].alt}" class="rounded-lg w-full" loading="lazy" /></figure>${paragraphs[insertAt]}`;
+          }
+        }
+        enrichedContent = paragraphs.join("</p>");
+        console.log(`[GenerateExample] Inline AI images: ${inlineImages.length}`);
+      }
+
+      const webImageResults = webImgs.status === "fulfilled" ? webImgs.value : [];
+      const infographicResults = infographics.status === "fulfilled" ? infographics.value : [];
+      const allWebImages = [...webImageResults, ...infographicResults];
+      if (allWebImages.length > 0) {
+        const sections = enrichedContent.split("</h2>");
+        const insertEvery = Math.max(1, Math.floor(sections.length / (allWebImages.length + 1)));
+        for (let i = 0; i < allWebImages.length; i++) {
+          const insertAt = insertEvery * (i + 1);
+          if (insertAt < sections.length) {
+            sections[insertAt] = `</h2>${buildWebImageHtml(allWebImages[i])}${sections[insertAt]}`;
+          }
+        }
+        enrichedContent = sections.join("</h2>");
+        console.log(`[GenerateExample] Web images/infographics: ${allWebImages.length}`);
+      }
+
+      if (coverImageUrl) {
+        enrichedContent = `<figure class="article-cover"><img src="${coverImageUrl}" alt="${title}" />\n</figure>\n${enrichedContent}`;
+      }
+
+      console.log(`[GenerateExample] Media enrichment complete`);
     } catch (err) {
-      console.error("[GenerateExample] Image generation failed:", (err as Error).message);
+      console.error("[GenerateExample] Media enrichment failed:", (err as Error).message);
     }
 
     const { data, error } = await supabaseAdmin.from("writing_examples").insert({
@@ -97,7 +146,7 @@ export async function POST(req: NextRequest) {
       title,
       keyword,
       meta_description: article.metaDescription,
-      content: article.content,
+      content: enrichedContent,
       cover_image_url: coverImageUrl,
       word_count: article.wordCount,
     }).select("id, slug").single();
