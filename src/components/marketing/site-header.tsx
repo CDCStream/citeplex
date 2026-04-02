@@ -10,7 +10,7 @@ import { TubelightNavBar } from "@/components/ui/tubelight-navbar";
 
 const NAV_ITEMS = [
   { name: "Home", url: "/", icon: Home },
-  { name: "Examples", url: "/examples", icon: FileText },
+  { name: "Writing Examples", url: "/examples", icon: FileText },
   { name: "Blog", url: "/blog", icon: BookOpen },
   { name: "Pricing", url: "/pricing", icon: Tag },
 ];
