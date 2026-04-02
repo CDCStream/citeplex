@@ -7,10 +7,10 @@
  *   3. Deploy or run dev server
  *
  * Usage:
- *   node scripts/generate-examples.js [base-url]
+ *   node scripts/generate-examples.js [base-url] [admin-secret]
  *
  * Default base-url: http://localhost:3000
- * For production: node scripts/generate-examples.js https://www.citeplex.io
+ * For production: node scripts/generate-examples.js https://www.citeplex.io YOUR_SECRET
  */
 
 const fs = require("fs");
@@ -28,10 +28,11 @@ for (const line of envContent.split("\n")) {
 }
 
 const BASE_URL = process.argv[2] || "http://localhost:3000";
-const ADMIN_SECRET = process.env.BLOG_ADMIN_SECRET;
+const ADMIN_SECRET = process.argv[3] || process.env.BLOG_ADMIN_SECRET;
 
 if (!ADMIN_SECRET) {
-  console.error("ERROR: BLOG_ADMIN_SECRET not set in .env");
+  console.error("ERROR: BLOG_ADMIN_SECRET not set. Pass as 3rd argument or set in .env");
+  console.error("Usage: node scripts/generate-examples.js <base-url> <admin-secret>");
   process.exit(1);
 }
 
