@@ -2,7 +2,6 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { engines, type BrandAnalysis } from "@/lib/ai-engines";
 import { buildScanPrompt } from "./prompt-builder";
 import { parseResponse } from "./response-parser";
-import { generateScanInsights } from "@/lib/insights/generate-scan-insights";
 
 const ENGINE_NAME_MAP: Record<string, string> = {
   chatgpt: "chatgpt",
@@ -15,6 +14,7 @@ const ENGINE_NAME_MAP: Record<string, string> = {
 };
 
 const RUNS_PER_PROMPT = 1;
+const PROMPT_BATCH_SIZE = 3;
 
 const ENGINE_PRICING: Record<string, { input: number; output: number; perRequest?: number }> = {
   chatgpt:    { input: 0.40, output: 1.60 },
@@ -35,6 +35,9 @@ async function setScanStatus(domainId: string, status: "idle" | "scanning" | "co
 }
 
 export async function runSinglePromptScan(domainId: string, promptId: string) {
+  const canProceed = await resetStaleScan(domainId);
+  if (!canProceed) return;
+
   const { data: domain } = await supabaseAdmin
     .from("domains")
     .select("brand_name, url, industry")
@@ -87,6 +90,9 @@ export async function runSinglePromptScan(domainId: string, promptId: string) {
 }
 
 export async function runSingleCompetitorScan(domainId: string, competitorId: string) {
+  const canProceed = await resetStaleScan(domainId);
+  if (!canProceed) return;
+
   const { data: domain } = await supabaseAdmin
     .from("domains")
     .select("brand_name, url, industry")
@@ -148,10 +154,41 @@ interface ScanProgress {
   errors: string[];
 }
 
+const STALE_SCAN_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+
+async function resetStaleScan(domainId: string): Promise<boolean> {
+  const { data: domain } = await supabaseAdmin
+    .from("domains")
+    .select("scan_status, last_scan_started_at")
+    .eq("id", domainId)
+    .single();
+
+  if (
+    domain?.scan_status === "scanning" &&
+    domain.last_scan_started_at &&
+    Date.now() - new Date(domain.last_scan_started_at).getTime() > STALE_SCAN_THRESHOLD_MS
+  ) {
+    console.warn(`[Scan] Stale scan detected for ${domainId}, resetting to idle`);
+    await setScanStatus(domainId, "idle");
+    return true;
+  }
+
+  if (domain?.scan_status === "scanning") {
+    return false;
+  }
+
+  return true;
+}
+
 export async function runDomainScan(
   domainId: string,
   onProgress?: (progress: ScanProgress) => void
 ): Promise<{ analyses: BrandAnalysis[]; progress: ScanProgress }> {
+  const canProceed = await resetStaleScan(domainId);
+  if (!canProceed) {
+    throw new Error("Scan already in progress for this domain");
+  }
+
   const { data: domain } = await supabaseAdmin
     .from("domains")
     .select("id, brand_name, url, industry")
@@ -192,8 +229,9 @@ export async function runDomainScan(
     tokenUsage[e.name] = { input: 0, output: 0, requests: 0 };
   }
 
-  for (const prompt of activePrompts) {
-    const scanPrompt = buildScanPrompt(prompt.text, domain.industry);
+  async function scanPrompt(prompt: { id: string; text: string }) {
+    const scanPrompt = buildScanPrompt(prompt.text, domain!.industry);
+    const promptAnalyses: BrandAnalysis[] = [];
 
     for (let run = 0; run < RUNS_PER_PROMPT; run++) {
       const engineResults = await Promise.allSettled(
@@ -225,7 +263,7 @@ export async function runDomainScan(
           if (result.outputTokens) tokenUsage[engine.name].output += result.outputTokens;
           tokenUsage[engine.name].requests++;
 
-          const brandParsed = parseResponse(result.response, domain.brand_name, domain.url);
+          const brandParsed = parseResponse(result.response, domain!.brand_name, domain!.url);
 
           const analysis: BrandAnalysis = {
             engine: engine.name,
@@ -268,8 +306,23 @@ export async function runDomainScan(
 
       for (const r of engineResults) {
         if (r.status === "fulfilled" && r.value) {
-          analyses.push(r.value);
+          promptAnalyses.push(r.value);
         }
+      }
+    }
+
+    return promptAnalyses;
+  }
+
+  for (let i = 0; i < activePrompts.length; i += PROMPT_BATCH_SIZE) {
+    const batch = activePrompts.slice(i, i + PROMPT_BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map((prompt) => scanPrompt(prompt))
+    );
+
+    for (const r of batchResults) {
+      if (r.status === "fulfilled") {
+        analyses.push(...r.value);
       }
     }
   }
@@ -297,12 +350,6 @@ export async function runDomainScan(
     .from("domains")
     .update({ scan_status: "completed", first_scan_done: true })
     .eq("id", domainId);
-
-  try {
-    await generateScanInsights(domainId);
-  } catch (err) {
-    console.error("[Insights] generation failed:", err);
-  }
 
   return { analyses, progress };
   } catch (err) {

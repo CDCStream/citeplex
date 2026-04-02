@@ -1,4 +1,4 @@
--- Prompt Addon Subscriptions: stackable monthly prompt packs (50, 100, 250)
+-- Prompt Addon Subscriptions: stackable monthly prompt + gap article packs (50, 100, 200)
 create table if not exists public.prompt_addon_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
@@ -14,6 +14,6 @@ create table if not exists public.prompt_addon_subscriptions (
 create index if not exists idx_prompt_addon_user on public.prompt_addon_subscriptions(user_id);
 create index if not exists idx_prompt_addon_status on public.prompt_addon_subscriptions(user_id, status);
 
-comment on table public.prompt_addon_subscriptions is 'Stackable monthly prompt add-on subscriptions (50/100/250 extra prompts)';
-comment on column public.prompt_addon_subscriptions.tier is 'addon_50, addon_100, addon_250';
+comment on table public.prompt_addon_subscriptions is 'Stackable monthly add-on subscriptions (prompts + gap articles)';
+comment on column public.prompt_addon_subscriptions.tier is 'addon_50, addon_100, addon_200';
 comment on column public.prompt_addon_subscriptions.status is 'active, canceled, expired';

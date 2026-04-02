@@ -14,11 +14,15 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await getAuthUser();
-    let promptLimit = 10;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let promptLimit = 0;
     let promptsUsed = 0;
 
-    if (user) {
-      promptLimit = await getEffectivePromptLimit(user.id, user.plan || "starter");
+    if (user.plan) {
+      promptLimit = await getEffectivePromptLimit(user.id, user.plan);
       const { count } = await supabaseAdmin
         .from("prompts")
         .select("id", { count: "exact", head: true })

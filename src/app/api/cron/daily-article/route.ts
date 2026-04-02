@@ -238,11 +238,20 @@ async function writeArticleForPlan(
   return savedArticle.id;
 }
 
+const TIME_BUDGET_MS = 270_000;
+const DOMAIN_CONCURRENCY = 3;
+
 export async function GET(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const startTime = Date.now();
 
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -272,54 +281,102 @@ export async function GET(req: NextRequest) {
       .select("id, user_id, users!inner(plan)")
       .in("id", domainIds);
 
-    const domainPlanMap = new Map<string, string>();
+    const domainPlanMap = new Map<string, string | null>();
     for (const row of users || []) {
-      const plan = (row as unknown as { users: { plan: string } }).users?.plan || "starter";
+      const plan = (row as unknown as { users: { plan: string | null } }).users?.plan ?? null;
       domainPlanMap.set(row.id, plan);
     }
 
-    const domainArticleCounts = new Map<string, number>();
-
-    const results: { planId: string; domain: string; status: string; articleId?: string }[] = [];
-
+    const plansByDomain = new Map<string, typeof todayPlans>();
     for (const plan of todayPlans) {
-      const domain = domainMap.get(plan.domain_id);
+      const list = plansByDomain.get(plan.domain_id) || [];
+      list.push(plan);
+      plansByDomain.set(plan.domain_id, list);
+    }
+
+    const allResults: { planId: string; domain: string; status: string; articleId?: string }[] = [];
+
+    async function processDomain(domainId: string) {
+      const plans = plansByDomain.get(domainId) || [];
+      const domain = domainMap.get(domainId);
+      const domainResults: typeof allResults = [];
+
       if (!domain) {
-        results.push({ planId: plan.id, domain: plan.domain_id, status: "domain_not_found" });
-        continue;
+        for (const p of plans) {
+          domainResults.push({ planId: p.id, domain: domainId, status: "domain_not_found" });
+        }
+        return domainResults;
       }
 
-      const userPlan = domainPlanMap.get(plan.domain_id) || "starter";
+      const userPlan = domainPlanMap.get(domainId) ?? null;
       const dailyLimit = getDailyArticleLimit(userPlan);
-      const written = domainArticleCounts.get(plan.domain_id) || 0;
-
-      if (written >= dailyLimit) {
-        results.push({ planId: plan.id, domain: domain.brand_name, status: "daily_limit_reached" });
-        continue;
+      if (dailyLimit === 0) {
+        for (const p of plans) {
+          domainResults.push({ planId: p.id, domain: domain.brand_name, status: "no_active_plan" });
+        }
+        return domainResults;
       }
+      let written = 0;
+
+      for (const plan of plans) {
+        if (Date.now() - startTime > TIME_BUDGET_MS) {
+          domainResults.push({ planId: plan.id, domain: domain.brand_name, status: "time_budget_reached" });
+          continue;
+        }
+
+        if (written >= dailyLimit) {
+          domainResults.push({ planId: plan.id, domain: domain.brand_name, status: "daily_limit_reached" });
+          continue;
+        }
 
       try {
         const articleId = await writeArticleForPlan(plan, domain);
-        domainArticleCounts.set(plan.domain_id, written + 1);
-        results.push({ planId: plan.id, domain: domain.brand_name, status: "ok", articleId });
+        written++;
+        domainResults.push({ planId: plan.id, domain: domain.brand_name, status: "ok", articleId });
       } catch (err) {
         console.error(`[DailyArticle] Error for plan ${plan.id}:`, err);
-        results.push({ planId: plan.id, domain: domain.brand_name, status: `error: ${(err as Error).message}` });
+        await supabaseAdmin
+          .from("content_plans")
+          .update({ status: "planned", article_id: null })
+          .eq("id", plan.id)
+          .in("status", ["writing", "planned"]);
+        domainResults.push({ planId: plan.id, domain: domain.brand_name, status: `error: ${(err as Error).message}` });
+      }
+      }
+
+      return domainResults;
+    }
+
+    const domainIdList = [...plansByDomain.keys()];
+    for (let i = 0; i < domainIdList.length; i += DOMAIN_CONCURRENCY) {
+      if (Date.now() - startTime > TIME_BUDGET_MS) break;
+
+      const chunk = domainIdList.slice(i, i + DOMAIN_CONCURRENCY);
+      const settled = await Promise.allSettled(
+        chunk.map((id) => processDomain(id))
+      );
+
+      for (const r of settled) {
+        if (r.status === "fulfilled") {
+          allResults.push(...r.value);
+        }
       }
     }
 
-    for (const domainId of domainIds) {
-      try {
-        await checkAndReplan(domainId);
-      } catch (err) {
-        console.error(`[DailyArticle] Replan error for ${domainId}:`, err);
-      }
-    }
+    const replanPromises = domainIds.map((domainId) => {
+      const userPlan = domainPlanMap.get(domainId) ?? null;
+      if (!userPlan) return Promise.resolve();
+      return checkAndReplan(domainId, userPlan).catch((err) =>
+        console.error(`[DailyArticle] Replan error for ${domainId}:`, err)
+      );
+    });
+    await Promise.allSettled(replanPromises);
 
     return NextResponse.json({
       success: true,
-      written: results.filter((r) => r.status === "ok").length,
-      results,
+      written: allResults.filter((r) => r.status === "ok").length,
+      elapsed_ms: Date.now() - startTime,
+      results: allResults,
     });
   } catch (err) {
     console.error("Daily article cron error:", err);

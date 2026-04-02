@@ -39,7 +39,10 @@ export async function POST(
       );
     }
 
-    const plan = user.plan || "starter";
+    const plan = user.plan;
+    if (!plan) {
+      return NextResponse.json({ error: "Active subscription required" }, { status: 403 });
+    }
     const limit = await getEffectivePromptLimit(user.id, plan);
 
     const { data: userDomains } = await supabaseAdmin

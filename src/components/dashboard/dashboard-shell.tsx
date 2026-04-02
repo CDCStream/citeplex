@@ -55,7 +55,6 @@ function getDomainNavSections(domainId: string): NavSection[] {
     {
       title: "AI Visibility",
       items: [
-        { label: "Dashboard", href: `/dashboard/${domainId}`, icon: LayoutDashboard },
         { label: "Overview", href: `/dashboard/${domainId}/ai-visibility`, icon: Eye },
         { label: "Prompts", href: `/dashboard/${domainId}/prompts`, icon: MessageSquare },
         { label: "Competitor Gaps", href: `/dashboard/${domainId}/ai-visibility/gaps`, icon: Globe },
@@ -129,7 +128,7 @@ function SidebarContent({
             {domains.map((domain) => (
               <Link
                 key={domain.id}
-                href={`/dashboard/${domain.id}`}
+                href={`/dashboard/${domain.id}/ai-visibility`}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   activeDomainId === domain.id

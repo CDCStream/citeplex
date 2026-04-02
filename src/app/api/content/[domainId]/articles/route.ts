@@ -47,7 +47,10 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const limit = getArticleLimit(user.plan || "starter");
+  const limit = getArticleLimit(user.plan);
+  if (limit === 0) {
+    return NextResponse.json({ error: "Active subscription required" }, { status: 403 });
+  }
   const { count } = await supabaseAdmin
     .from("articles")
     .select("id", { count: "exact", head: true })

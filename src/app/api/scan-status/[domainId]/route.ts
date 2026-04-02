@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { engines } from "@/lib/ai-engines";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 
 const ENGINES = engines.length;
 
@@ -8,15 +9,20 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
+  const user = await getAuthUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { domainId } = await params;
 
   const { data: domain } = await supabaseAdmin
     .from("domains")
-    .select("scan_status, last_scan_started_at")
+    .select("scan_status, last_scan_started_at, user_id")
     .eq("id", domainId)
     .single();
 
-  if (!domain) {
+  if (!domain || domain.user_id !== user.id) {
     return NextResponse.json({ status: "idle", progress: null });
   }
 

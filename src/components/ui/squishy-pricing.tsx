@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Loader2, Zap, PenLine, Target, Check } from "lucide-react";
 import {
   PLAN_PRICES,
+  PLAN_RETAIL_PRICES,
   PLAN_LIMITS,
   DAILY_ARTICLE_LIMITS,
   GAP_ARTICLE_LIMITS,
@@ -113,8 +114,8 @@ function PricingCard({
   const router = useRouter();
 
   const currentPrice = PLAN_PRICES[plan.key]?.[tier] ?? 0;
-  const normalPrice = PLAN_PRICES[plan.key]?.normal ?? 0;
-  const isDiscounted = tier !== "normal" && currentPrice < normalPrice;
+  const retailPrice = PLAN_RETAIL_PRICES[plan.key] ?? 0;
+  const isDiscounted = tier !== "normal" && currentPrice < retailPrice;
   const prompts = PLAN_LIMITS[plan.key] ?? 0;
   const dailyArticles = DAILY_ARTICLE_LIMITS[plan.key] ?? 0;
   const gapArticles = GAP_ARTICLE_LIMITS[plan.key] ?? 0;
@@ -173,7 +174,7 @@ function PricingCard({
         <div className="mb-1">
           {isDiscounted && (
             <span className="text-white/50 text-lg line-through font-medium mr-2">
-              ${normalPrice}
+              ${retailPrice}
             </span>
           )}
           <span className="font-mono text-5xl font-black leading-[1.1]">

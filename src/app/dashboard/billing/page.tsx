@@ -38,17 +38,17 @@ import {
   getProductIdForPlan,
   PROMPT_ADDON_TIERS,
   ADDON_TIER_ORDER,
-  ADDON_PRODUCT_IDS,
+  getAddonProductId,
   type AddonTierKey,
 } from "@/lib/plans";
-import { getEffectivePromptLimit } from "@/lib/prompt-limits";
+import { getEffectivePromptLimit, getEffectiveGapArticleLimit } from "@/lib/prompt-limits";
 import { getCurrentPriceTier } from "@/lib/customer-count";
 
 const PLAN_FEATURES: Record<string, string[]> = {
   starter: [
     "15 AI Visibility prompts",
     "1 article/day (30/month)",
-    "5 gap articles/month",
+    "15 gap articles/month",
     "Daily scans · 7 AI engines",
     "Sentiment analysis & insights",
     "Multi-platform publishing",
@@ -56,7 +56,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
   growth: [
     "30 AI Visibility prompts",
     "2 articles/day (60/month)",
-    "15 gap articles/month",
+    "30 gap articles/month",
     "Daily scans · 7 AI engines",
     "Sentiment analysis & insights",
     "Multi-platform publishing",
@@ -64,7 +64,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
   pro: [
     "50 AI Visibility prompts",
     "3 articles/day (90/month)",
-    "30 gap articles/month",
+    "50 gap articles/month",
     "Daily scans · 7 AI engines",
     "Sentiment analysis & insights",
     "Multi-platform publishing",
@@ -79,6 +79,7 @@ export default async function BillingPage() {
   const basePromptLimit = getPromptLimit(plan);
   const promptLimit = await getEffectivePromptLimit(user.id, plan);
   const addonExtra = promptLimit - basePromptLimit;
+  const effectiveGapLimit = await getEffectiveGapArticleLimit(user.id, plan);
   const planLabel = PLAN_LABELS[plan] || "Starter";
   const tier = await getCurrentPriceTier();
   const planPrice = PLAN_PRICES[plan]?.[tier] ?? 0;
@@ -206,10 +207,10 @@ export default async function BillingPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Prompt Add-ons
+                Add-on Packs
               </CardTitle>
               <CardDescription className="mt-1">
-                Need more prompts? Add extra prompt packs to your subscription. Stackable and cancelable anytime.
+                Need more capacity? Add extra prompt &amp; gap article packs. Stackable and cancelable anytime.
               </CardDescription>
             </div>
             {addonExtra > 0 && (
@@ -234,7 +235,7 @@ export default async function BillingPage() {
                       <Plus className="h-4 w-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">+{addon.prompt_count} Prompts</p>
+                      <p className="text-sm font-semibold">+{addon.prompt_count} Prompts & +{PROMPT_ADDON_TIERS[addon.tier as AddonTierKey]?.gapArticles ?? addon.prompt_count} Gap Articles</p>
                       <p className="text-xs text-muted-foreground">
                         Added {new Date(addon.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
@@ -242,7 +243,7 @@ export default async function BillingPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold">
-                      ${PROMPT_ADDON_TIERS[addon.tier as AddonTierKey]?.price ?? "?"}/mo
+                      ${PROMPT_ADDON_TIERS[addon.tier as AddonTierKey]?.prices[tier] ?? "?"}/mo
                     </span>
                     <form action={`/api/user/prompt-addons`} method="POST">
                       <Button
@@ -269,8 +270,10 @@ export default async function BillingPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               {ADDON_TIER_ORDER.map((tierKey) => {
                 const config = PROMPT_ADDON_TIERS[tierKey];
-                const productId = ADDON_PRODUCT_IDS[tierKey];
-                const perPrompt = (config.price / config.count).toFixed(2);
+                const productId = getAddonProductId(tierKey, tier);
+                const currentAddonPrice = config.prices[tier];
+                const normalAddonPrice = config.prices.normal;
+                const isAddonDiscounted = tier !== "normal" && currentAddonPrice < normalAddonPrice;
 
                 return (
                   <div
@@ -284,12 +287,16 @@ export default async function BillingPage() {
                       <h3 className="font-semibold">{config.label}</h3>
                     </div>
                     <p className="mt-3 text-2xl font-extrabold">
-                      ${config.price}
+                      {isAddonDiscounted && (
+                        <span className="text-base font-medium text-muted-foreground line-through mr-1">${normalAddonPrice}</span>
+                      )}
+                      ${currentAddonPrice}
                       <span className="text-sm font-medium text-muted-foreground">/mo</span>
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      ${perPrompt} per prompt/month
-                    </p>
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      <p>+{config.count} prompts</p>
+                      <p>+{config.gapArticles} gap articles</p>
+                    </div>
                     <Button
                       asChild
                       size="sm"
@@ -408,7 +415,7 @@ export default async function BillingPage() {
             <UsageStat
               icon={Target}
               label="Gap Articles"
-              value={`${GAP_ARTICLE_LIMITS[plan] ?? 5}/mo`}
+              value={`${effectiveGapLimit}/mo`}
             />
           </div>
         </CardContent>

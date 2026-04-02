@@ -39,7 +39,17 @@ export async function POST(
       console.log(`[KeywordPlanner] Stale planning detected for ${domainId}, restarting`);
     }
 
-    const result = await planKeywords(domainId, 30);
+    const { data: userData } = await supabaseAdmin
+      .from("users")
+      .select("plan")
+      .eq("id", user.id)
+      .maybeSingle();
+    const userPlan = userData?.plan;
+    if (!userPlan) {
+      return NextResponse.json({ error: "Active subscription required" }, { status: 403 });
+    }
+
+    const result = await planKeywords(domainId, userPlan);
 
     return NextResponse.json({
       status: "done",

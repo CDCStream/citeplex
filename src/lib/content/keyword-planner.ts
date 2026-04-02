@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { callLLM } from "@/lib/llm/client";
+import { getDailyArticleLimit, getBatchConfig } from "@/lib/plans";
 
 interface DomainContext {
   id: string;
@@ -229,9 +230,9 @@ async function planBatch(
     ? `\n\nDo NOT suggest any of these keywords (already planned):\n${[...excludeKeywords].map(k => `- "${k}"`).join("\n")}`
     : "";
 
-  const sources = batchIndex === 0
-    ? ["competitor", "backlink", "opportunity"] as const
-    : ["competitor", "opportunity"] as const;
+  const sources: string[] = batchIndex === 0
+    ? ["competitor", "backlink", "opportunity"]
+    : ["competitor", "opportunity"];
 
   const kwPromises: Promise<{ keywords: string[]; source: string }>[] = [];
 
@@ -290,7 +291,7 @@ async function planBatch(
 
 export async function planKeywords(
   domainId: string,
-  days: number = 30
+  plan: string = "starter"
 ): Promise<{ planned: number; keywords: PlannedKeyword[] }> {
   await supabaseAdmin
     .from("domains")
@@ -316,26 +317,48 @@ export async function planKeywords(
       (existingPlans || []).map((p) => p.keyword?.toLowerCase()).filter(Boolean)
     );
 
-    const BATCH_SIZE = Math.ceil(days / 3);
+    const dailyLimit = getDailyArticleLimit(plan);
+    const { batches, daysPerBatch } = getBatchConfig(plan);
+    const keywordsPerBatch = daysPerBatch * dailyLimit;
+    const totalKeywords = batches * keywordsPerBatch;
+
     const allPlanned: PlannedKeyword[] = [];
 
-    for (let batch = 0; batch < 3; batch++) {
-      const remaining = days - allPlanned.length;
+    for (let batch = 0; batch < batches; batch++) {
+      const remaining = totalKeywords - allPlanned.length;
       if (remaining <= 0) break;
-      const size = Math.min(BATCH_SIZE, remaining);
+      const size = Math.min(keywordsPerBatch, remaining);
 
       const batchResult = await planBatch(domainId, domain, size, excludeKeywords, batch);
       for (const kw of batchResult) {
         excludeKeywords.add(kw.keyword.toLowerCase());
       }
       allPlanned.push(...batchResult);
-      console.log(`[KeywordPlanner] After batch ${batch + 1}: ${allPlanned.length}/${days} planned`);
+      console.log(`[KeywordPlanner] After batch ${batch + 1}/${batches}: ${allPlanned.length}/${totalKeywords} planned (${dailyLimit}/day)`);
     }
 
-    const today = new Date();
+    const { data: lastPlanRow } = await supabaseAdmin
+      .from("content_plans")
+      .select("scheduled_date")
+      .eq("domain_id", domainId)
+      .gte("scheduled_date", new Date().toISOString().split("T")[0])
+      .order("scheduled_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const startDate = new Date();
+    if (lastPlanRow?.scheduled_date) {
+      const lastDate = new Date(lastPlanRow.scheduled_date);
+      if (lastDate >= startDate) {
+        startDate.setTime(lastDate.getTime());
+        startDate.setDate(startDate.getDate() + 1);
+      }
+    }
+
     const rows = allPlanned.map((kw, i) => {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
+      const dayOffset = Math.floor(i / dailyLimit);
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + dayOffset);
 
       return {
         domain_id: domainId,
@@ -377,7 +400,10 @@ export async function planKeywords(
   }
 }
 
-export async function checkAndReplan(domainId: string): Promise<boolean> {
+export async function checkAndReplan(domainId: string, plan: string = "starter"): Promise<boolean> {
+  const dailyLimit = getDailyArticleLimit(plan);
+  const threshold = dailyLimit * 5;
+
   const { count } = await supabaseAdmin
     .from("content_plans")
     .select("id", { count: "exact", head: true })
@@ -387,10 +413,10 @@ export async function checkAndReplan(domainId: string): Promise<boolean> {
 
   const remaining = count ?? 0;
 
-  console.log(`[checkAndReplan] domain=${domainId} remaining planned=${remaining}`);
+  console.log(`[checkAndReplan] domain=${domainId} plan=${plan} remaining=${remaining} threshold=${threshold}`);
 
-  if (remaining <= 5) {
-    await planKeywords(domainId, 30);
+  if (remaining <= threshold) {
+    await planKeywords(domainId, plan);
     return true;
   }
 

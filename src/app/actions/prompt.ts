@@ -12,7 +12,8 @@ export async function createPrompt(domainId: string, formData: FormData) {
   const user = await getAuthUser();
   if (!user) throw new Error("Unauthorized");
 
-  const plan = user.plan || "starter";
+  const plan = user.plan;
+  if (!plan) throw new Error("Active subscription required");
   const limit = await getEffectivePromptLimit(user.id, plan);
 
   const { data: userDomains } = await supabaseAdmin

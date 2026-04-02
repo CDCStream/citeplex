@@ -171,6 +171,21 @@ export function ArticleEditor({
 
   const previewHtml = buildFullHtml(article);
 
+  function handleIframeLoad() {
+    const iframe = previewRef.current;
+    if (!iframe?.contentDocument?.body) return;
+    const resize = () => {
+      const height = iframe.contentDocument!.body.scrollHeight;
+      iframe.style.height = `${height + 40}px`;
+    };
+    resize();
+    const observer = new MutationObserver(resize);
+    observer.observe(iframe.contentDocument.body, { childList: true, subtree: true });
+    iframe.contentDocument.querySelectorAll("img").forEach((img) => {
+      if (!img.complete) img.addEventListener("load", resize);
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -219,9 +234,10 @@ export function ArticleEditor({
                 ref={previewRef}
                 srcDoc={previewHtml}
                 className="w-full rounded-lg border-0"
-                style={{ minHeight: "800px" }}
+                style={{ minHeight: "600px" }}
                 title="Article Preview"
                 sandbox="allow-same-origin"
+                onLoad={handleIframeLoad}
               />
             </CardContent>
           </Card>

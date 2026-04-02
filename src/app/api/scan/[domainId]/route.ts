@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { runDomainScan } from "@/lib/scan/scan-service";
 import { checkAndCreateAlerts } from "@/lib/alerts/check-alerts";
+import { generateScanInsights } from "@/lib/insights/generate-scan-insights";
 import { logActivity } from "@/lib/activity-logger";
 
 export const maxDuration = 300;
@@ -49,6 +50,11 @@ export async function POST(
 
     const mentioned = analyses.filter((a: { brandMentioned: boolean }) => a.brandMentioned).length;
     const alertsCount = await checkAndCreateAlerts(domainId).catch(() => 0);
+    after(() =>
+      generateScanInsights(domainId).catch((err) =>
+        console.error("[Insights] generation failed:", err)
+      )
+    );
 
     logActivity({ userId: user.id, action: "scan.complete", resourceType: "domain", resourceId: domainId, metadata: { total: analyses.length, mentioned } });
 

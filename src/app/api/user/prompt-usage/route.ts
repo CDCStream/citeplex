@@ -6,10 +6,10 @@ import { getEffectivePromptLimit, getAddonPromptCount } from "@/lib/prompt-limit
 export async function GET() {
   const user = await getAuthUser();
   if (!user) {
-    return NextResponse.json({ limit: 15, used: 0, remaining: 15, plan: "starter", addonCount: 0 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const plan = user.plan || "starter";
+  const plan = user.plan;
   const [limit, addonCount] = await Promise.all([
     getEffectivePromptLimit(user.id, plan),
     getAddonPromptCount(user.id),

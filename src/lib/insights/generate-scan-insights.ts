@@ -3,6 +3,9 @@ import { extractSources } from "./extract-sources";
 import { getLanguageName } from "@/lib/languages";
 import { callLLM } from "@/lib/llm/client";
 
+const INSIGHT_BATCH_SIZE = 5;
+const LOOKBACK_HOURS = 48;
+
 export async function generateScanInsights(domainId: string) {
   const { data: domain } = await supabaseAdmin
     .from("domains")
@@ -12,23 +15,13 @@ export async function generateScanInsights(domainId: string) {
 
   if (!domain) return;
 
-  const { data: latestScanRow } = await supabaseAdmin
-    .from("scan_results")
-    .select("scanned_at")
-    .eq("domain_id", domainId)
-    .order("scanned_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!latestScanRow) return;
-
-  const batchStart = new Date(new Date(latestScanRow.scanned_at).getTime() - 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
 
   const { data: scanResults } = await supabaseAdmin
     .from("scan_results")
     .select("id, prompt_id, ai_engine, response, brand_mentioned, position, sentiment, citations")
     .eq("domain_id", domainId)
-    .gte("scanned_at", batchStart)
+    .gte("scanned_at", cutoff)
     .order("scanned_at", { ascending: false });
 
   if (!scanResults || scanResults.length === 0) return;
@@ -42,6 +35,8 @@ export async function generateScanInsights(domainId: string) {
   const newResults = scanResults.filter((r) => !existingSet.has(r.id) && !r.response.startsWith("[Error:"));
 
   if (newResults.length === 0) return;
+
+  console.log(`[Insights] ${domain.brand_name}: ${newResults.length} results need insights`);
 
   const promptIds = [...new Set(newResults.map((r) => r.prompt_id))];
   const { data: prompts } = await supabaseAdmin
@@ -61,21 +56,16 @@ export async function generateScanInsights(domainId: string) {
 
   const competitorList = competitors ?? [];
 
-  const resultsByPrompt: Record<string, typeof newResults> = {};
-  for (const r of newResults) {
-    if (!resultsByPrompt[r.prompt_id]) resultsByPrompt[r.prompt_id] = [];
-    resultsByPrompt[r.prompt_id].push(r);
-  }
+  let generated = 0;
 
-  for (const [promptId, results] of Object.entries(resultsByPrompt)) {
-    const prompt = promptMap[promptId];
-    if (!prompt) continue;
-
-    const lang = prompt.language || "en";
-    const langName = getLanguageName(lang);
+  for (let i = 0; i < newResults.length; i += INSIGHT_BATCH_SIZE) {
+    const batch = newResults.slice(i, i + INSIGHT_BATCH_SIZE);
 
     await Promise.allSettled(
-      results.map(async (scanResult) => {
+      batch.map(async (scanResult) => {
+        const prompt = promptMap[scanResult.prompt_id];
+        if (!prompt) return;
+
         try {
           const sources = extractSources(
             scanResult.response,
@@ -91,6 +81,8 @@ export async function generateScanInsights(domainId: string) {
             ? `\n\n## Negative Sentiment Detected\nThe brand was mentioned negatively. Also explain:\n- Why was the brand mentioned negatively?\n- What specific actions can fix the negative perception?`
             : "";
 
+          const lang = prompt.language || "en";
+          const langName = getLanguageName(lang);
           const truncatedResponse = scanResult.response.slice(0, 3000);
 
           const llmPrompt = `You are an AI search visibility analyst. Respond in ${langName}.
@@ -152,14 +144,18 @@ Only return valid JSON, nothing else.`;
           await supabaseAdmin.from("scan_insights").insert({
             scan_result_id: scanResult.id,
             domain_id: domainId,
-            prompt_id: promptId,
+            prompt_id: scanResult.prompt_id,
             ai_engine: scanResult.ai_engine,
             insight,
           });
+
+          generated++;
         } catch (err) {
           console.error(`[Insights] Failed for scan_result ${scanResult.id}:`, err);
         }
       })
     );
   }
+
+  console.log(`[Insights] ${domain.brand_name}: generated ${generated}/${newResults.length}`);
 }

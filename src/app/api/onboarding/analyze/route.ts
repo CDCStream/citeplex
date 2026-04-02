@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeWebsite } from "@/lib/onboarding/analyze";
+import { getAuthUser } from "@/lib/auth";
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { url } = await req.json();
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
