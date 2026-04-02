@@ -370,6 +370,22 @@ create table if not exists public.prompt_addon_subscriptions (
 create index if not exists idx_prompt_addon_user on public.prompt_addon_subscriptions(user_id);
 create index if not exists idx_prompt_addon_status on public.prompt_addon_subscriptions(user_id, status);
 
+-- Writing Examples (showcase articles for marketing pages)
+create table if not exists public.writing_examples (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  brand_name text not null,
+  brand_url text not null,
+  brand_industry text not null,
+  title text not null,
+  keyword text not null,
+  meta_description text,
+  content text not null,
+  cover_image_url text,
+  word_count int default 0,
+  created_at timestamptz default now()
+);
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'starter')

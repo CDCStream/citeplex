@@ -521,7 +521,10 @@ export default async function LandingPage() {
                 <span className="text-primary">Cite</span>plex
               </span>
             </div>
-            <div className="flex gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+              <Link href="/examples" className="hover:text-foreground transition-colors">
+                Examples
+              </Link>
               <Link href="/pricing" className="hover:text-foreground transition-colors">
                 Pricing
               </Link>

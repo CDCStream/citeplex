@@ -4,12 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { ArrowRight, BookOpen, Home, Tag } from "lucide-react";
+import { ArrowRight, BookOpen, FileText, Home, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TubelightNavBar } from "@/components/ui/tubelight-navbar";
 
 const NAV_ITEMS = [
   { name: "Home", url: "/", icon: Home },
+  { name: "Examples", url: "/examples", icon: FileText },
   { name: "Blog", url: "/blog", icon: BookOpen },
   { name: "Pricing", url: "/pricing", icon: Tag },
 ];
