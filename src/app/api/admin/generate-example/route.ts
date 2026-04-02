@@ -179,13 +179,13 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { count: examplesCount } = await supabaseAdmin
+  const { data } = await supabaseAdmin
     .from("writing_examples")
     .delete()
     .neq("id", "00000000-0000-0000-0000-000000000000")
-    .select("id", { count: "exact", head: true });
+    .select("id");
 
   return NextResponse.json({
-    deleted: { writing_examples: examplesCount ?? 0 },
+    deleted: { writing_examples: data?.length ?? 0 },
   });
 }
