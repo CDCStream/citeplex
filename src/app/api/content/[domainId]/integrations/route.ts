@@ -66,12 +66,31 @@ export async function POST(
       return NextResponse.json({ error: "Domain not found" }, { status: 404 });
     }
 
-    const { platform, config } = await req.json();
+    const { platform, name, config } = await req.json();
 
     if (!platform) {
       return NextResponse.json(
         { error: "Platform is required" },
         { status: 400 }
+      );
+    }
+
+    if (!name || !name.trim()) {
+      return NextResponse.json(
+        { error: "Integration name is required" },
+        { status: 400 }
+      );
+    }
+
+    const { data: existing } = await supabaseAdmin
+      .from("publish_integrations")
+      .select("id")
+      .eq("domain_id", domainId);
+
+    if ((existing || []).length > 0) {
+      return NextResponse.json(
+        { error: "You already have an active integration. Remove it first to add a new one." },
+        { status: 409 }
       );
     }
 
@@ -110,15 +129,13 @@ export async function POST(
 
     const { data: integration, error } = await supabaseAdmin
       .from("publish_integrations")
-      .upsert(
-        {
-          domain_id: domainId,
-          platform,
-          config: config || {},
-          is_active: testResult,
-        },
-        { onConflict: "domain_id,platform" }
-      )
+      .insert({
+        domain_id: domainId,
+        name: name.trim(),
+        platform,
+        config: config || {},
+        is_active: testResult,
+      })
       .select()
       .single();
 

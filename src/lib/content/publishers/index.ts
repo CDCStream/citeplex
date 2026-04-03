@@ -158,15 +158,15 @@ class WebhookAdapter implements PublishAdapter {
     payload: PublishPayload,
     config: Record<string, unknown>
   ): Promise<PublishResult> {
-    const { webhookUrl, secret } = config as {
+    const { webhookUrl, accessToken } = config as {
       webhookUrl: string;
-      secret?: string;
+      accessToken?: string;
     };
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    if (secret) headers["X-Webhook-Secret"] = secret;
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
     const res = await fetch(webhookUrl, {
       method: "POST",
@@ -183,10 +183,12 @@ class WebhookAdapter implements PublishAdapter {
 
   async test(config: Record<string, unknown>): Promise<boolean> {
     try {
-      const { webhookUrl } = config as { webhookUrl: string };
+      const { webhookUrl, accessToken } = config as { webhookUrl: string; accessToken?: string };
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
       const res = await fetch(webhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ test: true }),
       });
       return res.ok;
@@ -304,8 +306,8 @@ export const PLATFORM_CONFIG_FIELDS: Record<
     { key: "apiKey", label: "API Key", type: "password", placeholder: "" },
   ],
   webhook: [
-    { key: "webhookUrl", label: "Webhook URL", type: "text", placeholder: "https://..." },
-    { key: "secret", label: "Secret (optional)", type: "password", placeholder: "" },
+    { key: "webhookUrl", label: "Webhook Endpoint", type: "text", placeholder: "https://hooks.example.com/publish" },
+    { key: "accessToken", label: "Access Token", type: "password", placeholder: "your-secret-token" },
   ],
 };
 

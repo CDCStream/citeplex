@@ -74,12 +74,14 @@ const PLATFORM_CONFIG_FIELDS: Record<
     { key: "apiKey", label: "API Key", type: "password", placeholder: "" },
   ],
   webhook: [
-    { key: "webhookUrl", label: "Webhook URL", type: "text", placeholder: "https://hooks.example.com/publish" },
+    { key: "webhookUrl", label: "Webhook Endpoint", type: "text", placeholder: "https://hooks.example.com/publish" },
+    { key: "accessToken", label: "Access Token", type: "password", placeholder: "your-secret-token" },
   ],
 };
 
 interface Integration {
   id: string;
+  name: string;
   platform: string;
   config: Record<string, unknown>;
   is_active: boolean;
@@ -111,6 +113,7 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<"list" | "select" | "config">("list");
   const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [integrationName, setIntegrationName] = useState("");
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -138,25 +141,25 @@ export default function IntegrationsPage() {
 
   const handleSelectPlatform = (key: string) => {
     setSelectedPlatform(key);
+    setIntegrationName("");
     setConfigValues({});
     setMessage(null);
-    const fields = PLATFORM_CONFIG_FIELDS[key] || [];
-    if (fields.length === 0) {
-      setStep("config");
-    } else {
-      setStep("config");
-    }
+    setStep("config");
   };
 
   const handleSave = async () => {
     if (!selectedPlatform) return;
+    if (!integrationName.trim()) {
+      setMessage({ type: "error", text: "Integration name is required." });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
       const res = await fetch(`/api/content/${domainId}/integrations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: selectedPlatform, config: configValues }),
+        body: JSON.stringify({ platform: selectedPlatform, name: integrationName.trim(), config: configValues }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -169,6 +172,7 @@ export default function IntegrationsPage() {
 
       setStep("list");
       setSelectedPlatform("");
+      setIntegrationName("");
       setConfigValues({});
       fetchIntegrations();
     } catch (err) {
@@ -200,6 +204,7 @@ export default function IntegrationsPage() {
   const resetFlow = () => {
     setStep("list");
     setSelectedPlatform("");
+    setIntegrationName("");
     setConfigValues({});
   };
 
@@ -279,6 +284,19 @@ export default function IntegrationsPage() {
             </div>
           )}
 
+          <div>
+            <label className="block text-sm font-medium mb-1.5">
+              Integration Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder={`My ${PLATFORM_LABELS[selectedPlatform]} Integration`}
+              value={integrationName}
+              onChange={(e) => setIntegrationName(e.target.value)}
+              className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+
           {fields.map((field) => (
             <div key={field.key}>
               <label className="block text-sm font-medium mb-1.5">{field.label}</label>
@@ -325,7 +343,7 @@ export default function IntegrationsPage() {
             Connect platforms to auto-publish your AI-generated articles.
           </p>
         </div>
-        {availablePlatforms.length > 0 && (
+        {integrations.length === 0 && (
           <button
             onClick={() => { setStep("select"); setMessage(null); }}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -368,7 +386,7 @@ export default function IntegrationsPage() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
           {integrations.map((intg) => (
             <div
               key={intg.id}
@@ -380,7 +398,7 @@ export default function IntegrationsPage() {
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">
-                    {PLATFORM_LABELS[intg.platform] || intg.platform}
+                    {intg.name || PLATFORM_LABELS[intg.platform] || intg.platform}
                   </span>
                   {intg.is_active ? (
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40 px-2 py-0.5 rounded-full">
@@ -395,7 +413,7 @@ export default function IntegrationsPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Added {new Date(intg.created_at).toLocaleDateString()}
+                  {PLATFORM_LABELS[intg.platform]} · Added {new Date(intg.created_at).toLocaleDateString()}
                 </p>
                 {intg.config && (
                   <p className="text-xs text-muted-foreground truncate">
@@ -431,6 +449,9 @@ export default function IntegrationsPage() {
               </div>
             </div>
           ))}
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            You can have one active integration. Remove the current one to connect a different platform.
+          </p>
         </div>
       )}
     </div>

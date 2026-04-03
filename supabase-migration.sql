@@ -291,6 +291,7 @@ alter table public.content_plans
 create table if not exists public.publish_integrations (
   id uuid primary key default gen_random_uuid(),
   domain_id uuid not null references public.domains(id) on delete cascade,
+  name text not null default '',
   platform text not null check (platform in (
     'wordpress', 'notion', 'webflow', 'shopify', 'wix',
     'ghost', 'framer', 'feather', 'webhook'
@@ -300,6 +301,8 @@ create table if not exists public.publish_integrations (
   created_at timestamptz not null default now(),
   unique(domain_id, platform)
 );
+
+alter table public.publish_integrations add column if not exists name text not null default '';
 create index if not exists idx_publish_integrations_domain on public.publish_integrations(domain_id);
 
 -- Backlink Exchange: site listings
