@@ -193,7 +193,9 @@ export async function writeArticle(
   }
 
   if (enhancements.keyTakeaways) {
-    const placement = enhancements.keyTakeawaysPlacement === "beginning" ? "at the BEGINNING of the article (right after the introduction)" : "at the END of the article (before FAQ)";
+    const placement = enhancements.keyTakeawaysPlacement === "beginning"
+      ? "AFTER the first main section (after the first </h2> section ends, NOT at the very start)"
+      : "at the END of the article (before FAQ)";
     enhancementInstructions.push(
       `- KEY TAKEAWAYS: Add a "Key Takeaways" box ${placement} with 4-6 concise bullet points summarizing the most important insights. Format as: <div class="key-takeaways"><h3>Key Takeaways</h3><ul><li>...</li></ul></div>`
     );

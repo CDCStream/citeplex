@@ -9,6 +9,7 @@ import {
 import { generateArticleImages } from "@/lib/content/image-generator";
 import { searchYouTubeVideos, buildVideoEmbedHtml } from "@/lib/content/youtube-search";
 import { searchWebImages, searchInfographics, buildWebImageHtml } from "@/lib/content/web-image-search";
+import { searchRelevantSources } from "@/lib/content/source-search";
 
 export const maxDuration = 300;
 
@@ -52,8 +53,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[GenerateExample] Starting: "${title}" for ${brandName}`);
 
-    const research = await researchTopic(title, keyword, brandName, industry);
-    console.log(`[GenerateExample] Research complete`);
+    const [research, sources] = await Promise.all([
+      researchTopic(title, keyword, brandName, industry),
+      searchRelevantSources(keyword),
+    ]);
+    console.log(`[GenerateExample] Research complete, sources: ${sources.length}`);
 
     const outline = await generateOutline(title, keyword, research, 1500);
     console.log(`[GenerateExample] Outline generated: ${outline.length} sections`);
@@ -76,7 +80,7 @@ export async function POST(req: NextRequest) {
       "",
       enhancements,
       [],
-      [],
+      sources,
     );
     console.log(`[GenerateExample] Article written: ${article.wordCount} words`);
 
@@ -127,10 +131,6 @@ export async function POST(req: NextRequest) {
         }
         enrichedContent = sections.join("</h2>");
         console.log(`[GenerateExample] Web images/infographics: ${allWebImages.length}`);
-      }
-
-      if (coverImageUrl) {
-        enrichedContent = `<figure class="article-cover"><img src="${coverImageUrl}" alt="${title}" />\n</figure>\n${enrichedContent}`;
       }
 
       console.log(`[GenerateExample] Media enrichment complete`);
