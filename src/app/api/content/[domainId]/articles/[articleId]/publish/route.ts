@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getAdapter } from "@/lib/content/publishers";
+import { logIntegrationBug } from "@/lib/content/integration-logger";
 
 export async function POST(
   req: NextRequest,
@@ -66,21 +67,48 @@ export async function POST(
       );
     }
 
-    const result = await adapter.publish(
-      {
-        title: article.title,
-        slug: article.slug,
-        content: article.content || "",
-        metaDescription: article.meta_description || undefined,
-        coverImage: article.cover_image || undefined,
-        tags: article.tags || [],
-        faq: article.faq || [],
-        status: "published",
-      },
-      integration.config as Record<string, unknown>
-    );
+    let result;
+    try {
+      result = await adapter.publish(
+        {
+          title: article.title,
+          slug: article.slug,
+          content: article.content || "",
+          metaDescription: article.meta_description || undefined,
+          coverImage: article.cover_image || undefined,
+          tags: article.tags || [],
+          faq: article.faq || [],
+          status: "published",
+        },
+        integration.config as Record<string, unknown>
+      );
+    } catch (publishErr) {
+      const errMsg = (publishErr as Error).message;
+      await logIntegrationBug({
+        domainId,
+        userId: user.id,
+        platform,
+        action: "publish",
+        errorMessage: errMsg,
+        errorDetails: { articleTitle: article.title },
+        articleId,
+      });
+      return NextResponse.json(
+        { error: errMsg || "Publishing failed" },
+        { status: 500 }
+      );
+    }
 
     if (!result.success) {
+      await logIntegrationBug({
+        domainId,
+        userId: user.id,
+        platform,
+        action: "publish",
+        errorMessage: result.error || "Publishing returned unsuccessful",
+        errorDetails: { articleTitle: article.title, result },
+        articleId,
+      });
       return NextResponse.json(
         { error: result.error || "Publishing failed" },
         { status: 500 }
@@ -107,8 +135,20 @@ export async function POST(
     return NextResponse.json({ result });
   } catch (err) {
     console.error("Article publish error:", err);
+    const errMsg = (err as Error).message || "Failed to publish";
+    try {
+      const { domainId, articleId } = await params;
+      const { platform } = await req.json().catch(() => ({ platform: "unknown" }));
+      await logIntegrationBug({
+        domainId,
+        platform,
+        action: "publish",
+        errorMessage: errMsg,
+        articleId,
+      });
+    } catch { /* best effort */ }
     return NextResponse.json(
-      { error: (err as Error).message || "Failed to publish" },
+      { error: errMsg },
       { status: 500 }
     );
   }

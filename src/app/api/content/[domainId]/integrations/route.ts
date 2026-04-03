@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getAdapter } from "@/lib/content/publishers";
+import { logIntegrationBug, sanitizeConfig } from "@/lib/content/integration-logger";
 
 export async function GET(
   _req: NextRequest,
@@ -83,8 +84,28 @@ export async function POST(
     }
 
     let testResult = true;
+    let testError: string | null = null;
     if (Object.keys(config || {}).length > 0) {
-      testResult = await adapter.test(config);
+      try {
+        testResult = await adapter.test(config);
+        if (!testResult) {
+          testError = "Connection test returned false — check credentials";
+        }
+      } catch (testErr) {
+        testResult = false;
+        testError = (testErr as Error).message;
+      }
+    }
+
+    if (!testResult && testError) {
+      await logIntegrationBug({
+        domainId,
+        userId: user.id,
+        platform,
+        action: "connect_test",
+        errorMessage: testError,
+        errorDetails: { config: sanitizeConfig(config || {}) },
+      });
     }
 
     const { data: integration, error } = await supabaseAdmin

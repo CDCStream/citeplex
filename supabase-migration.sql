@@ -390,6 +390,24 @@ create table if not exists public.writing_examples (
 -- Add tags column if table already exists
 alter table public.writing_examples add column if not exists tags text[] default '{}';
 
+-- Integration bug tracking
+create table if not exists public.integration_bugs (
+  id uuid primary key default gen_random_uuid(),
+  domain_id uuid references public.domains(id) on delete cascade,
+  user_id uuid references public.users(id) on delete set null,
+  platform text not null,
+  action text not null,
+  error_message text not null,
+  error_details jsonb default '{}',
+  article_id uuid references public.articles(id) on delete set null,
+  resolved boolean default false,
+  resolved_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_integration_bugs_domain on public.integration_bugs(domain_id);
+create index if not exists idx_integration_bugs_resolved on public.integration_bugs(resolved) where not resolved;
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'starter')
