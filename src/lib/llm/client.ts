@@ -220,9 +220,9 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const baseTimeout = opts.timeout ?? 60_000;
   const errors: string[] = [];
 
-  // Each fallback gets less time: 100% → 55% → 35%
-  // e.g. 90s base → 90s + 50s + 32s = 172s total (instead of 270s)
-  const TIMEOUT_DECAY = [1.0, 0.55, 0.35];
+  // Each fallback gets slightly less time: 100% → 80% → 60%
+  // e.g. 45s base → 45s + 36s + 27s = 108s total (instead of 135s)
+  const TIMEOUT_DECAY = [1.0, 0.8, 0.6];
 
   for (let i = 0; i < chain.length; i++) {
     const cfg = chain[i];

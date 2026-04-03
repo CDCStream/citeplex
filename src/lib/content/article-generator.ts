@@ -273,7 +273,7 @@ Write these sections now in ${ctx.language}. Output ONLY the HTML for these sect
     user,
     temperature: 0.7,
     maxTokens: 4096,
-    timeout: 45_000,
+    timeout: 75_000,
   });
 }
 
@@ -431,6 +431,9 @@ export async function writeArticle(
       : "";
 
     try {
+      const chunkStart = Date.now();
+      console.log(`[ArticleWriter] Starting chunk ${chunk.chunkIndex + 1}/${chunks.length} (sections: ${chunk.sections.map(s => s.heading).join(", ")})`);
+
       const html = await writeSection(chunk, {
         title,
         keyword,
@@ -448,10 +451,10 @@ export async function writeArticle(
 
       htmlParts.push(html.trim());
       runningContext = summarizeSections(htmlParts.join("\n"));
-      console.log(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1}/${chunks.length} done (${html.length} chars)`);
+      const elapsed = ((Date.now() - chunkStart) / 1000).toFixed(1);
+      console.log(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1}/${chunks.length} done in ${elapsed}s (${html.length} chars)`);
     } catch (err) {
-      console.error(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1} failed:`, (err as Error).message);
-      // If a middle chunk fails, continue with remaining chunks
+      console.error(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1} FAILED after ${((Date.now() - Date.now()) / 1000).toFixed(1)}s:`, (err as Error).message);
       if (chunk.isFirst && htmlParts.length === 0) throw err;
     }
   }
