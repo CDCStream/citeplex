@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import {
   Plug,
   Plus,
@@ -10,20 +11,30 @@ import {
   XCircle,
   Loader2,
   ExternalLink,
+  ArrowLeft,
+  Webhook,
+  BookOpen,
 } from "lucide-react";
 
-const PLATFORM_LABELS: Record<string, string> = {
-  wordpress: "WordPress",
-  notion: "Notion",
-  webflow: "Webflow",
-  shopify: "Shopify",
-  wix: "Wix",
-  ghost: "Ghost",
-  framer: "Framer",
-  feather: "Feather",
-  webhook: "API Webhook",
-  citeplex: "Citeplex Blog",
-};
+const PLATFORMS = [
+  { key: "wordpress",  label: "WordPress",    logo: "https://cdn.simpleicons.org/wordpress/21759B" },
+  { key: "notion",     label: "Notion",       logo: "https://cdn.simpleicons.org/notion/000000" },
+  { key: "webflow",    label: "Webflow",      logo: "https://cdn.simpleicons.org/webflow/4353FF" },
+  { key: "shopify",    label: "Shopify",      logo: "https://cdn.simpleicons.org/shopify/7AB55C" },
+  { key: "wix",        label: "Wix",          logo: "https://cdn.simpleicons.org/wix/0C6EFC" },
+  { key: "ghost",      label: "Ghost",        logo: "https://cdn.simpleicons.org/ghost/15171A" },
+  { key: "framer",     label: "Framer",       logo: "https://cdn.simpleicons.org/framer/0055FF" },
+  { key: "feather",    label: "Feather",      logo: null },
+  { key: "webhook",    label: "API Webhook",  logo: null },
+];
+
+const PLATFORM_LABELS: Record<string, string> = Object.fromEntries(
+  PLATFORMS.map((p) => [p.key, p.label])
+);
+
+const PLATFORM_LOGOS: Record<string, string | null> = Object.fromEntries(
+  PLATFORMS.map((p) => [p.key, p.logo])
+);
 
 const PLATFORM_CONFIG_FIELDS: Record<
   string,
@@ -65,10 +76,7 @@ const PLATFORM_CONFIG_FIELDS: Record<
   webhook: [
     { key: "webhookUrl", label: "Webhook URL", type: "text", placeholder: "https://hooks.example.com/publish" },
   ],
-  citeplex: [],
 };
-
-const ALL_PLATFORMS = Object.keys(PLATFORM_LABELS);
 
 interface Integration {
   id: string;
@@ -78,11 +86,30 @@ interface Integration {
   created_at: string;
 }
 
+function PlatformIcon({ platform, size = 36 }: { platform: string; size?: number }) {
+  const logo = PLATFORM_LOGOS[platform];
+  if (logo) {
+    return (
+      <Image
+        src={logo}
+        alt={PLATFORM_LABELS[platform]}
+        width={size}
+        height={size}
+        className="dark:invert-0"
+        unoptimized
+      />
+    );
+  }
+  if (platform === "webhook") return <Webhook className="text-muted-foreground" style={{ width: size, height: size }} />;
+  if (platform === "feather") return <BookOpen className="text-muted-foreground" style={{ width: size, height: size }} />;
+  return <Plug className="text-muted-foreground" style={{ width: size, height: size }} />;
+}
+
 export default function IntegrationsPage() {
   const { domainId } = useParams<{ domainId: string }>();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [step, setStep] = useState<"list" | "select" | "config">("list");
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -107,7 +134,19 @@ export default function IntegrationsPage() {
   }, [domainId]);
 
   const connectedPlatforms = integrations.map((i) => i.platform);
-  const availablePlatforms = ALL_PLATFORMS.filter((p) => !connectedPlatforms.includes(p));
+  const availablePlatforms = PLATFORMS.filter((p) => !connectedPlatforms.includes(p.key));
+
+  const handleSelectPlatform = (key: string) => {
+    setSelectedPlatform(key);
+    setConfigValues({});
+    setMessage(null);
+    const fields = PLATFORM_CONFIG_FIELDS[key] || [];
+    if (fields.length === 0) {
+      setStep("config");
+    } else {
+      setStep("config");
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedPlatform) return;
@@ -128,7 +167,7 @@ export default function IntegrationsPage() {
         setMessage({ type: "error", text: `${PLATFORM_LABELS[selectedPlatform]} saved but connection test failed. Check your credentials.` });
       }
 
-      setShowAdd(false);
+      setStep("list");
       setSelectedPlatform("");
       setConfigValues({});
       fetchIntegrations();
@@ -158,8 +197,125 @@ export default function IntegrationsPage() {
     }
   };
 
+  const resetFlow = () => {
+    setStep("list");
+    setSelectedPlatform("");
+    setConfigValues({});
+  };
+
   const fields = selectedPlatform ? PLATFORM_CONFIG_FIELDS[selectedPlatform] || [] : [];
 
+  // ───── Platform Selection Grid ─────
+  if (step === "select") {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Add New Integration</h1>
+          <p className="text-muted-foreground">
+            Connect your website with Citeplex
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {availablePlatforms.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => handleSelectPlatform(p.key)}
+              className="group flex flex-col items-center gap-3 rounded-xl border-2 border-muted bg-card p-6 transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-md"
+            >
+              <PlatformIcon platform={p.key} size={40} />
+              <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                {p.label}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={resetFlow}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to integrations
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ───── Config Form ─────
+  if (step === "config" && selectedPlatform) {
+    return (
+      <div className="space-y-6 max-w-lg mx-auto">
+        <button
+          onClick={() => setStep("select")}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to platforms
+        </button>
+
+        <div className="rounded-xl border bg-card p-6 space-y-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted">
+              <PlatformIcon platform={selectedPlatform} size={32} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">{PLATFORM_LABELS[selectedPlatform]}</h2>
+              <p className="text-sm text-muted-foreground">Enter your connection details</p>
+            </div>
+          </div>
+
+          {message && (
+            <div
+              className={`rounded-lg border px-4 py-3 text-sm ${
+                message.type === "success"
+                  ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+                  : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+
+          {fields.map((field) => (
+            <div key={field.key}>
+              <label className="block text-sm font-medium mb-1.5">{field.label}</label>
+              <input
+                type={field.type}
+                placeholder={field.placeholder}
+                value={configValues[field.key] || ""}
+                onChange={(e) =>
+                  setConfigValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                }
+                className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+          ))}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+              {saving ? "Connecting..." : "Connect & Test"}
+            </button>
+            <button
+              onClick={resetFlow}
+              className="rounded-lg border px-5 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ───── Main List ─────
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -171,7 +327,7 @@ export default function IntegrationsPage() {
         </div>
         {availablePlatforms.length > 0 && (
           <button
-            onClick={() => { setShowAdd(true); setMessage(null); }}
+            onClick={() => { setStep("select"); setMessage(null); }}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
@@ -192,82 +348,20 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      {/* Add Integration Form */}
-      {showAdd && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
-          <h2 className="text-lg font-semibold">Connect a New Platform</h2>
-
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Platform</label>
-            <select
-              value={selectedPlatform}
-              onChange={(e) => { setSelectedPlatform(e.target.value); setConfigValues({}); }}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select a platform...</option>
-              {availablePlatforms.map((p) => (
-                <option key={p} value={p}>
-                  {PLATFORM_LABELS[p]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {fields.map((field) => (
-            <div key={field.key}>
-              <label className="block text-sm font-medium mb-1.5">{field.label}</label>
-              <input
-                type={field.type}
-                placeholder={field.placeholder}
-                value={configValues[field.key] || ""}
-                onChange={(e) =>
-                  setConfigValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          ))}
-
-          {selectedPlatform === "citeplex" && (
-            <p className="text-sm text-muted-foreground">
-              No configuration needed — articles will be published to your Citeplex blog automatically.
-            </p>
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={handleSave}
-              disabled={!selectedPlatform || saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
-              {saving ? "Connecting..." : "Connect & Test"}
-            </button>
-            <button
-              onClick={() => { setShowAdd(false); setSelectedPlatform(""); setConfigValues({}); }}
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Connected Integrations */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : integrations.length === 0 && !showAdd ? (
+      ) : integrations.length === 0 ? (
         <div className="rounded-xl border bg-card p-12 text-center">
           <Plug className="mx-auto h-10 w-10 text-muted-foreground/50 mb-4" />
           <h3 className="text-lg font-semibold">No Integrations Yet</h3>
-          <p className="text-muted-foreground mt-1 mb-4">
+          <p className="text-muted-foreground mt-1 mb-6">
             Connect a platform to start auto-publishing your articles.
           </p>
           <button
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            onClick={() => setStep("select")}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add Your First Integration
@@ -278,9 +372,12 @@ export default function IntegrationsPage() {
           {integrations.map((intg) => (
             <div
               key={intg.id}
-              className="rounded-xl border bg-card p-5 flex items-start justify-between"
+              className="rounded-xl border bg-card p-5 flex items-start gap-4"
             >
-              <div className="space-y-1.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted">
+                <PlatformIcon platform={intg.platform} size={28} />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">
                     {PLATFORM_LABELS[intg.platform] || intg.platform}
@@ -300,8 +397,8 @@ export default function IntegrationsPage() {
                 <p className="text-xs text-muted-foreground">
                   Added {new Date(intg.created_at).toLocaleDateString()}
                 </p>
-                {intg.platform !== "citeplex" && intg.config && (
-                  <p className="text-xs text-muted-foreground truncate max-w-[250px]">
+                {intg.config && (
+                  <p className="text-xs text-muted-foreground truncate">
                     {(intg.config as Record<string, string>).siteUrl ||
                       (intg.config as Record<string, string>).apiUrl ||
                       (intg.config as Record<string, string>).webhookUrl ||
@@ -309,8 +406,8 @@ export default function IntegrationsPage() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1">
-                {intg.platform !== "citeplex" && (intg.config as Record<string, string>).siteUrl && (
+              <div className="flex items-center gap-1 shrink-0">
+                {(intg.config as Record<string, string>).siteUrl && (
                   <a
                     href={(intg.config as Record<string, string>).siteUrl}
                     target="_blank"

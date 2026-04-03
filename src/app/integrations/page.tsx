@@ -41,7 +41,6 @@ export const metadata: Metadata = {
     "content publishing automation",
     "ai content publishing",
     "headless cms integration",
-    "citeplex integrations",
   ],
   alternates: { canonical: `${getSiteUrl()}/integrations` },
   openGraph: {
@@ -156,16 +155,6 @@ const PLATFORMS: Platform[] = [
     adapterType: "native",
     features: ["Custom endpoints", "Secret headers", "Full payload control"],
   },
-  {
-    id: "citeplex",
-    name: "Citeplex Blog",
-    category: "Built-in",
-    icon: Sparkles,
-    description:
-      "Publish to your Citeplex-hosted blog instantly. Zero configuration needed — just write and publish.",
-    adapterType: "native",
-    features: ["Zero config", "Instant publish", "Built-in SEO"],
-  },
 ];
 
 const FAQ_ITEMS = [
@@ -231,8 +220,8 @@ export default async function IntegrationsPage() {
   }
 
   const featured = PLATFORMS.filter((p) => p.featured);
-  const standard = PLATFORMS.filter((p) => !p.featured && p.id !== "webhook" && p.id !== "citeplex");
-  const utility = PLATFORMS.filter((p) => p.id === "webhook" || p.id === "citeplex");
+  const standard = PLATFORMS.filter((p) => !p.featured && p.id !== "webhook");
+  const utility = PLATFORMS.filter((p) => p.id === "webhook");
 
   return (
     <div className="min-h-screen bg-background overflow-hidden pt-16">

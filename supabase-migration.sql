@@ -293,7 +293,7 @@ create table if not exists public.publish_integrations (
   domain_id uuid not null references public.domains(id) on delete cascade,
   platform text not null check (platform in (
     'wordpress', 'notion', 'webflow', 'shopify', 'wix',
-    'ghost', 'framer', 'feather', 'webhook', 'citeplex'
+    'ghost', 'framer', 'feather', 'webhook'
   )),
   config jsonb not null default '{}',
   is_active boolean not null default true,

@@ -196,52 +196,6 @@ class WebhookAdapter implements PublishAdapter {
   }
 }
 
-class CiteplexBlogAdapter implements PublishAdapter {
-  platform = "citeplex";
-
-  async publish(
-    payload: PublishPayload,
-    _config: Record<string, unknown>
-  ): Promise<PublishResult> {
-    const adminSecret = process.env.BLOG_ADMIN_SECRET;
-    if (!adminSecret) {
-      return { success: false, error: "BLOG_ADMIN_SECRET not configured" };
-    }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.citeplex.io";
-    const res = await fetch(`${appUrl}/api/blog/save`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-secret": adminSecret,
-      },
-      body: JSON.stringify({
-        slug: payload.slug,
-        title: payload.title,
-        description: payload.metaDescription || "",
-        htmlContent: payload.content,
-        imageUrl: payload.coverImage || "",
-        tags: (payload.tags || []).join(", "),
-        published: payload.status === "published",
-      }),
-    });
-
-    if (!res.ok) {
-      return { success: false, error: `Citeplex Blog error: ${res.status}` };
-    }
-
-    return {
-      success: true,
-      url: `${appUrl}/blog/${payload.slug}`,
-      externalId: payload.slug,
-    };
-  }
-
-  async test(): Promise<boolean> {
-    return !!process.env.BLOG_ADMIN_SECRET;
-  }
-}
-
 class GenericApiAdapter implements PublishAdapter {
   platform: string;
 
@@ -300,7 +254,6 @@ const adapters: Record<string, PublishAdapter> = {
   wordpress: new WordPressAdapter(),
   ghost: new GhostAdapter(),
   webhook: new WebhookAdapter(),
-  citeplex: new CiteplexBlogAdapter(),
   notion: new GenericApiAdapter("notion"),
   webflow: new GenericApiAdapter("webflow"),
   shopify: new GenericApiAdapter("shopify"),
@@ -354,7 +307,6 @@ export const PLATFORM_CONFIG_FIELDS: Record<
     { key: "webhookUrl", label: "Webhook URL", type: "text", placeholder: "https://..." },
     { key: "secret", label: "Secret (optional)", type: "password", placeholder: "" },
   ],
-  citeplex: [],
 };
 
 export const PLATFORM_LABELS: Record<string, string> = {
@@ -367,5 +319,4 @@ export const PLATFORM_LABELS: Record<string, string> = {
   framer: "Framer",
   feather: "Feather",
   webhook: "API Webhook",
-  citeplex: "Citeplex Blog",
 };

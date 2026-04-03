@@ -125,10 +125,11 @@ function PricingCard({
     router.push(`/checkout?products=${productId}`);
   };
 
+  const totalArticles = dailyArticles * 30 + gapArticles;
+
   const features = [
     { icon: Target, text: `${prompts} AI Visibility tracked prompts` },
-    { icon: PenLine, text: `${dailyArticles} article${dailyArticles > 1 ? "s" : ""}/day (${dailyArticles * 30}/mo)` },
-    { icon: Zap, text: `${gapArticles} gap articles/month` },
+    { icon: PenLine, text: `${totalArticles} AI articles/month`, sub: `(${dailyArticles}/day scheduled + ${gapArticles} AI visibility gap)` },
   ];
 
   const visibilityFeatures = [
@@ -193,11 +194,16 @@ function PricingCard({
 
         <div className="space-y-3 mb-6">
           {features.map((f) => (
-            <div key={f.text} className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15">
+            <div key={f.text} className="flex items-start gap-2.5">
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15">
                 <f.icon className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-sm font-semibold">{f.text}</span>
+              <div>
+                <span className="text-sm font-semibold">{f.text}</span>
+                {f.sub && (
+                  <span className="block text-[11px] text-white/50 mt-0.5">{f.sub}</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
