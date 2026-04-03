@@ -525,6 +525,9 @@ export default async function LandingPage() {
               <Link href="/examples" className="hover:text-foreground transition-colors">
                 Examples
               </Link>
+              <Link href="/integrations" className="hover:text-foreground transition-colors">
+                Integrations
+              </Link>
               <Link href="/pricing" className="hover:text-foreground transition-colors">
                 Pricing
               </Link>
