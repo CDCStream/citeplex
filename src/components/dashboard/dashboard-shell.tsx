@@ -29,6 +29,7 @@ import {
   Eye,
   FileText,
   History,
+  Plug,
 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -65,6 +66,7 @@ function getDomainNavSections(domainId: string): NavSection[] {
       items: [
         { label: "Planner", href: `/dashboard/${domainId}/content`, icon: FileText },
         { label: "Content History", href: `/dashboard/${domainId}/content/history`, icon: History },
+        { label: "Integrations", href: `/dashboard/${domainId}/content/integrations`, icon: Plug },
       ],
     },
     {
