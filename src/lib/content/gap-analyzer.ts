@@ -70,7 +70,7 @@ export async function analyzeGapAndPlan(
   console.log(`[GapAnalyzer] Step 1: Generating candidates... (${elapsed()})`);
   const candidateResponse = await callLLM({
     chain: "strong",
-    timeout: 90_000,
+    timeout: 60_000,
     system: "You are an expert SEO strategist. Return ONLY valid JSON, nothing else.",
     user: `A brand is NOT being mentioned by ANY AI engine for this prompt:
 "${prompt}"
@@ -147,7 +147,7 @@ Return JSON:
   console.log(`[GapAnalyzer] Step 3: Picking keyword + title... (${elapsed()})`);
   const finalResponse = await callLLM({
     chain: "strong",
-    timeout: 90_000,
+    timeout: 60_000,
     system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis. Return ONLY valid JSON.",
     user: `Based on the Ahrefs data below, pick the BEST target keyword for writing a gap article.
 

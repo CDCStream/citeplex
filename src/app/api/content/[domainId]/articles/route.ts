@@ -119,7 +119,20 @@ export async function POST(
     .single();
 
   if (earlyError || !earlyArticle) {
-    return NextResponse.json({ error: "Failed to start article generation" }, { status: 500 });
+    console.error("[Articles] Insert failed:", {
+      code: earlyError?.code,
+      message: earlyError?.message,
+      details: earlyError?.details,
+      hint: earlyError?.hint,
+      domainId,
+      slug,
+      targetKeyword,
+      planId: planId || null,
+    });
+    return NextResponse.json(
+      { error: "Failed to start article generation", debug: earlyError?.message },
+      { status: 500 }
+    );
   }
 
   const articleId = earlyArticle.id;

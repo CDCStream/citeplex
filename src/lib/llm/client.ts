@@ -22,9 +22,9 @@ const FALLBACK_CHAINS: Record<string, LLMConfig[]> = {
     { provider: "gemini", model: "gemini-2.5-flash" },
   ],
   strong: [
-    { provider: "anthropic", model: "claude-opus-4-6" },
-    { provider: "openai", model: "gpt-5.4" },
     { provider: "anthropic", model: "claude-sonnet-4-6" },
+    { provider: "openai", model: "gpt-5.4" },
+    { provider: "gemini", model: "gemini-2.5-flash" },
   ],
 };
 
@@ -208,7 +208,7 @@ const PROVIDER_FN: Record<
  * Centralized LLM call with automatic 2-level fallback.
  *
  * @param opts.chain - "fast" (Sonnet 4.6 → GPT-5.4 → Gemini 2.5 Flash),
- *                     "strong" (Opus 4.6 → GPT-5.4 → Sonnet 4.6),
+ *                     "strong" (Sonnet 4.6 → GPT-5.4 → Gemini 2.5 Flash),
  *                     or a custom LLMConfig array.
  * @param opts.webSearch - If true, enables web search on providers that support it (OpenAI Responses API).
  *                         When falling back to a provider without web search, a note is appended to the user prompt.
@@ -217,7 +217,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const chain = typeof opts.chain === "string" ? FALLBACK_CHAINS[opts.chain] : opts.chain;
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature ?? 0.7;
-  const timeout = opts.timeout ?? 120_000;
+  const timeout = opts.timeout ?? 60_000;
   const errors: string[] = [];
 
   for (let i = 0; i < chain.length; i++) {

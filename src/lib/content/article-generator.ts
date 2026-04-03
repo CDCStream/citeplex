@@ -279,7 +279,7 @@ ${outlineText}
 
 Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level. Incorporate the backlink angles and statistics to make this article a link-worthy reference.`;
 
-  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.7, maxTokens: 16384, timeout: 180_000 });
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.7, maxTokens: 16384, timeout: 90_000 });
 
   let content = text;
   let metaDescription = "";

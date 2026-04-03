@@ -52,7 +52,7 @@ Generate 30 keyword ideas that our competitors likely rank for but we might not.
 
 Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...]`,
     maxTokens: 8192,
-    timeout: 120000,
+    timeout: 60000,
   });
 
   const parsed = safeJsonParse<string[]>(response);
@@ -79,7 +79,7 @@ Generate 15 keyword ideas for articles that would naturally attract backlinks:
 
 Return ONLY a JSON array of keyword strings.`,
     maxTokens: 8192,
-    timeout: 120000,
+    timeout: 60000,
   });
 
   const parsed = safeJsonParse<string[]>(response);
@@ -110,7 +110,7 @@ Focus on keywords that are:
 
 Return ONLY a JSON array of keyword strings.`,
     maxTokens: 8192,
-    timeout: 120000,
+    timeout: 60000,
   });
 
   const parsed = safeJsonParse<string[]>(response);
@@ -180,7 +180,7 @@ Return a JSON array:
 
 Select the top ${count} keywords that would be most impactful. Return ONLY the JSON.`,
     maxTokens: 8192,
-    timeout: 120000,
+    timeout: 60000,
   });
 
   const parsed = safeJsonParse<string[]>(response);

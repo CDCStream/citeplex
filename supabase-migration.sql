@@ -411,6 +411,11 @@ create table if not exists public.integration_bugs (
 create index if not exists idx_integration_bugs_domain on public.integration_bugs(domain_id);
 create index if not exists idx_integration_bugs_resolved on public.integration_bugs(resolved) where not resolved;
 
+-- Fix: add 'generating' to articles status check constraint
+alter table public.articles drop constraint if exists articles_status_check;
+alter table public.articles add constraint articles_status_check
+  check (status in ('draft', 'review', 'approved', 'published', 'generating'));
+
 -- Insert demo user for development
 insert into public.users (email, name, plan)
 values ('demo@citeplex.io', 'Demo User', 'starter')
