@@ -383,8 +383,12 @@ create table if not exists public.writing_examples (
   content text not null,
   cover_image_url text,
   word_count int default 0,
+  tags text[] default '{}',
   created_at timestamptz default now()
 );
+
+-- Add tags column if table already exists
+alter table public.writing_examples add column if not exists tags text[] default '{}';
 
 -- Insert demo user for development
 insert into public.users (email, name, plan)

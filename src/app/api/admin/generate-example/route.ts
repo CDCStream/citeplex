@@ -34,11 +34,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const slug = title
+    const keywordSlug = keyword
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const titleSuffix = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
-      .slice(0, 80);
+      .split("-")
+      .filter((w: string) => !keywordSlug.includes(w) && w.length > 2)
+      .slice(0, 4)
+      .join("-");
+    const slug = (titleSuffix ? `${keywordSlug}-${titleSuffix}` : keywordSlug).slice(0, 80);
 
     const { data: existing } = await supabaseAdmin
       .from("writing_examples")
@@ -149,6 +157,7 @@ export async function POST(req: NextRequest) {
       content: enrichedContent,
       cover_image_url: coverImageUrl,
       word_count: article.wordCount,
+      tags: article.tags || [],
     }).select("id, slug").single();
 
     if (error) {

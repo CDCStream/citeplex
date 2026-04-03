@@ -88,10 +88,19 @@ export async function POST(
   }
 
   const targetKeyword = keyword?.trim() || title;
-  const slug = title
+  const keywordSlug = targetKeyword
     .toLowerCase()
     .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
     .replace(/^-|-$/g, "");
+  const titleSuffix = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .split("-")
+    .filter((w: string) => !keywordSlug.includes(w) && w.length > 2)
+    .slice(0, 4)
+    .join("-");
+  const slug = titleSuffix ? `${keywordSlug}-${titleSuffix}` : keywordSlug;
 
   // Create article record early so generation survives client disconnect
   const { data: earlyArticle, error: earlyError } = await supabaseAdmin

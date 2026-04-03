@@ -138,10 +138,19 @@ async function writeArticleForPlan(
 
   const seo = checkSeo(plan.title, targetKeyword, enrichedContent, generated.metaDescription);
 
-  const slug = plan.title
+  const keywordSlug = targetKeyword
     .toLowerCase()
     .replace(/[^a-z0-9\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u3000-\u9FFF]+/g, "-")
     .replace(/^-|-$/g, "");
+  const titleSuffix = plan.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .split("-")
+    .filter(w => !keywordSlug.includes(w) && w.length > 2)
+    .slice(0, 4)
+    .join("-");
+  const slug = titleSuffix ? `${keywordSlug}-${titleSuffix}` : keywordSlug;
 
   const { data: savedArticle, error } = await supabaseAdmin
     .from("articles")

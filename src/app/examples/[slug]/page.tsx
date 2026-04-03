@@ -31,6 +31,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     title: `${ex.title} — Citeplex Writing Example`,
     description: ex.meta_description ?? undefined,
+    keywords: [ex.keyword, ...(ex.tags || [])],
     alternates: { canonical },
     openGraph: {
       title: ex.title,
@@ -118,6 +119,16 @@ export default async function ExampleDetailPage(props: Props) {
                 </span>
               )}
             </div>
+
+            {ex.tags && ex.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5 pb-8">
+                {ex.tags.map((tag: string) => (
+                  <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </header>
 
           <div
