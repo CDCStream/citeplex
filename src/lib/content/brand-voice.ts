@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "./safe-json-parse";
 
 export interface BrandVoiceProfile {
   tone: string;
@@ -38,12 +39,12 @@ Return ONLY valid JSON with this structure:
     timeout: 30000,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  const parsed = safeJsonParse<BrandVoiceProfile>(text);
+  if (!parsed) {
     throw new Error("Failed to parse brand voice profile");
   }
 
-  return JSON.parse(jsonMatch[0]);
+  return parsed;
 }
 
 export async function scrapePageText(url: string): Promise<string> {

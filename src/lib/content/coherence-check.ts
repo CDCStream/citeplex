@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "./safe-json-parse";
 
 export interface CoherenceResult {
   isCoherent: boolean;
@@ -43,24 +44,22 @@ Set isCoherent to true and score >= 80 if the article is publication-ready.`,
       timeout: 15000,
     });
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const result = safeJsonParse<{ isCoherent?: boolean; needsFix?: boolean; score?: number; issues?: string[] }>(text);
+    if (!result) {
       return { isCoherent: true, score: 75, issues: [], fixedContent: null };
     }
-
-    const result = JSON.parse(jsonMatch[0]);
 
     if (result.needsFix && !result.isCoherent) {
       const fixedContent = await fixCoherence(
         title,
         keyword,
         content,
-        result.issues,
+        result.issues || [],
         language
       );
       return {
         isCoherent: false,
-        score: result.score,
+        score: result.score as number,
         issues: result.issues || [],
         fixedContent,
       };

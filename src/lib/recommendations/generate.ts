@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "@/lib/content/safe-json-parse";
 
 type Priority = "high" | "medium" | "low";
 
@@ -104,8 +105,7 @@ Respond ONLY with a valid JSON array, no other text.`,
       timeout: 30000,
     });
 
-    const jsonStr = content.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-    const recommendations: RawRecommendation[] = JSON.parse(jsonStr);
+    const recommendations = safeJsonParse<RawRecommendation[]>(content);
 
     if (!Array.isArray(recommendations)) return 0;
 

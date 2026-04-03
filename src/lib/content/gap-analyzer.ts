@@ -1,6 +1,7 @@
 import { callLLM } from "@/lib/llm/client";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { findAndScrapeTopArticles, type TopArticle } from "./top-articles";
+import { safeJsonParse } from "./safe-json-parse";
 
 export interface SecondaryKeyword {
   keyword: string;
@@ -103,10 +104,10 @@ Return JSON:
   });
 
   let candidates: { keyword: string; intent: string; rationale: string }[] = [];
-  try {
-    const parsed = JSON.parse(candidateResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-    candidates = parsed.candidates || [];
-  } catch {
+  const candidateParsed = safeJsonParse<Record<string, unknown>>(candidateResponse);
+  if (candidateParsed && Array.isArray((candidateParsed as Record<string, unknown>).candidates)) {
+    candidates = (candidateParsed as Record<string, unknown>).candidates as typeof candidates;
+  } else {
     candidates = [{ keyword: prompt, intent: "informational", rationale: "fallback" }];
   }
 
@@ -189,9 +190,10 @@ Return JSON:
   });
 
   let result: { targetKeyword: string; topic: string; title: string; reasoning: string };
-  try {
-    result = JSON.parse(finalResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  } catch {
+  const finalParsed = safeJsonParse<{ targetKeyword: string; topic: string; title: string; reasoning: string }>(finalResponse);
+  if (finalParsed && typeof finalParsed === "object" && "targetKeyword" in finalParsed) {
+    result = finalParsed;
+  } else {
     result = {
       targetKeyword: candidates[0].keyword,
       topic: `Comprehensive guide about ${candidates[0].keyword}`,
@@ -314,8 +316,8 @@ Return JSON:
       timeout: 60000,
     });
 
-    const parsed = JSON.parse(response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-    const kwList: string[] = (parsed.keywords || []).slice(0, 20);
+    const parsed = safeJsonParse<Record<string, unknown>>(response);
+    const kwList: string[] = (Array.isArray((parsed as Record<string, unknown>)?.keywords) ? (parsed as Record<string, unknown>).keywords as string[] : []).slice(0, 20);
 
     if (kwList.length === 0) return [];
 
@@ -466,18 +468,11 @@ Return JSON (ONLY headings and levels, NO points):
       timeout: 90000,
     });
 
-    let cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-
-    // Try to repair truncated JSON
-    if (!cleaned.endsWith("}")) {
-      const lastBracket = cleaned.lastIndexOf("}");
-      if (lastBracket > 0) {
-        cleaned = cleaned.slice(0, lastBracket + 1);
-        if (!cleaned.endsWith("]}")) cleaned += "]}";
-      }
+    const parsed = safeJsonParse<Record<string, unknown>>(response);
+    if (!parsed) {
+      console.error("[GapAnalyzer] Could not parse outline JSON, raw length:", response.length);
+      return [[], []];
     }
-
-    const parsed = JSON.parse(cleaned);
     // Handle various LLM response formats
     let outline: unknown[] = [];
     if (Array.isArray(parsed.outline)) {

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "./safe-json-parse";
 import { getDailyArticleLimit, getBatchConfig } from "@/lib/plans";
 
 interface DomainContext {
@@ -54,13 +55,8 @@ Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...
     timeout: 120000,
   });
 
-  try {
-    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) : [];
-  } catch {
-    return [];
-  }
+  const parsed = safeJsonParse<string[]>(response);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 async function getBacklinkKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
@@ -86,13 +82,8 @@ Return ONLY a JSON array of keyword strings.`,
     timeout: 120000,
   });
 
-  try {
-    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) : [];
-  } catch {
-    return [];
-  }
+  const parsed = safeJsonParse<string[]>(response);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 async function getOpportunityKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
@@ -122,13 +113,8 @@ Return ONLY a JSON array of keyword strings.`,
     timeout: 120000,
   });
 
-  try {
-    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) : [];
-  } catch {
-    return [];
-  }
+  const parsed = safeJsonParse<string[]>(response);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function scoreKeyword(kw: AhrefsKeywordData, source: string): number {
@@ -197,26 +183,22 @@ Select the top ${count} keywords that would be most impactful. Return ONLY the J
     timeout: 120000,
   });
 
-  try {
-    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const match = cleaned.match(/\[[\s\S]*\]/);
-    const items = match ? JSON.parse(match[0]) : [];
+  const parsed = safeJsonParse<string[]>(response);
+  const items = Array.isArray(parsed) ? parsed : [];
 
-    return items.slice(0, count).map((item: { keyword: string; title: string; articleType: string; reasoning: string }) => {
-      const kwData = keywords.find((k) => k.keyword === item.keyword);
-      return {
-        title: item.title,
-        keyword: item.keyword,
-        articleType: item.articleType || "guide",
-        source: kwData?.source || "opportunity",
-        priority: kwData?.metrics ? scoreKeyword(kwData.metrics, kwData.source) : 50,
-        keywordData: kwData?.metrics || null,
-        reasoning: item.reasoning || "",
-      };
-    });
-  } catch {
-    return [];
-  }
+  return items.slice(0, count).map((item: unknown) => {
+    const i = item as { keyword: string; title: string; articleType: string; reasoning: string };
+    const kwData = keywords.find((k) => k.keyword === i.keyword);
+    return {
+      title: i.title,
+      keyword: i.keyword,
+      articleType: i.articleType || "guide",
+      source: kwData?.source || "opportunity",
+      priority: kwData?.metrics ? scoreKeyword(kwData.metrics, kwData.source) : 50,
+      keywordData: kwData?.metrics || null,
+      reasoning: i.reasoning || "",
+    };
+  });
 }
 
 async function planBatch(

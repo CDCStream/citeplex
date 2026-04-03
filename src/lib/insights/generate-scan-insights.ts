@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { extractSources } from "./extract-sources";
 import { getLanguageName } from "@/lib/languages";
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "@/lib/content/safe-json-parse";
 
 const INSIGHT_BATCH_SIZE = 5;
 const LOOKBACK_HOURS = 48;
@@ -132,14 +133,9 @@ ${sources.length > 0 ? sources.map((s) => `- ${s}`).join("\n") : "(no sources de
 Only return valid JSON, nothing else.`;
 
           const response = await callLLM({ chain: "fast", system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
-          const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
-          let insight;
-          try {
-            insight = JSON.parse(cleaned);
-          } catch {
-            insight = { whyMentioned: cleaned, mentionContext: "unknown", recommendations: [] };
-          }
+          const insight = safeJsonParse<Record<string, unknown>>(response)
+            ?? { whyMentioned: response.slice(0, 500), mentionContext: "unknown", recommendations: [] };
 
           await supabaseAdmin.from("scan_insights").insert({
             scan_result_id: scanResult.id,

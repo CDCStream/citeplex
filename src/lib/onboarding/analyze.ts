@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "@/lib/content/safe-json-parse";
 
 const ANALYZE_CHAIN = [
   { provider: "openai" as const, model: "gpt-5.4" },
@@ -252,41 +253,39 @@ Only return the JSON, nothing else.`;
     return buildFallback(meta, brandHint, tldCountry);
   }
 
-  const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const result = safeJsonParse<WebsiteAnalysis>(response);
 
-  try {
-    const result = JSON.parse(cleaned);
-
-    if (!result.brandName) {
-      result.brandName = meta.ogSiteName || brandHint;
-    }
-
-    const hintLower = brandHint.toLowerCase();
-    const resultLower = (result.brandName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (resultLower && !resultLower.includes(hintLower) && !hintLower.includes(resultLower)) {
-      if (meta.ogSiteName) {
-        result.brandName = meta.ogSiteName;
-      } else {
-        result.brandName = brandHint;
-      }
-    }
-
-    if (!result.primaryCountry) {
-      result.primaryCountry = tldCountry || "US";
-    }
-    if (!result.description) {
-      result.description = meta.description || meta.ogDescription || "";
-    }
-    if (!result.industry) {
-      result.industry = inferIndustry(
-        (result.description || "") + " " + (meta.title || "") + " " + (meta.headingText || "")
-      );
-    }
-    return result;
-  } catch {
-    console.error(`[Analyze] JSON parse failed for ${url}, raw: ${cleaned.slice(0, 200)}`);
+  if (!result) {
+    console.error(`[Analyze] JSON parse failed for ${url}, raw: ${response.slice(0, 200)}`);
     return buildFallback(meta, brandHint, tldCountry);
   }
+
+  if (!result.brandName) {
+    result.brandName = meta.ogSiteName || brandHint;
+  }
+
+  const hintLower = brandHint.toLowerCase();
+  const resultLower = (result.brandName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (resultLower && !resultLower.includes(hintLower) && !hintLower.includes(resultLower)) {
+    if (meta.ogSiteName) {
+      result.brandName = meta.ogSiteName;
+    } else {
+      result.brandName = brandHint;
+    }
+  }
+
+  if (!result.primaryCountry) {
+    result.primaryCountry = tldCountry || "US";
+  }
+  if (!result.description) {
+    result.description = meta.description || meta.ogDescription || "";
+  }
+  if (!result.industry) {
+    result.industry = inferIndustry(
+      (result.description || "") + " " + (meta.title || "") + " " + (meta.headingText || "")
+    );
+  }
+  return result;
 }
 
 function inferIndustry(text: string): string {
@@ -356,9 +355,9 @@ RULES:
 - Only return the JSON, nothing else.`;
 
     const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
-    const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const result = JSON.parse(cleaned);
+    const result = safeJsonParse<WebsiteAnalysis>(response);
 
+    if (!result) throw new Error("parse failed");
     if (!result.brandName) result.brandName = brandHint;
     if (!result.primaryCountry) result.primaryCountry = tldCountry || "US";
 
@@ -436,34 +435,28 @@ Return a JSON array:
 Only return the JSON array, nothing else.`;
 
   const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
-  const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const prompts = safeJsonParse<GeneratedPrompt[]>(response);
+  if (!Array.isArray(prompts)) return [];
 
-  try {
-    const prompts = JSON.parse(cleaned);
-    if (!Array.isArray(prompts)) return [];
+  const brandLower = brandName.toLowerCase();
+  const descWords = extractKeywords(description + " " + industry);
 
-    const brandLower = brandName.toLowerCase();
-    const descWords = extractKeywords(description + " " + industry);
+  const filtered = prompts
+    .filter((p: GeneratedPrompt) => {
+      const textLower = p.text?.toLowerCase() ?? "";
+      if (!textLower || textLower.length < 10) return false;
+      if (textLower.includes(brandLower)) return false;
+      return true;
+    })
+    .map((p: GeneratedPrompt) => {
+      const textLower = p.text.toLowerCase();
+      const relevanceScore = descWords.filter((w) => textLower.includes(w)).length;
+      return { ...p, language: lang, country: countryCode, _score: relevanceScore };
+    })
+    .sort((a: { _score: number }, b: { _score: number }) => b._score - a._score)
+    .map(({ _score, ...rest }: { _score: number; text: string; category: string; language: string; country: string }) => rest);
 
-    const filtered = prompts
-      .filter((p: GeneratedPrompt) => {
-        const textLower = p.text?.toLowerCase() ?? "";
-        if (!textLower || textLower.length < 10) return false;
-        if (textLower.includes(brandLower)) return false;
-        return true;
-      })
-      .map((p: GeneratedPrompt) => {
-        const textLower = p.text.toLowerCase();
-        const relevanceScore = descWords.filter((w) => textLower.includes(w)).length;
-        return { ...p, language: lang, country: countryCode, _score: relevanceScore };
-      })
-      .sort((a: { _score: number }, b: { _score: number }) => b._score - a._score)
-      .map(({ _score, ...rest }: { _score: number; text: string; category: string; language: string; country: string }) => rest);
-
-    return filtered.slice(0, count);
-  } catch {
-    return [];
-  }
+  return filtered.slice(0, count);
 }
 
 function extractKeywords(text: string): string[] {
@@ -553,12 +546,6 @@ Return a JSON array:
 Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
 
   const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
-  const cleaned = response.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-
-  try {
-    const competitors = JSON.parse(cleaned);
-    return Array.isArray(competitors) ? competitors.slice(0, 5) : [];
-  } catch {
-    return [];
-  }
+  const competitors = safeJsonParse<{ brandName: string; url: string }[]>(response);
+  return Array.isArray(competitors) ? competitors.slice(0, 5) : [];
 }

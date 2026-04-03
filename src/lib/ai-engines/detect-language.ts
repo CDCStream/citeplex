@@ -64,7 +64,13 @@ function parseAnalysis(raw: string): { lang: string; cat: string } | null {
   try {
     const jsonMatch = raw.match(/\{[^}]+\}/);
     if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed: Record<string, string>;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      const cleaned = jsonMatch[0].replace(/,\s*([\]}])/g, "$1");
+      parsed = JSON.parse(cleaned);
+    }
     const lang = (parsed.lang ?? "").trim().toLowerCase().slice(0, 2);
     const cat = (parsed.cat ?? "").trim().toLowerCase();
     if (lang.length === 2 && /^[a-z]{2}$/.test(lang)) {

@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "./safe-json-parse";
 
 export interface ResearchData {
   keyPoints: string[];
@@ -52,14 +53,8 @@ Brand: ${brandName}
 Industry: ${industry}${competitorInsight}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048 });
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return defaultResearch();
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return defaultResearch();
-  }
+  const parsed = safeJsonParse<ReturnType<typeof defaultResearch>>(text);
+  return parsed ?? defaultResearch();
 }
 
 function defaultResearch(): ResearchData {
@@ -103,14 +98,8 @@ Related Topics: ${research.relatedTopics.join(", ")}
 Language: ${language}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000 });
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return [];
-  }
+  const parsed = safeJsonParse<OutlineSection[]>(text);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export interface EnhancementOptions {
@@ -302,13 +291,11 @@ Write the complete article in ${language} now. Use the keyword data to optimize 
   );
   if (metaMatch) {
     content = text.replace(metaMatch[0], "").trim();
-    try {
-      const meta = JSON.parse(metaMatch[1]);
-      metaDescription = meta.metaDescription || "";
-      tags = meta.tags || [];
-      faq = meta.faq || [];
-    } catch {
-      // parse failed
+    const meta = safeJsonParse<Record<string, unknown>>(metaMatch[1]);
+    if (meta) {
+      metaDescription = (meta.metaDescription as string) || "";
+      tags = (meta.tags as string[]) || [];
+      faq = (meta.faq as Array<{ question: string; answer: string }>) || [];
     }
   }
 

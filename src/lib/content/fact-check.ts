@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "./safe-json-parse";
 
 export interface FactCheckResult {
   claimsChecked: number;
@@ -55,10 +56,10 @@ Return JSON:
     });
 
     let claims: { claim: string; context: string; type: string; suggestedSource: string }[] = [];
-    try {
-      const parsed = JSON.parse(claimsResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      claims = parsed.claims || [];
-    } catch {
+    const claimsParsed = safeJsonParse<Record<string, unknown>>(claimsResponse);
+    if (claimsParsed && Array.isArray((claimsParsed as Record<string, unknown>).claims)) {
+      claims = (claimsParsed as Record<string, unknown>).claims as typeof claims;
+    } else {
       return { claimsChecked: 0, citationsAdded: 0, fixedContent: null, issues: [] };
     }
 

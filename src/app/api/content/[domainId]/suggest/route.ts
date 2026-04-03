@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { callLLM } from "@/lib/llm/client";
+import { safeJsonParse } from "@/lib/content/safe-json-parse";
 
 export async function POST(
   req: NextRequest,
@@ -66,8 +67,7 @@ Generate 8 article topic suggestions.`,
       maxTokens: 1500,
     });
 
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    const suggestions = safeJsonParse<unknown[]>(text) ?? [];
 
     return NextResponse.json({ suggestions });
   } catch (err) {
