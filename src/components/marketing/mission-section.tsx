@@ -42,8 +42,8 @@ export function MissionSection() {
 
   return (
     <section className="border-t bg-muted/30">
-      <div ref={ref} className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-        <div className="mx-auto max-w-2xl text-center mb-16">
+      <div ref={ref} className="mx-auto max-w-6xl px-4 py-12 sm:py-24 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center mb-10 sm:mb-16">
           <p className="text-sm font-semibold uppercase tracking-wider text-primary">
             Our Mission
           </p>
@@ -58,7 +58,7 @@ export function MissionSection() {
           </p>
         </div>
 
-        <div className="grid items-center gap-8 md:grid-cols-[1fr_auto_1fr]">
+        <div className="grid items-center gap-6 sm:gap-8 md:grid-cols-[1fr_auto_1fr]">
           {/* Before — DR 6 */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
@@ -82,7 +82,7 @@ export function MissionSection() {
             </div>
             <div className="mt-4 text-center">
               <span className="text-sm text-muted-foreground">Domain Rating</span>
-              <p className="text-5xl font-black text-red-500 tabular-nums">
+              <p className="text-4xl sm:text-5xl font-black text-red-500 tabular-nums">
                 <CountUp target={6} duration={1200} start={isInView} />
               </p>
             </div>
@@ -136,7 +136,7 @@ export function MissionSection() {
             </div>
             <div className="mt-4 text-center">
               <span className="text-sm text-muted-foreground">Domain Rating</span>
-              <p className="text-5xl font-black text-emerald-500 tabular-nums">
+              <p className="text-4xl sm:text-5xl font-black text-emerald-500 tabular-nums">
                 <CountUp target={43} duration={2000} start={isInView} />
               </p>
             </div>
@@ -148,7 +148,7 @@ export function MissionSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, delay: 0.8 }}
-          className="mt-16 grid grid-cols-3 gap-6 mx-auto max-w-2xl"
+          className="mt-10 sm:mt-16 grid grid-cols-3 gap-4 sm:gap-6 mx-auto max-w-2xl"
         >
           {[
             { value: "7x", label: "DR Increase", color: "text-emerald-500" },
@@ -156,7 +156,7 @@ export function MissionSection() {
             { value: "100%", label: "AI-Powered", color: "text-primary" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
-              <p className={`text-3xl font-extrabold ${stat.color} sm:text-4xl`}>
+              <p className={`text-2xl font-extrabold ${stat.color} sm:text-4xl`}>
                 {stat.value}
               </p>
               <p className="mt-1 text-xs font-medium text-muted-foreground sm:text-sm">

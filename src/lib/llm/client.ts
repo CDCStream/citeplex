@@ -217,13 +217,18 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const chain = typeof opts.chain === "string" ? FALLBACK_CHAINS[opts.chain] : opts.chain;
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature ?? 0.7;
-  const timeout = opts.timeout ?? 60_000;
+  const baseTimeout = opts.timeout ?? 60_000;
   const errors: string[] = [];
+
+  // Each fallback gets less time: 100% → 55% → 35%
+  // e.g. 90s base → 90s + 50s + 32s = 172s total (instead of 270s)
+  const TIMEOUT_DECAY = [1.0, 0.55, 0.35];
 
   for (let i = 0; i < chain.length; i++) {
     const cfg = chain[i];
     const fn = PROVIDER_FN[cfg.provider];
     const isLast = i === chain.length - 1;
+    const attemptTimeout = Math.round(baseTimeout * (TIMEOUT_DECAY[i] ?? 0.35));
 
     let userPrompt = opts.user;
     if (opts.webSearch && cfg.provider !== "openai") {
@@ -237,7 +242,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
         userPrompt,
         maxTokens,
         temperature,
-        timeout,
+        attemptTimeout,
         opts.webSearch,
       );
       if (i > 0) {
@@ -247,7 +252,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
     } catch (err) {
       const msg = (err as Error).message;
       errors.push(`${cfg.provider}/${cfg.model}: ${msg}`);
-      console.error(`[LLM] ${cfg.provider}/${cfg.model} failed${isLast ? " (last)" : ", trying next fallback"}:`, msg);
+      console.error(`[LLM] ${cfg.provider}/${cfg.model} failed (timeout=${attemptTimeout}ms)${isLast ? " (last)" : ", trying next fallback"}:`, msg);
     }
   }
 

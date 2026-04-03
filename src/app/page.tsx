@@ -80,14 +80,14 @@ export default async function LandingPage() {
               write targeted content and publish automatically.
             </p>
 
-            <div className="mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
+            <div className="mt-6 sm:mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
               <iframe
                 src="https://app.supademo.com/embed/cmn8n50co10xkmbsix4q1as7d?embed_v=2"
                 loading="lazy"
                 title="Citeplex Interactive Demo"
                 allow="clipboard-write"
-                className="w-full"
-                style={{ height: "500px", border: "none" }}
+                className="w-full aspect-[16/10] sm:aspect-auto sm:h-[500px]"
+                style={{ border: "none" }}
               />
             </div>
 
@@ -120,7 +120,7 @@ export default async function LandingPage() {
               ].map((engine, i) => (
                 <div
                   key={`${engine}-${i}`}
-                  className="flex shrink-0 items-center gap-2.5 rounded-full border bg-card px-5 py-2.5 text-sm font-semibold shadow-sm"
+                  className="flex shrink-0 items-center gap-2 sm:gap-2.5 rounded-full border bg-card px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold shadow-sm"
                 >
                   <EngineIcon engine={engine.toLowerCase()} size={18} />
                   {engine}
@@ -142,7 +142,7 @@ export default async function LandingPage() {
 
       {/* How It Works */}
       <section id="how-it-works" className="border-t bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-24 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary">
               How it works
@@ -152,7 +152,7 @@ export default async function LandingPage() {
             </h2>
           </div>
 
-          <div className="relative mt-16 grid gap-0 lg:grid-cols-4">
+          <div className="relative mt-10 sm:mt-16 grid grid-cols-2 gap-0 lg:grid-cols-4">
             <div className="absolute top-10 left-[12.5%] right-[12.5%] hidden h-0.5 bg-linear-to-r from-primary/20 via-primary to-primary/20 lg:block" />
 
             <TimelineStep
@@ -181,7 +181,7 @@ export default async function LandingPage() {
 
       {/* Bento Features */}
       <section className="border-t">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-24 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary">
               Features
@@ -198,9 +198,9 @@ export default async function LandingPage() {
             </h2>
           </div>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 sm:mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Large card — AI Visibility */}
-            <div className="row-span-2 rounded-3xl border bg-linear-to-br from-primary/5 to-transparent p-8 flex flex-col justify-between">
+            <div className="sm:row-span-2 rounded-3xl border bg-linear-to-br from-primary/5 to-transparent p-6 sm:p-8 flex flex-col justify-between">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                   <Eye className="h-6 w-6" />
@@ -243,7 +243,7 @@ export default async function LandingPage() {
             />
 
             {/* Large card — Content Engine */}
-            <div className="row-span-2 rounded-3xl border bg-linear-to-br from-blue-500/5 to-transparent p-8 flex flex-col justify-between">
+            <div className="sm:row-span-2 rounded-3xl border bg-linear-to-br from-blue-500/5 to-transparent p-6 sm:p-8 flex flex-col justify-between">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
                   <Sparkles className="h-6 w-6" />
@@ -274,7 +274,7 @@ export default async function LandingPage() {
             />
 
             {/* Wide card — Full Pipeline */}
-            <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border bg-card p-8 flex flex-col sm:flex-row items-center gap-8">
+            <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border bg-card p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
               <div className="flex-1">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                   <Target className="h-6 w-6 text-primary" />
@@ -284,7 +284,7 @@ export default async function LandingPage() {
                   From keyword research to published article — fully automated. Ahrefs data drives keyword selection, Claude Opus 4.6 writes with your brand voice, and articles publish to WordPress, Webflow, Shopify and more.
                 </p>
               </div>
-              <div className="grid shrink-0 grid-cols-3 gap-2">
+              <div className="grid w-full sm:w-auto shrink-0 grid-cols-3 gap-2">
                 {[
                   { icon: Search, label: "Keywords" },
                   { icon: PenLine, label: "Writing" },
@@ -309,7 +309,7 @@ export default async function LandingPage() {
 
       {/* FAQ */}
       <section id="faq" className="border-t bg-muted/30">
-        <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-3xl px-4 py-12 sm:py-24 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wider text-primary">
               FAQ
@@ -322,7 +322,7 @@ export default async function LandingPage() {
             </p>
           </div>
 
-          <div className="mt-14 space-y-4">
+          <div className="mt-8 sm:mt-14 space-y-3 sm:space-y-4">
             <FaqItem
               question="What is Citeplex?"
               answer="Citeplex is an all-in-one SEO, AEO, and GEO platform. It tracks your brand across 7 AI engines, writes SEO-optimized articles with your brand voice, generates gap articles to get you mentioned by AI, and builds high DR backlinks — all on autopilot."
@@ -485,8 +485,8 @@ export default async function LandingPage() {
 
       {/* CTA */}
       <section className="border-t bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-          <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border bg-card p-10 text-center shadow-xl sm:p-16">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-24 sm:px-6">
+          <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl sm:rounded-3xl border bg-card p-8 text-center shadow-xl sm:p-16">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
             <div className="relative">
               <Sparkles className="mx-auto h-10 w-10 text-primary" />
@@ -590,12 +590,12 @@ function TimelineStep({
   description: string;
 }) {
   return (
-    <div className="relative flex flex-col items-center px-6 py-8 text-center">
-      <div className="relative z-10 flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-primary bg-background text-3xl font-extrabold text-primary shadow-lg shadow-primary/10">
+    <div className="relative flex flex-col items-center px-3 sm:px-6 py-4 sm:py-8 text-center">
+      <div className="relative z-10 flex h-14 w-14 sm:h-20 sm:w-20 items-center justify-center rounded-xl sm:rounded-2xl border-2 border-primary bg-background text-xl sm:text-3xl font-extrabold text-primary shadow-lg shadow-primary/10">
         {step}
       </div>
-      <h3 className="mt-6 text-lg font-bold">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+      <h3 className="mt-3 sm:mt-6 text-sm sm:text-lg font-bold">{title}</h3>
+      <p className="mt-1 sm:mt-2 text-xs sm:text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>

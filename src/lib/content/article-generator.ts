@@ -147,6 +147,187 @@ export interface SourceRef {
   domain: string;
 }
 
+// ---------------------------------------------------------------------------
+// Section-by-section article writing
+// ---------------------------------------------------------------------------
+
+interface OutlineChunk {
+  sections: OutlineSection[];
+  chunkIndex: number;
+  totalChunks: number;
+  isFirst: boolean;
+  isLast: boolean;
+}
+
+/**
+ * Split the outline into balanced chunks of 2-3 H2s each.
+ * Each H2 carries its child H3s with it.
+ */
+function splitOutlineIntoChunks(outline: OutlineSection[]): OutlineChunk[] {
+  // Group by H2: each H2 starts a new group, H3s attach to the preceding H2
+  const h2Groups: OutlineSection[][] = [];
+  let current: OutlineSection[] = [];
+
+  for (const s of outline) {
+    if (s.level === 2 && current.length > 0) {
+      h2Groups.push(current);
+      current = [];
+    }
+    current.push(s);
+  }
+  if (current.length > 0) h2Groups.push(current);
+
+  if (h2Groups.length === 0) return [];
+
+  // Distribute groups into chunks of 2-3 H2s
+  const CHUNK_SIZE = 2;
+  const chunks: OutlineChunk[] = [];
+  for (let i = 0; i < h2Groups.length; i += CHUNK_SIZE) {
+    const slice = h2Groups.slice(i, i + CHUNK_SIZE);
+    chunks.push({
+      sections: slice.flat(),
+      chunkIndex: chunks.length,
+      totalChunks: 0, // filled below
+      isFirst: i === 0,
+      isLast: i + CHUNK_SIZE >= h2Groups.length,
+    });
+  }
+
+  for (const c of chunks) c.totalChunks = chunks.length;
+  return chunks;
+}
+
+function outlineToText(sections: OutlineSection[]): string {
+  return sections
+    .map((s) => `${"#".repeat(s.level)} ${s.heading}${s.points.length ? "\n" + s.points.map((p) => `- ${p}`).join("\n") : ""}`)
+    .join("\n\n");
+}
+
+/**
+ * Write one chunk of the article.
+ */
+async function writeSection(
+  chunk: OutlineChunk,
+  ctx: {
+    title: string;
+    keyword: string;
+    brandName: string;
+    brandUrl: string;
+    language: string;
+    voiceBlock: string;
+    previousSummary: string;
+    enhancementBlock: string;
+    wordsPerChunk: number;
+    currentYear: number;
+    keywordContext: string;
+    research: ResearchData;
+  },
+): Promise<string> {
+  const chunkOutline = outlineToText(chunk.sections);
+
+  const positionHint = chunk.isFirst
+    ? "This is the OPENING of the article. Start with a compelling introduction paragraph before the first H2."
+    : chunk.isLast
+      ? "This is the CLOSING of the article. Wrap up with a strong conclusion."
+      : `This is part ${chunk.chunkIndex + 1} of ${chunk.totalChunks}. Continue naturally from the previous section.`;
+
+  const continuityBlock = ctx.previousSummary
+    ? `\nPrevious sections summary (continue from here, do NOT repeat these points):\n${ctx.previousSummary}\n`
+    : "";
+
+  const system = `You are an expert SEO content writer. Write ONLY the sections specified below in HTML format.
+IMPORTANT: Write in ${ctx.language}. Every sentence, heading, and paragraph must be in ${ctx.language}.
+${ctx.voiceBlock}
+Rules:
+- Follow the outline structure exactly — write ONLY the sections listed below, nothing else
+- Target ~${ctx.wordsPerChunk} words for this section
+- Use the keyword "${ctx.keyword}" naturally (2-3% density)
+- Mention "${ctx.brandName}" where relevant
+- Use semantic HTML: <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <em>, <blockquote>
+- Include comparison/data tables where appropriate with class="comparison-table"
+- Write engaging content optimized for humans and AI search engines
+- Include E-E-A-T signals: statistics, expert insights, original data points
+- Do NOT include <h1> — it is added separately
+- Do NOT include markdown — HTML only
+- Do NOT add meta/script tags — just the article HTML for these sections
+${ctx.enhancementBlock}`;
+
+  const user = `Article: "${ctx.title}"
+Keyword: ${ctx.keyword}
+Keyword Data: ${ctx.keywordContext || "N/A"}
+Brand: ${ctx.brandName} (${ctx.brandUrl})
+Year: ${ctx.currentYear}
+Statistics: ${(ctx.research.statistics || []).join("; ") || "N/A"}
+Sources: ${ctx.research.externalSources.join(", ") || "N/A"}
+
+${positionHint}
+${continuityBlock}
+Sections to write:
+${chunkOutline}
+
+Write these sections now in ${ctx.language}. Output ONLY the HTML for these sections.`;
+
+  return callLLM({
+    chain: "strong",
+    system,
+    user,
+    temperature: 0.7,
+    maxTokens: 4096,
+    timeout: 45_000,
+  });
+}
+
+/**
+ * Generate meta description, tags, and FAQ from the completed article.
+ */
+async function generateArticleMeta(
+  title: string,
+  keyword: string,
+  contentSnippet: string,
+  language: string,
+  generateFaqs: boolean,
+): Promise<{ metaDescription: string; tags: string[]; faq: { question: string; answer: string }[] }> {
+  const faqInstruction = generateFaqs
+    ? `"faq": [{"question":"real search query about ${keyword}","answer":"detailed answer"}] (4-6 items)`
+    : `"faq": []`;
+
+  const text = await callLLM({
+    chain: "fast",
+    system: `You are an SEO specialist. Generate article metadata. Return ONLY valid JSON, nothing else.`,
+    user: `Article title: "${title}"
+Keyword: "${keyword}"
+Language: ${language}
+Article excerpt (first 1500 chars): ${contentSnippet.slice(0, 1500)}
+
+Return JSON:
+{
+  "metaDescription": "150-160 char meta description in ${language}",
+  "tags": ["5-8 SEO tags in ${language}"],
+  ${faqInstruction}
+}`,
+    temperature: 0.3,
+    maxTokens: 1500,
+    timeout: 30_000,
+  });
+
+  const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text);
+  return {
+    metaDescription: parsed?.metaDescription || "",
+    tags: parsed?.tags || [],
+    faq: parsed?.faq || [],
+  };
+}
+
+/**
+ * Summarize written sections for continuity context (keeps prompt small).
+ */
+function summarizeSections(html: string): string {
+  const headings = html.match(/<h[23][^>]*>(.*?)<\/h[23]>/gi) || [];
+  const cleaned = headings.map((h) => h.replace(/<[^>]+>/g, "").trim());
+  if (cleaned.length === 0) return "";
+  return `Sections written so far: ${cleaned.join(", ")}`;
+}
+
 export async function writeArticle(
   title: string,
   keyword: string,
@@ -162,149 +343,137 @@ export async function writeArticle(
   sitePages: SitePageRef[] = [],
   sources: SourceRef[] = [],
 ): Promise<GeneratedArticle> {
-  const outlineText = outline
-    .map(
-      (s) =>
-        `${"#".repeat(s.level)} ${s.heading}\n${s.points.map((p) => `- ${p}`).join("\n")}`
-    )
-    .join("\n\n");
-
   const voiceBlock = brandVoiceInstruction
-    ? `\n\n${brandVoiceInstruction}\nIMPORTANT: Match the brand voice described above throughout the entire article.\n`
+    ? `\n${brandVoiceInstruction}\nIMPORTANT: Match this brand voice throughout.\n`
     : "";
 
-  const enhancementInstructions: string[] = [];
+  const currentYear = new Date().getFullYear();
+
+  // --- Build per-chunk enhancement instructions ---
+  const bodyEnhancements: string[] = [];
+  const lastEnhancements: string[] = [];
 
   if (enhancements.expertQuotes) {
-    enhancementInstructions.push(
-      `- EXPERT QUOTES: Include 2-3 relevant quotes from industry experts or thought leaders. Format as <blockquote class="expert-quote"><p>"[quote]"</p><cite>— [Expert Name], [Title/Company]</cite></blockquote>. Use real, well-known experts in the field when possible.`
+    bodyEnhancements.push(
+      `- EXPERT QUOTES: Include 1-2 quotes from real industry experts. Format: <blockquote class="expert-quote"><p>"[quote]"</p><cite>— [Name], [Title]</cite></blockquote>`
     );
   }
 
-  if (enhancements.keyTakeaways) {
-    const placement = enhancements.keyTakeawaysPlacement === "beginning"
-      ? "AFTER the first main section (after the first </h2> section ends, NOT at the very start)"
-      : "at the END of the article (before FAQ)";
-    enhancementInstructions.push(
-      `- KEY TAKEAWAYS: Add a "Key Takeaways" box ${placement} with 4-6 concise bullet points summarizing the most important insights. Format as: <div class="key-takeaways"><h3>Key Takeaways</h3><ul><li>...</li></ul></div>`
-    );
-  }
-
-  if (enhancements.callToAction && enhancements.callToAction.trim()) {
-    enhancementInstructions.push(
-      `- CALL TO ACTION: Include a compelling call-to-action section near the end of the article (before FAQ). CTA instruction: "${enhancements.callToAction}". Format as: <div class="cta-box"><h3>[CTA Heading]</h3><p>[CTA Text]</p><a href="${brandUrl}" class="cta-button">[Button Text]</a></div>`
+  if (enhancements.keyTakeaways && enhancements.keyTakeawaysPlacement === "beginning") {
+    bodyEnhancements.push(
+      `- KEY TAKEAWAYS: Add a "Key Takeaways" box with 4-6 bullet points. Format: <div class="key-takeaways"><h3>Key Takeaways</h3><ul><li>...</li></ul></div>`
     );
   }
 
   if (enhancements.internalLinking && sitePages.length > 0) {
-    const pageList = sitePages.slice(0, 20).map((p, i) => `  ${i + 1}. ${p.title} → ${p.url}`).join("\n");
-    enhancementInstructions.push(
-      `- INTERNAL LINKING: Add 3-5 internal links using ONLY the real site pages below. Use descriptive anchor text and distribute links naturally across different sections.\n  Available pages:\n${pageList}`
+    const pageList = sitePages.slice(0, 10).map((p, i) => `  ${i + 1}. ${p.title} → ${p.url}`).join("\n");
+    bodyEnhancements.push(`- INTERNAL LINKS: Add 1-2 links from:\n${pageList}`);
+  }
+
+  if (enhancements.externalLinks && sources.length > 0) {
+    const sourceList = sources.slice(0, 5).map((s, i) => `  ${i + 1}. ${s.title} → ${s.url}`).join("\n");
+    bodyEnhancements.push(`- CITATIONS: Cite sources inline as <sup><a href="[URL]" rel="noopener" target="_blank" class="citation">[n]</a></sup>.\n  Sources:\n${sourceList}`);
+  }
+
+  if (enhancements.callToAction && enhancements.callToAction.trim()) {
+    lastEnhancements.push(
+      `- CTA: Add <div class="cta-box"><h3>[Heading]</h3><p>[Text]</p><a href="${brandUrl}" class="cta-button">[Button]</a></div>`
     );
-  } else if (enhancements.internalLinking) {
-    enhancementInstructions.push(
-      `- INTERNAL LINKING: Add 3-5 internal link placeholders as <a href="${brandUrl}/[relevant-page]">[anchor text]</a> distributed naturally throughout the article.`
+  }
+
+  if (enhancements.keyTakeaways && enhancements.keyTakeawaysPlacement === "end") {
+    lastEnhancements.push(
+      `- KEY TAKEAWAYS: Add a "Key Takeaways" box with 4-6 bullet points. Format: <div class="key-takeaways"><h3>Key Takeaways</h3><ul><li>...</li></ul></div>`
     );
   }
 
   if (enhancements.externalLinks && sources.length > 0) {
-    const sourceList = sources.map((s, i) => `  ${i + 1}. ${s.title} → ${s.url}`).join("\n");
-    enhancementInstructions.push(
-      `- CITATIONS & EXTERNAL LINKS: Use these real, authoritative sources as citations throughout the article. For each statistic or factual claim, add an inline citation as <sup><a href="[URL]" rel="noopener" target="_blank" class="citation">[number]</a></sup>. At the end (before FAQ), add a "Sources" section listing all cited sources:\n  <div class="sources-section"><h2>Sources</h2><ol class="sources-list"><li><a href="[URL]" rel="noopener" target="_blank">[Source Title]</a></li></ol></div>\n  Available sources:\n${sourceList}`
-    );
-  } else if (enhancements.externalLinks) {
-    enhancementInstructions.push(
-      `- EXTERNAL LINKS: Add 3-5 external links to authoritative sources as <a href="[url]" rel="noopener" target="_blank">[text]</a>. Link to reputable industry sources, studies, or official documentation.`
+    lastEnhancements.push(
+      `- SOURCES SECTION: At the end add <div class="sources-section"><h2>Sources</h2><ol class="sources-list"><li><a href="[URL]" rel="noopener" target="_blank">[Title]</a></li></ol></div>`
     );
   }
 
   if (enhancements.generateFaqs) {
-    enhancementInstructions.push(
-      `- FAQ SECTION (MANDATORY): You MUST include a Frequently Asked Questions section as the LAST section of the article HTML. This is REQUIRED — do NOT skip it. Use this exact structure:
-  <div class="faq-section">
-    <h2>Frequently Asked Questions</h2>
-    <div class="faq-item"><h3>[Question 1]</h3><p>[Detailed answer]</p></div>
-    <div class="faq-item"><h3>[Question 2]</h3><p>[Detailed answer]</p></div>
-    ... (4-6 questions total)
-  </div>
-  Questions should be real queries people search for about "${keyword}".`
+    lastEnhancements.push(
+      `- FAQ (MANDATORY): End with <div class="faq-section"><h2>Frequently Asked Questions</h2><div class="faq-item"><h3>[Q]</h3><p>[A]</p></div></div> (4-6 questions about "${keyword}")`
     );
   }
 
-  const enhancementBlock = enhancementInstructions.length > 0
-    ? `\n\nENHANCEMENT REQUIREMENTS:\n${enhancementInstructions.join("\n")}`
-    : "";
+  // --- Split outline into chunks ---
+  const chunks = splitOutlineIntoChunks(outline);
+  if (chunks.length === 0) {
+    return { content: "", metaDescription: "", tags: [], faq: [], wordCount: 0 };
+  }
 
-  const systemPrompt = `You are an expert SEO content writer. Write a complete article in HTML format.
-IMPORTANT: Write the ENTIRE article in ${language}. Every sentence, heading, and paragraph must be in ${language}.
-${voiceBlock}
-Requirements:
-- Follow the provided outline structure exactly
-- Target approximately ${wordCount} words
-- Use the target keyword naturally (2-3% density)
-- Include the brand name "${brandName}" naturally where relevant
-- Use semantic HTML: <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <em>, <blockquote>
-- Include HTML comparison/data tables where appropriate (e.g. feature comparisons, pros vs cons, pricing breakdowns, specifications). Use <table> with <thead> and <tbody>, styled with class="comparison-table" for styling hooks
-- Write engaging, informative content optimized for both humans and AI search engines
-- Maintain a coherent narrative throughout — every section must logically connect to the previous one and the overall topic. Do not drift off-topic or repeat the same points
-- BACKLINK OPTIMIZATION — write content that other sites will want to link to:
-  * Include original statistics, data points, or unique insights that others can cite
-  * Create definitive, comprehensive sections that serve as single-source references
-  * Add quotable statements and key takeaways that bloggers and journalists would reference
-  * Build "linkable assets" within the article: comparison tables, step-by-step frameworks, checklists, or original definitions
-  * Use the skyscraper approach: cover the topic more thoroughly than any existing article
-  * Include expert-level analysis that demonstrates E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
-- Do NOT include the <h1> title tag - it will be added separately
-- Do NOT include any markdown - use only HTML
-${enhancementBlock}
+  const wordsPerChunk = Math.round(wordCount / chunks.length);
 
-After the article HTML, add a JSON block wrapped in <script type="application/json" id="article-meta"> with:
-{"metaDescription":"150-160 char meta description in ${language}","tags":["5-8 tags in ${language}"],"faq":[{"question":"...","answer":"..."}]}`;
+  console.log(`[ArticleWriter] Writing "${title}" in ${chunks.length} chunks (~${wordsPerChunk} words each)`);
 
-  const currentYear = new Date().getFullYear();
+  // --- Write chunks sequentially (each builds on previous context) ---
+  const htmlParts: string[] = [];
+  let runningContext = "";
 
-  const userPrompt = `Title: ${title}
-Target Keyword: ${keyword}
-Keyword Data (Ahrefs): ${keywordContext || "N/A"}
-Brand: ${brandName} (${brandUrl})
-External Sources: ${research.externalSources.join(", ")}
-Image Suggestions: ${research.suggestedImages.join(", ")}
-Backlink Angles: ${(research.backlinkAngles || []).join("; ") || "N/A"}
-Statistics to Include: ${(research.statistics || []).join("; ") || "N/A"}
-Current Year: ${currentYear} (use this year for any date references, NEVER use outdated years)
-Language: ${language}
+  for (const chunk of chunks) {
+    const chunkEnhancementLines: string[] = [];
 
-Outline:
-${outlineText}
+    // Body enhancements go to the first body chunk (index 1 or 0)
+    if (chunk.chunkIndex === 0) {
+      chunkEnhancementLines.push(...bodyEnhancements);
+    }
 
-Write the complete article in ${language} now. Use the keyword data to optimize for search intent and competition level. Incorporate the backlink angles and statistics to make this article a link-worthy reference.`;
+    // Last-section enhancements go to the final chunk
+    if (chunk.isLast) {
+      chunkEnhancementLines.push(...lastEnhancements);
+    }
 
-  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.7, maxTokens: 16384, timeout: 90_000 });
+    const enhBlock = chunkEnhancementLines.length > 0
+      ? `\nENHANCEMENTS for this section:\n${chunkEnhancementLines.join("\n")}`
+      : "";
 
-  let content = text;
-  let metaDescription = "";
-  let tags: string[] = [];
-  let faq: { question: string; answer: string }[] = [];
+    try {
+      const html = await writeSection(chunk, {
+        title,
+        keyword,
+        brandName,
+        brandUrl,
+        language,
+        voiceBlock,
+        previousSummary: runningContext,
+        enhancementBlock: enhBlock,
+        wordsPerChunk,
+        currentYear,
+        keywordContext,
+        research,
+      });
 
-  const metaMatch = text.match(
-    /<script[^>]*id="article-meta"[^>]*>([\s\S]*?)<\/script>/
-  );
-  if (metaMatch) {
-    content = text.replace(metaMatch[0], "").trim();
-    const meta = safeJsonParse<Record<string, unknown>>(metaMatch[1]);
-    if (meta) {
-      metaDescription = (meta.metaDescription as string) || "";
-      tags = (meta.tags as string[]) || [];
-      faq = (meta.faq as Array<{ question: string; answer: string }>) || [];
+      htmlParts.push(html.trim());
+      runningContext = summarizeSections(htmlParts.join("\n"));
+      console.log(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1}/${chunks.length} done (${html.length} chars)`);
+    } catch (err) {
+      console.error(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1} failed:`, (err as Error).message);
+      // If a middle chunk fails, continue with remaining chunks
+      if (chunk.isFirst && htmlParts.length === 0) throw err;
     }
   }
 
-  const strippedText = content.replace(/<[^>]+>/g, " ");
-  const actualWordCount = strippedText
-    .split(/\s+/)
-    .filter((w) => w.length > 0).length;
+  const content = htmlParts.join("\n\n");
 
-  return { content, metaDescription, tags, faq, wordCount: actualWordCount };
+  // --- Generate meta separately (fast, small call) ---
+  console.log("[ArticleWriter] Generating meta...");
+  const meta = await generateArticleMeta(title, keyword, content, language, enhancements.generateFaqs);
+
+  const strippedText = content.replace(/<[^>]+>/g, " ");
+  const actualWordCount = strippedText.split(/\s+/).filter((w) => w.length > 0).length;
+
+  console.log(`[ArticleWriter] Done: ${actualWordCount} words, ${htmlParts.length}/${chunks.length} chunks`);
+
+  return {
+    content,
+    metaDescription: meta.metaDescription,
+    tags: meta.tags,
+    faq: meta.faq,
+    wordCount: actualWordCount,
+  };
 }
 
 export interface SeoCheckResult {
