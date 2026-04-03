@@ -128,13 +128,9 @@ export default async function ExamplesPage() {
                         <div className="absolute inset-0 bg-linear-to-t from-background/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                       </div>
                       <div className="flex flex-1 flex-col p-6 sm:p-7">
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-                            Written for {ex.brand_name}
-                          </span>
-                          <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                            {ex.keyword}
-                          </span>
+                        <div className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                          <PenLine className="h-3 w-3" />
+                          Written for {ex.brand_name}
                         </div>
                         <h2 className="text-xl font-bold leading-snug tracking-tight transition-colors group-hover:text-primary sm:text-2xl">
                           {ex.title}
@@ -149,11 +145,9 @@ export default async function ExamplesPage() {
                             Read full article
                             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                           </span>
-                          {ex.word_count > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {ex.word_count.toLocaleString()} words
-                            </span>
-                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {ex.word_count > 0 && `${ex.word_count.toLocaleString()} words · `}AI Generated
+                          </span>
                         </div>
                       </div>
                     </Link>
