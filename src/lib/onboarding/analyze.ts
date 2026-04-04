@@ -253,10 +253,9 @@ Only return the JSON, nothing else.`;
     return buildFallback(meta, brandHint, tldCountry);
   }
 
-  const result = safeJsonParse<WebsiteAnalysis>(response);
+  const result = safeJsonParse<WebsiteAnalysis>(response, "OnboardingAnalyze");
 
   if (!result) {
-    console.error(`[Analyze] JSON parse failed for ${url}, raw: ${response.slice(0, 200)}`);
     return buildFallback(meta, brandHint, tldCountry);
   }
 
@@ -355,9 +354,7 @@ RULES:
 - Only return the JSON, nothing else.`;
 
     const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
-    const result = safeJsonParse<WebsiteAnalysis>(response);
-
-    if (!result) throw new Error("parse failed");
+    const result = safeJsonParse<WebsiteAnalysis>(response, "OnboardingFallback", true);
     if (!result.brandName) result.brandName = brandHint;
     if (!result.primaryCountry) result.primaryCountry = tldCountry || "US";
 
@@ -435,7 +432,7 @@ Return a JSON array:
 Only return the JSON array, nothing else.`;
 
   const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
-  const prompts = safeJsonParse<GeneratedPrompt[]>(response);
+  const prompts = safeJsonParse<GeneratedPrompt[]>(response, "PromptGeneration");
   if (!Array.isArray(prompts)) return [];
 
   const brandLower = brandName.toLowerCase();
@@ -546,6 +543,6 @@ Return a JSON array:
 Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
 
   const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
-  const competitors = safeJsonParse<{ brandName: string; url: string }[]>(response);
+  const competitors = safeJsonParse<{ brandName: string; url: string }[]>(response, "CompetitorDiscovery");
   return Array.isArray(competitors) ? competitors.slice(0, 5) : [];
 }

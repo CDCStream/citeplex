@@ -104,7 +104,7 @@ Return JSON:
   });
 
   let candidates: { keyword: string; intent: string; rationale: string }[] = [];
-  const candidateParsed = safeJsonParse<Record<string, unknown>>(candidateResponse);
+  const candidateParsed = safeJsonParse<Record<string, unknown>>(candidateResponse, "GapCandidates");
   if (candidateParsed && Array.isArray((candidateParsed as Record<string, unknown>).candidates)) {
     candidates = (candidateParsed as Record<string, unknown>).candidates as typeof candidates;
   } else {
@@ -190,7 +190,7 @@ Return JSON:
   });
 
   let result: { targetKeyword: string; topic: string; title: string; reasoning: string };
-  const finalParsed = safeJsonParse<{ targetKeyword: string; topic: string; title: string; reasoning: string }>(finalResponse);
+  const finalParsed = safeJsonParse<{ targetKeyword: string; topic: string; title: string; reasoning: string }>(finalResponse, "GapFinalSelection");
   if (finalParsed && typeof finalParsed === "object" && "targetKeyword" in finalParsed) {
     result = finalParsed;
   } else {
@@ -316,7 +316,7 @@ Return JSON:
       timeout: 60000,
     });
 
-    const parsed = safeJsonParse<Record<string, unknown>>(response);
+    const parsed = safeJsonParse<Record<string, unknown>>(response, "SecondaryKeywords");
     const kwList: string[] = (Array.isArray((parsed as Record<string, unknown>)?.keywords) ? (parsed as Record<string, unknown>).keywords as string[] : []).slice(0, 20);
 
     if (kwList.length === 0) return [];
@@ -468,9 +468,8 @@ Return JSON (ONLY headings and levels, NO points):
       timeout: 90000,
     });
 
-    const parsed = safeJsonParse<Record<string, unknown>>(response);
+    const parsed = safeJsonParse<Record<string, unknown>>(response, "GapOutline", true);
     if (!parsed) {
-      console.error("[GapAnalyzer] Could not parse outline JSON, raw length:", response.length);
       return [[], []];
     }
     // Handle various LLM response formats

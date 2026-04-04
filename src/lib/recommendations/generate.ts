@@ -105,7 +105,7 @@ Respond ONLY with a valid JSON array, no other text.`,
       timeout: 30000,
     });
 
-    const recommendations = safeJsonParse<RawRecommendation[]>(content);
+    const recommendations = safeJsonParse<RawRecommendation[]>(content, "Recommendations");
 
     if (!Array.isArray(recommendations)) return 0;
 

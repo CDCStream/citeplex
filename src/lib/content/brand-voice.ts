@@ -39,10 +39,7 @@ Return ONLY valid JSON with this structure:
     timeout: 30000,
   });
 
-  const parsed = safeJsonParse<BrandVoiceProfile>(text);
-  if (!parsed) {
-    throw new Error("Failed to parse brand voice profile");
-  }
+  const parsed = safeJsonParse<BrandVoiceProfile>(text, "BrandVoice", true);
 
   return parsed;
 }

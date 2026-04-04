@@ -134,7 +134,7 @@ Only return valid JSON, nothing else.`;
 
           const response = await callLLM({ chain: "fast", system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
 
-          const insight = safeJsonParse<Record<string, unknown>>(response)
+          const insight = safeJsonParse<Record<string, unknown>>(response, "ScanInsight")
             ?? { whyMentioned: response.slice(0, 500), mentionContext: "unknown", recommendations: [] };
 
           await supabaseAdmin.from("scan_insights").insert({

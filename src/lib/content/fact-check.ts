@@ -56,7 +56,7 @@ Return JSON:
     });
 
     let claims: { claim: string; context: string; type: string; suggestedSource: string }[] = [];
-    const claimsParsed = safeJsonParse<Record<string, unknown>>(claimsResponse);
+    const claimsParsed = safeJsonParse<Record<string, unknown>>(claimsResponse, "FactCheck");
     if (claimsParsed && Array.isArray((claimsParsed as Record<string, unknown>).claims)) {
       claims = (claimsParsed as Record<string, unknown>).claims as typeof claims;
     } else {

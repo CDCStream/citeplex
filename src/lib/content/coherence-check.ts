@@ -44,7 +44,7 @@ Set isCoherent to true and score >= 80 if the article is publication-ready.`,
       timeout: 15000,
     });
 
-    const result = safeJsonParse<{ isCoherent?: boolean; needsFix?: boolean; score?: number; issues?: string[] }>(text);
+    const result = safeJsonParse<{ isCoherent?: boolean; needsFix?: boolean; score?: number; issues?: string[] }>(text, "CoherenceCheck");
     if (!result) {
       return { isCoherent: true, score: 75, issues: [], fixedContent: null };
     }

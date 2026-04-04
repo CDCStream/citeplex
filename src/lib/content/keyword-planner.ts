@@ -55,7 +55,7 @@ Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...
     timeout: 60000,
   });
 
-  const parsed = safeJsonParse<string[]>(response);
+  const parsed = safeJsonParse<string[]>(response, "CompetitorKeywords", true);
   return Array.isArray(parsed) ? parsed : [];
 }
 
@@ -82,7 +82,7 @@ Return ONLY a JSON array of keyword strings.`,
     timeout: 60000,
   });
 
-  const parsed = safeJsonParse<string[]>(response);
+  const parsed = safeJsonParse<string[]>(response, "BacklinkKeywords", true);
   return Array.isArray(parsed) ? parsed : [];
 }
 
@@ -113,7 +113,7 @@ Return ONLY a JSON array of keyword strings.`,
     timeout: 60000,
   });
 
-  const parsed = safeJsonParse<string[]>(response);
+  const parsed = safeJsonParse<string[]>(response, "OpportunityKeywords", true);
   return Array.isArray(parsed) ? parsed : [];
 }
 
@@ -185,7 +185,7 @@ Select the top ${count} keywords that would be most impactful. Return ONLY the J
     timeout: 60000,
   });
 
-  const parsed = safeJsonParse<string[]>(response);
+  const parsed = safeJsonParse<string[]>(response, "TitleGeneration", true);
   const items = Array.isArray(parsed) ? parsed : [];
 
   return items.slice(0, count).map((item: unknown) => {

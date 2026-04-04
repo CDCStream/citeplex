@@ -1,10 +1,25 @@
 /**
  * Attempts to parse potentially malformed JSON from LLM responses.
  * Applies progressive repair strategies before falling back to null.
+ *
+ * @param raw       - The raw LLM response string
+ * @param label     - A short label for logging (e.g. "Outline", "GapAnalyzer")
+ * @param required  - If true, throws an error instead of returning null
  */
-export function safeJsonParse<T = unknown>(raw: string): T | null {
+export function safeJsonParse<T = unknown>(
+  raw: string,
+  label = "safeJsonParse",
+  required = false,
+): T | null {
   // Strip markdown code fences
   let s = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+  if (!s) {
+    const msg = `[${label}] Empty LLM response — nothing to parse`;
+    console.error(msg);
+    if (required) throw new Error(msg);
+    return null;
+  }
 
   // 1. Direct parse
   try {
@@ -61,6 +76,7 @@ export function safeJsonParse<T = unknown>(raw: string): T | null {
     if (lastValidEnd > 0) {
       const candidate = s.slice(firstBrace, lastValidEnd + 1);
       try {
+        console.log(`[${label}] Repaired (stage 3: truncation fix)`);
         return JSON.parse(candidate) as T;
       } catch {
         // continue
@@ -70,16 +86,13 @@ export function safeJsonParse<T = unknown>(raw: string): T | null {
     // 4. Try to close truncated structures
     let repaired = s.slice(firstBrace);
 
-    // Remove the last incomplete object/value if it ends mid-string
     const lastCompleteObj = repaired.lastIndexOf("}");
     if (lastCompleteObj > 0) {
       repaired = repaired.slice(0, lastCompleteObj + 1);
     }
 
-    // Remove trailing commas again
     repaired = repaired.replace(/,\s*$/g, "");
 
-    // Count unclosed brackets and braces
     let braces = 0;
     let brackets = 0;
     inString = false;
@@ -95,14 +108,13 @@ export function safeJsonParse<T = unknown>(raw: string): T | null {
       if (ch === "]") brackets--;
     }
 
-    // Close any remaining open structures
     for (let i = 0; i < brackets; i++) repaired += "]";
     for (let i = 0; i < braces; i++) repaired += "}";
 
-    // Remove trailing commas one more time
     repaired = repaired.replace(/,\s*([\]}])/g, "$1");
 
     try {
+      console.log(`[${label}] Repaired (stage 4: close structures)`);
       return JSON.parse(repaired) as T;
     } catch {
       // continue
@@ -121,8 +133,12 @@ export function safeJsonParse<T = unknown>(raw: string): T | null {
     }
   }
   if (objects.length > 0) {
+    console.log(`[${label}] Repaired (stage 5: regex extraction, ${objects.length} objects)`);
     return objects as unknown as T;
   }
 
+  const msg = `[${label}] All 5 parse stages failed. Raw (first 300 chars): ${raw.slice(0, 300)}`;
+  console.error(msg);
+  if (required) throw new Error(msg);
   return null;
 }

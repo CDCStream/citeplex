@@ -67,7 +67,7 @@ Generate 8 article topic suggestions.`,
       maxTokens: 1500,
     });
 
-    const suggestions = safeJsonParse<unknown[]>(text) ?? [];
+    const suggestions = safeJsonParse<unknown[]>(text, "TopicSuggestions") ?? [];
 
     return NextResponse.json({ suggestions });
   } catch (err) {

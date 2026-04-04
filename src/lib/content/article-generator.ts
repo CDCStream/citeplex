@@ -53,7 +53,7 @@ Brand: ${brandName}
 Industry: ${industry}${competitorInsight}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048 });
-  const parsed = safeJsonParse<ReturnType<typeof defaultResearch>>(text);
+  const parsed = safeJsonParse<ReturnType<typeof defaultResearch>>(text, "Research");
   return parsed ?? defaultResearch();
 }
 
@@ -99,11 +99,10 @@ Language: ${language}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000 });
   console.log(`[Outline] Raw LLM response length: ${text.length} chars`);
-  const parsed = safeJsonParse<OutlineSection[]>(text);
+  const parsed = safeJsonParse<OutlineSection[]>(text, "Outline", true);
   const sections = Array.isArray(parsed) ? parsed.filter(s => s?.heading && s?.level) : [];
   if (sections.length === 0) {
-    console.error("[Outline] Failed to parse outline. Raw response:", text.slice(0, 500));
-    throw new Error("Failed to generate article outline — LLM returned unparseable response");
+    throw new Error("Outline parsed but produced 0 valid sections");
   }
   console.log(`[Outline] Generated ${sections.length} sections: ${sections.map(s => s.heading).join(", ")}`);
   return sections;
@@ -317,7 +316,7 @@ Return JSON:
     timeout: 30_000,
   });
 
-  const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text);
+  const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text, "ArticleMeta");
   return {
     metaDescription: parsed?.metaDescription || "",
     tags: parsed?.tags || [],
