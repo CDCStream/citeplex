@@ -188,6 +188,10 @@ export async function POST(
         } else {
           outline = await generateOutline(title, targetKeyword, research, wordCount, language);
         }
+        console.log(`[Articles] Outline: ${outline?.length ?? 0} sections`, outline?.map((s: { heading: string }) => s.heading));
+        if (!outline || outline.length === 0) {
+          throw new Error("Failed to generate article outline — no sections produced");
+        }
         send({ type: "step", step: "outline", status: "done" });
 
         // Step 3: Writing Content

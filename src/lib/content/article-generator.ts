@@ -98,8 +98,15 @@ Related Topics: ${research.relatedTopics.join(", ")}
 Language: ${language}`;
 
   const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000 });
+  console.log(`[Outline] Raw LLM response length: ${text.length} chars`);
   const parsed = safeJsonParse<OutlineSection[]>(text);
-  return Array.isArray(parsed) ? parsed : [];
+  const sections = Array.isArray(parsed) ? parsed.filter(s => s?.heading && s?.level) : [];
+  if (sections.length === 0) {
+    console.error("[Outline] Failed to parse outline. Raw response:", text.slice(0, 500));
+    throw new Error("Failed to generate article outline — LLM returned unparseable response");
+  }
+  console.log(`[Outline] Generated ${sections.length} sections: ${sections.map(s => s.heading).join(", ")}`);
+  return sections;
 }
 
 export interface EnhancementOptions {
@@ -402,7 +409,7 @@ export async function writeArticle(
   // --- Split outline into chunks ---
   const chunks = splitOutlineIntoChunks(outline);
   if (chunks.length === 0) {
-    return { content: "", metaDescription: "", tags: [], faq: [], wordCount: 0 };
+    throw new Error("Outline produced no sections to write");
   }
 
   const wordsPerChunk = Math.round(wordCount / chunks.length);
@@ -460,6 +467,10 @@ export async function writeArticle(
   }
 
   const content = htmlParts.join("\n\n");
+
+  if (!content.trim() || content.trim().length < 200) {
+    throw new Error(`Article content too short or empty (${content.length} chars, ${htmlParts.length}/${chunks.length} chunks succeeded)`);
+  }
 
   // --- Generate meta separately (fast, small call) ---
   console.log("[ArticleWriter] Generating meta...");
