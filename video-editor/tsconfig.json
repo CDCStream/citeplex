@@ -15,9 +15,11 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": ["./src/*"],
+      "@remotion/*": ["../video/src/*"]
+    },
+    "baseUrl": "."
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "video", "video-editor"]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "../video/src/**/*.ts", "../video/src/**/*.tsx"],
+  "exclude": ["node_modules"]
 }

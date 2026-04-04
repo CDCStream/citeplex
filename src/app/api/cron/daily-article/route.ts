@@ -18,6 +18,7 @@ import { getLanguageName, getLanguageFromCountry } from "@/lib/languages";
 import { checkAndReplan } from "@/lib/content/keyword-planner";
 import { getDailyArticleLimit } from "@/lib/plans";
 import { searchRelevantSources } from "@/lib/content/source-search";
+import { autoPublishArticle } from "@/lib/content/auto-publish";
 
 interface ArticlePreferences {
   includeCta?: boolean;
@@ -196,6 +197,16 @@ async function writeArticleForPlan(
       article_id: savedArticle.id,
     })
     .eq("id", plan.id);
+
+  // Auto-publish to active integration if one exists
+  try {
+    const publishedTo = await autoPublishArticle(domain.id, savedArticle.id);
+    if (publishedTo) {
+      console.log(`[DailyArticle] Auto-published ${plan.title} to ${publishedTo}`);
+    }
+  } catch (err) {
+    console.error(`[DailyArticle] Auto-publish failed (non-blocking):`, err);
+  }
 
   return savedArticle.id;
 }

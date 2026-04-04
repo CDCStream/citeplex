@@ -17,8 +17,22 @@ import { Overview } from "./sequences/Overview";
 import { GapArticle } from "./sequences/GapArticle";
 import { Calendar } from "./sequences/Calendar";
 import { Finale } from "./sequences/Finale";
+import { YouTubeTemplate } from "./templates/YouTubeTemplate";
+import { ShortsTemplate } from "./templates/ShortsTemplate";
+import { onboardingDemo, aiVisibilityShort } from "./videos/example-feature";
+import { geoExplainer, geoShort } from "./videos/geo-explainer";
+import type { VideoConfig } from "./videos/types";
+import { getTotalDuration, getResolution } from "./videos/types";
 
 const FPS = 30;
+
+/* ── Dynamic composition: accepts VideoConfig via inputProps ── */
+
+const DynamicVideo: React.FC<{ config: VideoConfig }> = ({ config }) => {
+  const Template =
+    config.format === "shorts" ? ShortsTemplate : YouTubeTemplate;
+  return <Template config={config} />;
+};
 const TRANSITION_FRAMES = 20;
 
 const INTRO_DURATION = 5;
@@ -215,6 +229,48 @@ export const RemotionRoot: React.FC = () => {
         fps={FPS}
         width={1920}
         height={1080}
+      />
+
+      {/* ── Dynamic composition for Video Editor ── */}
+      <Composition
+        id="DynamicVideo"
+        component={DynamicVideo}
+        calculateMetadata={({ props }) => ({
+          durationInFrames: getTotalDuration(props.config),
+          fps: props.config.fps ?? FPS,
+          ...getResolution(props.config.format),
+        })}
+        defaultProps={{ config: geoExplainer }}
+      />
+
+      {/* ── Marketing Video Compositions ── */}
+      <Composition
+        id={onboardingDemo.id}
+        component={() => <YouTubeTemplate config={onboardingDemo} />}
+        durationInFrames={getTotalDuration(onboardingDemo)}
+        fps={onboardingDemo.fps ?? FPS}
+        {...getResolution(onboardingDemo.format)}
+      />
+      <Composition
+        id={aiVisibilityShort.id}
+        component={() => <ShortsTemplate config={aiVisibilityShort} />}
+        durationInFrames={getTotalDuration(aiVisibilityShort)}
+        fps={aiVisibilityShort.fps ?? FPS}
+        {...getResolution(aiVisibilityShort.format)}
+      />
+      <Composition
+        id={geoExplainer.id}
+        component={() => <YouTubeTemplate config={geoExplainer} />}
+        durationInFrames={getTotalDuration(geoExplainer)}
+        fps={geoExplainer.fps ?? FPS}
+        {...getResolution(geoExplainer.format)}
+      />
+      <Composition
+        id={geoShort.id}
+        component={() => <ShortsTemplate config={geoShort} />}
+        durationInFrames={getTotalDuration(geoShort)}
+        fps={geoShort.fps ?? FPS}
+        {...getResolution(geoShort.format)}
       />
     </>
   );

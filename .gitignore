@@ -1,6 +1,8 @@
 # dependencies
 /node_modules
 /video/node_modules
+/video-editor/node_modules
+/video-editor/.next
 /.pnp
 .pnp.*
 .yarn/*

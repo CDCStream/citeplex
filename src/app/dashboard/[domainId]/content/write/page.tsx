@@ -28,6 +28,8 @@ import {
 
 
   Save,
+  Send,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -113,6 +115,22 @@ export default function WriteArticlePage() {
   });
   const [previewHtml, setPreviewHtml] = useState("");
   const previewRef = useRef<HTMLDivElement>(null);
+  const [generatedArticleId, setGeneratedArticleId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ platform: string; url?: string } | null>(null);
+  const [integration, setIntegration] = useState<{ platform: string } | null>(null);
+
+  // Fetch active integration on mount
+  useEffect(() => {
+    if (!domainId) return;
+    fetch(`/api/content/${domainId}/integrations`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        const active = (data?.integrations || []).find((i: { is_active: boolean }) => i.is_active);
+        if (active) setIntegration({ platform: active.platform });
+      })
+      .catch(() => {});
+  }, [domainId]);
 
   useEffect(() => {
     if (!initialPrompt || !domainId) return;
@@ -291,7 +309,10 @@ export default function WriteArticlePage() {
         break;
       case "done": {
         const id = (data.article as { id: string }).id;
-        router.push(`/dashboard/${domainId}/content/article/${id}?tab=preview`);
+        setGeneratedArticleId(id);
+        if (!integration) {
+          router.push(`/dashboard/${domainId}/content/article/${id}?tab=preview`);
+        }
         break;
       }
       case "error":
@@ -301,6 +322,29 @@ export default function WriteArticlePage() {
     }
   }
 
+
+  async function handlePublishNow() {
+    if (!generatedArticleId || !integration) return;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/content/${domainId}/articles/${generatedArticleId}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform: integration.platform }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPublishResult({ platform: integration.platform, url: data.result?.url });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Publishing failed");
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   const completedSteps = Object.values(steps).filter(s => s.status === "done").length;
   const totalSteps = STEP_CONFIG.length;
@@ -646,7 +690,7 @@ export default function WriteArticlePage() {
           </Card>
 
           {/* Live Preview */}
-          {previewHtml && (
+          {previewHtml && !generatedArticleId && (
             <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -661,6 +705,66 @@ export default function WriteArticlePage() {
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
                 <p className="text-xs text-muted-foreground mt-2 text-center">Content preview — full article will be available when complete</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Article Complete — Publish or View */}
+          {generatedArticleId && integration && (
+            <Card className="border-green-200 dark:border-green-500/30 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CardContent className="py-8">
+                {publishResult ? (
+                  <div className="flex flex-col items-center text-center">
+                    <div className="rounded-full bg-green-100 dark:bg-green-500/20 p-3 mb-4">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold">Published Successfully!</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Article published to <span className="font-medium capitalize">{publishResult.platform}</span>
+                    </p>
+                    {publishResult.url && (
+                      <a
+                        href={publishResult.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        View on {publishResult.platform}
+                      </a>
+                    )}
+                    <Button variant="outline" className="mt-4" asChild>
+                      <Link href={`/dashboard/${domainId}/content/article/${generatedArticleId}?tab=preview`}>
+                        View Article in Dashboard
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-center">
+                    <div className="rounded-full bg-green-100 dark:bg-green-500/20 p-3 mb-4">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold">Article Generated!</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                      Your article is ready. Publish it to <span className="font-medium capitalize">{integration.platform}</span> or view it first.
+                    </p>
+                    <div className="flex items-center gap-3 mt-6">
+                      <Button onClick={handlePublishNow} disabled={publishing} size="lg">
+                        {publishing ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="mr-2 h-4 w-4" />
+                        )}
+                        {publishing ? "Publishing..." : `Publish to ${integration.platform}`}
+                      </Button>
+                      <Button variant="outline" size="lg" asChild>
+                        <Link href={`/dashboard/${domainId}/content/article/${generatedArticleId}?tab=preview`}>
+                          View Article
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
