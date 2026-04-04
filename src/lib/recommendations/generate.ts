@@ -75,6 +75,7 @@ export async function generateRecommendations(domainId: string): Promise<number>
   try {
     const content = await callLLM({
       chain: "fast",
+      expectJson: true,
       system: "You are an AI Search Visibility expert. Respond ONLY with a valid JSON array, no other text.",
       user: `Analyze these scan results and provide 3-5 specific, actionable recommendations.
 

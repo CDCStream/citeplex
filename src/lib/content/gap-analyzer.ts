@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { withRetry } from "@/lib/llm/with-retry";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { findAndScrapeTopArticles, type TopArticle } from "./top-articles";
 import { safeJsonParse } from "./safe-json-parse";
@@ -71,6 +72,7 @@ export async function analyzeGapAndPlan(
   const candidateResponse = await callLLM({
     chain: "strong",
     timeout: 60_000,
+    expectJson: true,
     system: "You are an expert SEO strategist. Return ONLY valid JSON, nothing else.",
     user: `A brand is NOT being mentioned by ANY AI engine for this prompt:
 "${prompt}"
@@ -148,6 +150,7 @@ Return JSON:
   const finalResponse = await callLLM({
     chain: "strong",
     timeout: 60_000,
+    expectJson: true,
     system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis. Return ONLY valid JSON.",
     user: `Based on the Ahrefs data below, pick the BEST target keyword for writing a gap article.
 
@@ -298,6 +301,7 @@ async function extractSecondaryKeywords(
   try {
     const response = await callLLM({
       chain: "fast",
+      expectJson: true,
       system: "You are an SEO keyword researcher. Return ONLY valid JSON.",
       user: `Analyze these top-ranking articles for "${primaryKeyword}" and extract 15-20 secondary/LSI keywords that appear frequently across multiple articles.
 
@@ -459,14 +463,18 @@ Return JSON (ONLY headings and levels, NO points):
 }`;
 
   try {
-    const response = await callLLM({
-      chain: "strong",
-      system: "You are an expert content strategist. Return ONLY valid JSON. Keep response compact — no extra whitespace.",
-      user: outlinePrompt,
-      maxTokens: 2048,
-      temperature: 0.7,
-      timeout: 90000,
-    });
+    const response = await withRetry(
+      () => callLLM({
+        chain: "strong",
+        expectJson: true,
+        system: "You are an expert content strategist. Return ONLY valid JSON. Keep response compact — no extra whitespace.",
+        user: outlinePrompt,
+        maxTokens: 2048,
+        temperature: 0.7,
+        timeout: 90000,
+      }),
+      { label: "GapOutline", maxAttempts: 2, delayMs: 2000 },
+    );
 
     const parsed = safeJsonParse<Record<string, unknown>>(response, "GapOutline", true);
     if (!parsed) {

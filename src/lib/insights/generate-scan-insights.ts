@@ -132,7 +132,7 @@ ${sources.length > 0 ? sources.map((s) => `- ${s}`).join("\n") : "(no sources de
 
 Only return valid JSON, nothing else.`;
 
-          const response = await callLLM({ chain: "fast", system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
+          const response = await callLLM({ chain: "fast", expectJson: true, system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
 
           const insight = safeJsonParse<Record<string, unknown>>(response, "ScanInsight")
             ?? { whyMentioned: response.slice(0, 500), mentionContext: "unknown", recommendations: [] };

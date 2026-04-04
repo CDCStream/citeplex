@@ -247,7 +247,7 @@ Only return the JSON, nothing else.`;
 
   let response = "";
   try {
-    response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
+    response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, expectJson: true });
   } catch (err) {
     console.error(`[Analyze] LLM call failed for ${url}:`, (err as Error).message);
     return buildFallback(meta, brandHint, tldCountry);
@@ -353,8 +353,8 @@ RULES:
 - If you cannot find info, use domain name "${brandHint}" as brandName and leave description/industry minimal
 - Only return the JSON, nothing else.`;
 
-    const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
-    const result = safeJsonParse<WebsiteAnalysis>(response, "OnboardingFallback", true);
+    const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, expectJson: true });
+    const result = safeJsonParse<WebsiteAnalysis>(response, "OnboardingFallback", true)!;
     if (!result.brandName) result.brandName = brandHint;
     if (!result.primaryCountry) result.primaryCountry = tldCountry || "US";
 
@@ -431,7 +431,7 @@ Return a JSON array:
 
 Only return the JSON array, nothing else.`;
 
-  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000 });
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, expectJson: true });
   const prompts = safeJsonParse<GeneratedPrompt[]>(response, "PromptGeneration");
   if (!Array.isArray(prompts)) return [];
 
@@ -542,7 +542,7 @@ Return a JSON array:
 
 Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
 
-  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000 });
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, expectJson: true });
   const competitors = safeJsonParse<{ brandName: string; url: string }[]>(response, "CompetitorDiscovery");
   return Array.isArray(competitors) ? competitors.slice(0, 5) : [];
 }

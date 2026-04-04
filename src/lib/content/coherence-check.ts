@@ -19,6 +19,7 @@ export async function checkCoherence(
   try {
     const text = await callLLM({
       chain: "fast",
+      expectJson: true,
       system: `You are a content quality reviewer. Analyze the article for context coherence — every section must logically flow from the previous one, stay on topic, and build toward the article's thesis.
 
 Check for:

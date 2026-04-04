@@ -36,6 +36,7 @@ async function getCompetitorKeywords(domainId: string, domain: DomainContext, ex
 
   const response = await callLLM({
     chain: "fast",
+    expectJson: true,
     system: "You are an SEO strategist. Generate keyword ideas based on competitor analysis. Return ONLY a JSON array of keyword strings.",
     user: `Our brand: ${domain.brand_name}
 Description: ${domain.description}
@@ -63,6 +64,7 @@ async function getBacklinkKeywords(domain: DomainContext, excludeContext: string
   const currentYear = new Date().getFullYear();
   const response = await callLLM({
     chain: "fast",
+    expectJson: true,
     system: "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks. Return ONLY a JSON array of keyword strings.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
@@ -89,6 +91,7 @@ Return ONLY a JSON array of keyword strings.`,
 async function getOpportunityKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
   const response = await callLLM({
     chain: "fast",
+    expectJson: true,
     system: "You are an SEO content strategist. Generate keyword ideas for organic traffic growth. Return ONLY a JSON array of keyword strings.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
@@ -160,6 +163,7 @@ async function generateTitlesForKeywords(
 
   const response = await callLLM({
     chain: "fast",
+    expectJson: true,
     system: "You are an SEO content strategist. Create article titles for the given keywords. Return ONLY valid JSON.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}

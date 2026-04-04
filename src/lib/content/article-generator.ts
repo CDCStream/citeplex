@@ -1,4 +1,5 @@
 import { callLLM } from "@/lib/llm/client";
+import { withRetry } from "@/lib/llm/with-retry";
 import { safeJsonParse } from "./safe-json-parse";
 
 export interface ResearchData {
@@ -52,7 +53,7 @@ Target Keyword: ${keyword}
 Brand: ${brandName}
 Industry: ${industry}${competitorInsight}`;
 
-  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048 });
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048, expectJson: true });
   const parsed = safeJsonParse<ReturnType<typeof defaultResearch>>(text, "Research");
   return parsed ?? defaultResearch();
 }
@@ -97,15 +98,20 @@ Key Points to Cover: ${research.keyPoints.join(", ")}
 Related Topics: ${research.relatedTopics.join(", ")}
 Language: ${language}`;
 
-  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000 });
-  console.log(`[Outline] Raw LLM response length: ${text.length} chars`);
-  const parsed = safeJsonParse<OutlineSection[]>(text, "Outline", true);
-  const sections = Array.isArray(parsed) ? parsed.filter(s => s?.heading && s?.level) : [];
-  if (sections.length === 0) {
-    throw new Error("Outline parsed but produced 0 valid sections");
-  }
-  console.log(`[Outline] Generated ${sections.length} sections: ${sections.map(s => s.heading).join(", ")}`);
-  return sections;
+  return withRetry(
+    async () => {
+      const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000, expectJson: true });
+      console.log(`[Outline] Raw LLM response length: ${text.length} chars`);
+      const parsed = safeJsonParse<OutlineSection[]>(text, "Outline", true);
+      const sections = Array.isArray(parsed) ? parsed.filter(s => s?.heading && s?.level) : [];
+      if (sections.length === 0) {
+        throw new Error("Outline parsed but produced 0 valid sections");
+      }
+      console.log(`[Outline] Generated ${sections.length} sections: ${sections.map(s => s.heading).join(", ")}`);
+      return sections;
+    },
+    { label: "generateOutline", maxAttempts: 2, delayMs: 2000 },
+  );
 }
 
 export interface EnhancementOptions {
@@ -166,11 +172,13 @@ interface OutlineChunk {
 }
 
 /**
- * Split the outline into balanced chunks of 2-3 H2s each.
+ * Split the outline into balanced chunks of H2s.
  * Each H2 carries its child H3s with it.
+ * Max 4 chunks to stay within Vercel's 300s timeout.
  */
+const MAX_CHUNKS = 4;
+
 function splitOutlineIntoChunks(outline: OutlineSection[]): OutlineChunk[] {
-  // Group by H2: each H2 starts a new group, H3s attach to the preceding H2
   const h2Groups: OutlineSection[][] = [];
   let current: OutlineSection[] = [];
 
@@ -185,17 +193,17 @@ function splitOutlineIntoChunks(outline: OutlineSection[]): OutlineChunk[] {
 
   if (h2Groups.length === 0) return [];
 
-  // Distribute groups into chunks of 2-3 H2s
-  const CHUNK_SIZE = 2;
+  // Calculate chunk size to stay within MAX_CHUNKS
+  const chunkSize = Math.max(2, Math.ceil(h2Groups.length / MAX_CHUNKS));
   const chunks: OutlineChunk[] = [];
-  for (let i = 0; i < h2Groups.length; i += CHUNK_SIZE) {
-    const slice = h2Groups.slice(i, i + CHUNK_SIZE);
+  for (let i = 0; i < h2Groups.length; i += chunkSize) {
+    const slice = h2Groups.slice(i, i + chunkSize);
     chunks.push({
       sections: slice.flat(),
       chunkIndex: chunks.length,
-      totalChunks: 0, // filled below
+      totalChunks: 0,
       isFirst: i === 0,
-      isLast: i + CHUNK_SIZE >= h2Groups.length,
+      isLast: i + chunkSize >= h2Groups.length,
     });
   }
 
@@ -273,14 +281,22 @@ ${chunkOutline}
 
 Write these sections now in ${ctx.language}. Output ONLY the HTML for these sections.`;
 
-  return callLLM({
-    chain: "strong",
-    system,
-    user,
-    temperature: 0.7,
-    maxTokens: 4096,
-    timeout: 75_000,
-  });
+  return withRetry(
+    () => callLLM({
+      chain: "strong",
+      system,
+      user,
+      temperature: 0.7,
+      maxTokens: 4096,
+      timeout: 60_000,
+    }),
+    {
+      label: `writeSection-${chunk.chunkIndex + 1}`,
+      maxAttempts: 2,
+      delayMs: 1500,
+      validate: (html) => html.trim().length > 100,
+    },
+  );
 }
 
 /**
@@ -297,10 +313,12 @@ async function generateArticleMeta(
     ? `"faq": [{"question":"real search query about ${keyword}","answer":"detailed answer"}] (4-6 items)`
     : `"faq": []`;
 
-  const text = await callLLM({
-    chain: "fast",
-    system: `You are an SEO specialist. Generate article metadata. Return ONLY valid JSON, nothing else.`,
-    user: `Article title: "${title}"
+  return withRetry(
+    async () => {
+      const text = await callLLM({
+        chain: "fast",
+        system: `You are an SEO specialist. Generate article metadata. Return ONLY valid JSON, nothing else.`,
+        user: `Article title: "${title}"
 Keyword: "${keyword}"
 Language: ${language}
 Article excerpt (first 1500 chars): ${contentSnippet.slice(0, 1500)}
@@ -311,17 +329,21 @@ Return JSON:
   "tags": ["5-8 SEO tags in ${language}"],
   ${faqInstruction}
 }`,
-    temperature: 0.3,
-    maxTokens: 1500,
-    timeout: 30_000,
-  });
+        temperature: 0.3,
+        maxTokens: 1500,
+        timeout: 30_000,
+        expectJson: true,
+      });
 
-  const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text, "ArticleMeta");
-  return {
-    metaDescription: parsed?.metaDescription || "",
-    tags: parsed?.tags || [],
-    faq: parsed?.faq || [],
-  };
+      const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text, "ArticleMeta");
+      return {
+        metaDescription: parsed?.metaDescription || "",
+        tags: parsed?.tags || [],
+        faq: parsed?.faq || [],
+      };
+    },
+    { label: "generateArticleMeta", maxAttempts: 2, delayMs: 1000 },
+  );
 }
 
 /**
@@ -436,10 +458,10 @@ export async function writeArticle(
       ? `\nENHANCEMENTS for this section:\n${chunkEnhancementLines.join("\n")}`
       : "";
 
-    try {
-      const chunkStart = Date.now();
-      console.log(`[ArticleWriter] Starting chunk ${chunk.chunkIndex + 1}/${chunks.length} (sections: ${chunk.sections.map(s => s.heading).join(", ")})`);
+    const chunkStart = Date.now();
+    console.log(`[ArticleWriter] Starting chunk ${chunk.chunkIndex + 1}/${chunks.length} (sections: ${chunk.sections.map(s => s.heading).join(", ")})`);
 
+    try {
       const html = await writeSection(chunk, {
         title,
         keyword,
@@ -460,12 +482,18 @@ export async function writeArticle(
       const elapsed = ((Date.now() - chunkStart) / 1000).toFixed(1);
       console.log(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1}/${chunks.length} done in ${elapsed}s (${html.length} chars)`);
     } catch (err) {
-      console.error(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1} FAILED after ${((Date.now() - Date.now()) / 1000).toFixed(1)}s:`, (err as Error).message);
+      const elapsed = ((Date.now() - chunkStart) / 1000).toFixed(1);
+      console.error(`[ArticleWriter] Chunk ${chunk.chunkIndex + 1} FAILED after ${elapsed}s:`, (err as Error).message);
       if (chunk.isFirst && htmlParts.length === 0) throw err;
     }
   }
 
   const content = htmlParts.join("\n\n");
+
+  const minChunks = Math.ceil(chunks.length / 2);
+  if (htmlParts.length < minChunks) {
+    throw new Error(`Too many chunks failed: ${htmlParts.length}/${chunks.length} succeeded (need at least ${minChunks})`);
+  }
 
   if (!content.trim() || content.trim().length < 200) {
     throw new Error(`Article content too short or empty (${content.length} chars, ${htmlParts.length}/${chunks.length} chunks succeeded)`);

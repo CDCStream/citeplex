@@ -49,6 +49,7 @@ export async function POST(
 
     const text = await callLLM({
       chain: "fast",
+      expectJson: true,
       system: `You are an SEO content strategist. Generate 8 article topic suggestions for a brand.
 Return ONLY valid JSON array: [{"title":"...","keyword":"...","type":"guide|how-to|listicle|comparison|explainer|round-up"}]
 - Each title should be specific and actionable

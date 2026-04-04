@@ -21,6 +21,7 @@ export async function factCheckAndCite(
     // Step 1: Extract claims that need verification
     const claimsResponse = await callLLM({
       chain: "fast",
+      expectJson: true,
       system: `You are a fact-checking editor. Analyze the HTML article and identify factual claims that should be cited. Return ONLY valid JSON.
 
 Focus on:

@@ -21,6 +21,7 @@ export async function analyzeBrandVoice(
 
   const text = await callLLM({
     chain: "fast",
+    expectJson: true,
     system: `You are a writing style analyst. Analyze the provided content samples and extract a detailed brand voice profile.
 Return ONLY valid JSON with this structure:
 {
@@ -41,7 +42,7 @@ Return ONLY valid JSON with this structure:
 
   const parsed = safeJsonParse<BrandVoiceProfile>(text, "BrandVoice", true);
 
-  return parsed;
+  return parsed!;
 }
 
 export async function scrapePageText(url: string): Promise<string> {

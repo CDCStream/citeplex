@@ -1,3 +1,5 @@
+import { safeJsonParse } from "@/lib/content/safe-json-parse";
+
 type LLMProvider = "openai" | "anthropic" | "gemini";
 
 interface LLMConfig {
@@ -13,6 +15,9 @@ export interface CallLLMOptions {
   temperature?: number;
   timeout?: number;
   webSearch?: boolean;
+  /** When true, validate the response is parseable JSON. On parse failure
+   *  the same provider is retried once before falling back to the next. */
+  expectJson?: boolean;
 }
 
 const FALLBACK_CHAINS: Record<string, LLMConfig[]> = {
@@ -89,6 +94,7 @@ async function callOpenAI(
   temperature: number,
   timeout: number,
   webSearch?: boolean,
+  jsonMode?: boolean,
 ): Promise<string> {
   const key = getKey("openai");
   if (!key) throw new Error("OPENAI_API_KEY not set");
@@ -104,6 +110,7 @@ async function callOpenAI(
       ],
     };
     if (webSearch) body.tools = [{ type: "web_search_preview" }];
+    if (jsonMode) body.text = { format: { type: "json_object" } };
 
     const res = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -131,21 +138,24 @@ async function callOpenAI(
     );
   }
 
+  const reqBody: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    max_tokens: maxTokens,
+    temperature,
+  };
+  if (jsonMode) reqBody.response_format = { type: "json_object" };
+
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      max_tokens: maxTokens,
-      temperature,
-    }),
+    body: JSON.stringify(reqBody),
     signal: AbortSignal.timeout(timeout),
   });
 
@@ -165,19 +175,26 @@ async function callGemini(
   _maxTokens: number,
   _temperature: number,
   timeout: number,
+  _webSearch?: boolean,
+  jsonMode?: boolean,
 ): Promise<string> {
   const key = getKey("gemini");
   if (!key) throw new Error("GOOGLE_GEMINI_API_KEY not set");
+
+  const body: Record<string, unknown> = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ parts: [{ text: user }] }],
+  };
+  if (jsonMode) {
+    body.generationConfig = { responseMimeType: "application/json" };
+  }
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ parts: [{ text: user }] }],
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeout),
     },
   );
@@ -195,33 +212,36 @@ async function callGemini(
   );
 }
 
-const PROVIDER_FN: Record<
-  LLMProvider,
-  (model: string, system: string, user: string, maxTokens: number, temperature: number, timeout: number, webSearch?: boolean) => Promise<string>
-> = {
+type ProviderFn = (
+  model: string, system: string, user: string,
+  maxTokens: number, temperature: number, timeout: number,
+  webSearch?: boolean, jsonMode?: boolean,
+) => Promise<string>;
+
+const PROVIDER_FN: Record<LLMProvider, ProviderFn> = {
   anthropic: callAnthropic,
   openai: callOpenAI,
   gemini: callGemini,
 };
 
 /**
- * Centralized LLM call with automatic 2-level fallback.
+ * Centralized LLM call with automatic fallback + optional JSON validation.
  *
- * @param opts.chain - "fast" (Sonnet 4.6 → GPT-5.4 → Gemini 2.5 Flash),
- *                     "strong" (Sonnet 4.6 → GPT-5.4 → Gemini 2.5 Flash),
+ * @param opts.chain - "fast" / "strong" (both Sonnet → GPT-5.4 → Gemini 2.5 Flash),
  *                     or a custom LLMConfig array.
- * @param opts.webSearch - If true, enables web search on providers that support it (OpenAI Responses API).
- *                         When falling back to a provider without web search, a note is appended to the user prompt.
+ * @param opts.expectJson - If true, validates response is parseable JSON.
+ *                          On parse failure, retries the same provider once
+ *                          before falling back to the next provider.
  */
 export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const chain = typeof opts.chain === "string" ? FALLBACK_CHAINS[opts.chain] : opts.chain;
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature ?? 0.7;
   const baseTimeout = opts.timeout ?? 60_000;
+  const expectJson = opts.expectJson ?? false;
   const errors: string[] = [];
 
   // Each fallback gets slightly less time: 100% → 80% → 60%
-  // e.g. 45s base → 45s + 36s + 27s = 108s total (instead of 135s)
   const TIMEOUT_DECAY = [1.0, 0.8, 0.6];
 
   for (let i = 0; i < chain.length; i++) {
@@ -235,24 +255,57 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
       userPrompt += "\n\n(Note: web search is not available, use your knowledge.)";
     }
 
-    try {
-      const result = await fn(
-        cfg.model,
-        opts.system,
-        userPrompt,
-        maxTokens,
-        temperature,
-        attemptTimeout,
-        opts.webSearch,
-      );
-      if (i > 0) {
-        console.log(`[LLM] Fallback succeeded: ${cfg.provider}/${cfg.model} (after ${i} failure${i > 1 ? "s" : ""})`);
+    // With expectJson, each provider gets up to 2 attempts (initial + JSON retry)
+    const maxInner = expectJson ? 2 : 1;
+
+    for (let attempt = 0; attempt < maxInner; attempt++) {
+      const isRetry = attempt > 0;
+      const innerTimeout = isRetry ? Math.round(attemptTimeout * 0.6) : attemptTimeout;
+
+      let currentSystem = opts.system;
+      let currentUser = userPrompt;
+      if (isRetry) {
+        currentSystem += "\n\nCRITICAL: Your previous response was not valid JSON. You MUST return ONLY valid JSON, no markdown, no explanation, no code fences.";
+        currentUser += "\n\nREMINDER: Return ONLY valid JSON. No markdown fences, no extra text.";
       }
-      return result;
-    } catch (err) {
-      const msg = (err as Error).message;
-      errors.push(`${cfg.provider}/${cfg.model}: ${msg}`);
-      console.error(`[LLM] ${cfg.provider}/${cfg.model} failed (timeout=${attemptTimeout}ms)${isLast ? " (last)" : ", trying next fallback"}:`, msg);
+
+      try {
+        const result = await fn(
+          cfg.model,
+          currentSystem,
+          currentUser,
+          maxTokens,
+          temperature,
+          innerTimeout,
+          opts.webSearch,
+          expectJson,
+        );
+
+        if (expectJson) {
+          const testParse = safeJsonParse(result, `LLM-JSON-${cfg.provider}`);
+          if (testParse === null) {
+            const msg = `${cfg.provider}/${cfg.model}: response not valid JSON (${result.length} chars)`;
+            errors.push(msg);
+            console.warn(`[LLM] ${msg}${isRetry ? " (retry also failed)" : ", retrying same provider"}`);
+            if (isRetry) break; // move to next provider
+            continue; // retry same provider
+          }
+        }
+
+        if (i > 0 || isRetry) {
+          console.log(`[LLM] ${isRetry ? "JSON retry" : "Fallback"} succeeded: ${cfg.provider}/${cfg.model}`);
+        }
+        return result;
+      } catch (err) {
+        const msg = (err as Error).message;
+        errors.push(`${cfg.provider}/${cfg.model}: ${msg}`);
+        console.error(
+          `[LLM] ${cfg.provider}/${cfg.model} failed (timeout=${innerTimeout}ms)` +
+          `${isLast && !isRetry ? "" : isRetry ? " (retry)" : ", trying next fallback"}:`,
+          msg,
+        );
+        break; // network/timeout error → skip retry, go to next provider
+      }
     }
   }
 
