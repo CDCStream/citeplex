@@ -61,7 +61,9 @@ async function callAnthropic(
   temperature: number,
   timeout: number,
   _webSearch?: boolean,
-  jsonMode?: boolean,
+  _jsonMode?: boolean,
+  jsonSchema?: Record<string, unknown>,
+  schemaName?: string,
 ): Promise<string> {
   const key = getKey("anthropic");
   if (!key) throw new Error("ANTHROPIC_API_KEY not set");
@@ -73,6 +75,18 @@ async function callAnthropic(
     system,
     messages: [{ role: "user", content: user }],
   };
+
+  if (jsonSchema) {
+    const toolName = schemaName || "structured_response";
+    body.tools = [
+      {
+        name: toolName,
+        description: "Return the structured response matching the required schema.",
+        input_schema: jsonSchema,
+      },
+    ];
+    body.tool_choice = { type: "tool", name: toolName };
+  }
 
   const start = Date.now();
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -96,14 +110,23 @@ async function callAnthropic(
   const stopReason = data.stop_reason;
   console.log(`[LLM] Anthropic ${model} responded in ${(elapsed / 1000).toFixed(1)}s (stop_reason: ${stopReason})`);
 
-  // If Anthropic returned thinking blocks, extract text blocks only
+  if (jsonSchema) {
+    const toolBlock = data.content?.find(
+      (b: { type: string; name?: string }) => b.type === "tool_use",
+    );
+    if (toolBlock?.input) {
+      return JSON.stringify(toolBlock.input);
+    }
+    console.warn(`[LLM] Anthropic ${model}: tool_use block not found, falling back to text`);
+  }
+
   const text = data.content
     ?.filter((b: { type: string }) => b.type === "text")
     .map((b: { text: string }) => b.text)
     .join("") ?? "";
 
-  if (jsonMode && !text.trim()) {
-    throw new Error(`Anthropic ${model} returned empty text content`);
+  if (jsonSchema && !text.trim()) {
+    throw new Error(`Anthropic ${model} returned empty content (no tool_use, no text)`);
   }
 
   return text;
