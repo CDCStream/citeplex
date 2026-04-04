@@ -16,6 +16,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "URL and brand name are required" }, { status: 400 });
     }
 
+    let parsed: URL;
+    try {
+      const normalized = url.startsWith("http") ? url : `https://${url}`;
+      parsed = new URL(normalized);
+    } catch {
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    }
+
+    const BLOCKED_DOMAINS = [
+      "google.com", "youtube.com", "facebook.com", "instagram.com",
+      "twitter.com", "x.com", "tiktok.com", "reddit.com", "linkedin.com",
+      "wikipedia.org", "amazon.com", "apple.com", "microsoft.com",
+      "github.com", "stackoverflow.com", "pinterest.com", "whatsapp.com",
+      "telegram.org", "discord.com", "twitch.tv", "netflix.com",
+      "spotify.com", "docs.google.com", "drive.google.com",
+    ];
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    if (BLOCKED_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`))) {
+      return NextResponse.json(
+        { error: "Platform domains cannot be added. Please use your own website URL." },
+        { status: 400 },
+      );
+    }
+
     const { data: domain, error: domainError } = await supabaseAdmin
       .from("domains")
       .insert({

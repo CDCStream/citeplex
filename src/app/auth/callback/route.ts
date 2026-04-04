@@ -53,9 +53,11 @@ export async function GET(request: Request) {
           .eq("auth_id", data.user.id)
           .maybeSingle();
 
-        sendWelcomeEmail(data.user.email, dbUser?.name).catch((e) =>
-          console.error("[WelcomeEmail] Error:", e),
-        );
+        try {
+          await sendWelcomeEmail(data.user.email, dbUser?.name);
+        } catch (e) {
+          console.error("[WelcomeEmail] Error:", e);
+        }
       }
 
       const redirectUrl = new URL(next, origin);

@@ -17,10 +17,42 @@ export async function POST(req: NextRequest) {
     }
 
     let normalizedUrl = url.trim();
+
+    if (normalizedUrl.length > 2048) {
+      return NextResponse.json({ error: "URL is too long" }, { status: 400 });
+    }
+
     if (!normalizedUrl.startsWith("http")) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
     normalizedUrl = normalizedUrl.replace(/\/+$/, "");
+
+    let parsed: URL;
+    try {
+      parsed = new URL(normalizedUrl);
+    } catch {
+      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
+    }
+
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return NextResponse.json({ error: "Only HTTP(S) URLs are allowed" }, { status: 400 });
+    }
+
+    const BLOCKED_DOMAINS = [
+      "google.com", "youtube.com", "facebook.com", "instagram.com",
+      "twitter.com", "x.com", "tiktok.com", "reddit.com", "linkedin.com",
+      "wikipedia.org", "amazon.com", "apple.com", "microsoft.com",
+      "github.com", "stackoverflow.com", "pinterest.com", "whatsapp.com",
+      "telegram.org", "discord.com", "twitch.tv", "netflix.com",
+      "spotify.com", "docs.google.com", "drive.google.com",
+    ];
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    if (BLOCKED_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`))) {
+      return NextResponse.json(
+        { error: "Please enter your own website URL, not a social media or platform URL" },
+        { status: 400 },
+      );
+    }
 
     const analysis = await analyzeWebsite(normalizedUrl);
 
