@@ -170,6 +170,8 @@ ${kwList}
 
 For each keyword, create an optimized article title and choose the best article type.
 
+IMPORTANT: ALWAYS prefer keywords that have actual volume and difficulty data (not "?"). NEVER select a keyword with volume="?" AND difficulty="?" if there are keywords with real data available.
+
 Return a JSON array:
 [{
   "keyword": "the keyword",
@@ -255,18 +257,29 @@ async function planBatch(
     console.error(`[KeywordPlanner] Batch ${batchIndex + 1} Ahrefs fetch failed:`, (err as Error).message);
   }
 
-  const metricsMap = new Map(ahrefsData.map((d) => [d.keyword, d]));
+  const metricsMap = new Map(ahrefsData.map((d) => [d.keyword.toLowerCase(), d]));
 
-  const scoredKeywords = uniqueKeywords
-    .map((kw) => ({
-      keyword: kw,
-      source: allKeywords.get(kw) || "opportunity",
-      metrics: metricsMap.get(kw) || null,
-      score: metricsMap.get(kw) ? scoreKeyword(metricsMap.get(kw)!, allKeywords.get(kw) || "opportunity") : 5,
-    }))
+  const allScored = uniqueKeywords
+    .map((kw) => {
+      const m = metricsMap.get(kw.toLowerCase()) || null;
+      return {
+        keyword: kw,
+        source: allKeywords.get(kw) || "opportunity",
+        metrics: m,
+        score: m ? scoreKeyword(m, allKeywords.get(kw) || "opportunity") : 5,
+      };
+    })
     .sort((a, b) => b.score - a.score);
 
-  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: ${uniqueKeywords.length} keywords, ${ahrefsData.length} Ahrefs hits, picking top ${batchSize}`);
+  const withData = allScored.filter((k) => k.metrics && (k.metrics.volume !== null || k.metrics.difficulty !== null));
+  const withoutData = allScored.filter((k) => !k.metrics || (k.metrics.volume === null && k.metrics.difficulty === null));
+
+  // Prefer keywords with Ahrefs data; only fill gaps with no-data keywords
+  const scoredKeywords = withData.length >= batchSize
+    ? withData
+    : [...withData, ...withoutData.slice(0, batchSize - withData.length)];
+
+  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: ${uniqueKeywords.length} keywords, ${withData.length} with Ahrefs data, ${withoutData.length} without, picking top ${batchSize}`);
 
   return generateTitlesForKeywords(scoredKeywords, domain, batchSize);
 }
