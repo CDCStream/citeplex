@@ -11,6 +11,7 @@ import { getSeatsRemaining } from "@/lib/customer-count";
 import { PLAN_PRODUCT_IDS } from "@/lib/plans";
 import { ParticleCanvas } from "@/components/ui/particle-canvas";
 import { HeroCta } from "@/components/marketing/hero-cta";
+import { DemoVideo } from "@/components/marketing/demo-video";
 import { MissionSection } from "@/components/marketing/mission-section";
 import {
   Search,
@@ -80,16 +81,7 @@ export default async function LandingPage() {
               write targeted content and publish automatically.
             </p>
 
-            <div className="mt-6 sm:mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
-              <video
-                src="/demo.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full"
-              />
-            </div>
+            <DemoVideo />
 
             <HeroCta />
           </div>

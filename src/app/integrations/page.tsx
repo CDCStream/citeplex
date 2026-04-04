@@ -1,21 +1,13 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   ChevronRight,
-  Globe,
   Plug,
-  ShoppingBag,
-  FileCode,
   Sparkles,
   Zap,
   PenLine,
   Send,
-  Layers,
-  LayoutGrid,
-  Palette,
-  Feather,
-  Webhook,
-  BookOpen,
   Check,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -55,7 +47,7 @@ type Platform = {
   id: string;
   name: string;
   category: string;
-  icon: React.ComponentType<{ className?: string }>;
+  logo: string;
   description: string;
   adapterType: "native" | "api";
   features: string[];
@@ -67,7 +59,7 @@ const PLATFORMS: Platform[] = [
     id: "wordpress",
     name: "WordPress",
     category: "CMS",
-    icon: Globe,
+    logo: "/logos/wordpress.svg",
     description:
       "Publish directly to your WordPress site via REST API with Application Passwords. Full support for drafts, tags, excerpts, and featured images.",
     adapterType: "native",
@@ -78,7 +70,7 @@ const PLATFORMS: Platform[] = [
     id: "shopify",
     name: "Shopify",
     category: "E-commerce",
-    icon: ShoppingBag,
+    logo: "/logos/shopify.svg",
     description:
       "Publish blog posts to your Shopify store. Drive organic traffic to your products with SEO-optimized articles written by AI.",
     adapterType: "api",
@@ -89,7 +81,7 @@ const PLATFORMS: Platform[] = [
     id: "ghost",
     name: "Ghost",
     category: "Headless CMS",
-    icon: BookOpen,
+    logo: "/logos/ghost.svg",
     description:
       "JWT-authenticated Admin API publishing. Push articles with tags, cover images, and meta descriptions to your Ghost publication.",
     adapterType: "native",
@@ -99,7 +91,7 @@ const PLATFORMS: Platform[] = [
     id: "webflow",
     name: "Webflow",
     category: "Website Builder",
-    icon: Palette,
+    logo: "/logos/webflow.svg",
     description:
       "Push articles directly to Webflow CMS collections. Keep your design-first website fed with fresh, SEO-optimized content.",
     adapterType: "api",
@@ -109,7 +101,7 @@ const PLATFORMS: Platform[] = [
     id: "notion",
     name: "Notion",
     category: "Workspace",
-    icon: Layers,
+    logo: "/logos/notion.svg",
     description:
       "Create pages in your Notion workspace automatically. Use Notion as a content hub for review, collaboration, and distribution.",
     adapterType: "api",
@@ -119,7 +111,7 @@ const PLATFORMS: Platform[] = [
     id: "wix",
     name: "Wix",
     category: "Website Builder",
-    icon: LayoutGrid,
+    logo: "/logos/wix.svg",
     description:
       "Post articles to your Wix blog. Seamlessly integrate AI-written content into your Wix website.",
     adapterType: "api",
@@ -129,7 +121,7 @@ const PLATFORMS: Platform[] = [
     id: "framer",
     name: "Framer",
     category: "Design Tool",
-    icon: FileCode,
+    logo: "/logos/framer.svg",
     description:
       "Publish content to Framer CMS. Combine Framer's design capabilities with Citeplex's AI content engine.",
     adapterType: "api",
@@ -139,7 +131,7 @@ const PLATFORMS: Platform[] = [
     id: "feather",
     name: "Feather",
     category: "Blog Platform",
-    icon: Feather,
+    logo: "/logos/feather.svg",
     description:
       "Push posts to your Feather blog. A lightweight, fast blogging platform powered by AI-generated content.",
     adapterType: "api",
@@ -149,7 +141,7 @@ const PLATFORMS: Platform[] = [
     id: "webhook",
     name: "API Webhook",
     category: "Custom",
-    icon: Webhook,
+    logo: "/logos/webhook.svg",
     description:
       "Send article data to any endpoint via HTTP POST. Build custom integrations with your own backend, CMS, or automation pipeline.",
     adapterType: "native",
@@ -265,8 +257,8 @@ export default async function IntegrationsPage() {
                 <div className="absolute right-4 top-4 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
                   {p.adapterType === "native" ? "Native" : "API"}
                 </div>
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <p.icon className="h-6 w-6" />
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+                  <Image src={p.logo} alt={p.name} width={28} height={28} className="h-7 w-7 object-contain" />
                 </div>
                 <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {p.category}
@@ -299,8 +291,8 @@ export default async function IntegrationsPage() {
                 className="group overflow-hidden rounded-xl border border-border/80 bg-card p-6 transition-all duration-300 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5"
               >
                 <div className="mb-4 flex items-center justify-between">
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-foreground">
-                    <p.icon className="h-5 w-5" />
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <Image src={p.logo} alt={p.name} width={24} height={24} className="h-6 w-6 object-contain" />
                   </div>
                   <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                     {p.adapterType === "native" ? "Native" : "API"}
@@ -337,8 +329,8 @@ export default async function IntegrationsPage() {
                 className="overflow-hidden rounded-xl border border-dashed border-border bg-muted/30 p-6 transition-all duration-300 hover:border-primary/20"
               >
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-background text-foreground shadow-sm">
-                    <p.icon className="h-4.5 w-4.5" />
+                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-background shadow-sm">
+                    <Image src={p.logo} alt={p.name} width={20} height={20} className="h-5 w-5 object-contain" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold">{p.name}</h3>
