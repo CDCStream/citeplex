@@ -203,34 +203,30 @@ Select the top ${count} keywords that would be most impactful. Return ONLY the J
   });
 }
 
-async function planBatch(
+async function fetchValidatedKeywords(
   domainId: string,
   domain: DomainContext,
-  batchSize: number,
   excludeKeywords: Set<string>,
   batchIndex: number,
-): Promise<PlannedKeyword[]> {
+  useSources: string[],
+): Promise<{ keyword: string; source: string; metrics: AhrefsKeywordData; score: number }[]> {
   const excludeList = excludeKeywords.size > 0
-    ? `\n\nDo NOT suggest any of these keywords (already planned):\n${[...excludeKeywords].map(k => `- "${k}"`).join("\n")}`
+    ? `\n\nDo NOT suggest any of these keywords (already planned or rejected):\n${[...excludeKeywords].map(k => `- "${k}"`).join("\n")}`
     : "";
-
-  const sources: string[] = batchIndex === 0
-    ? ["competitor", "backlink", "opportunity"]
-    : ["competitor", "opportunity"];
 
   const kwPromises: Promise<{ keywords: string[]; source: string }>[] = [];
 
-  if (sources.includes("competitor")) {
+  if (useSources.includes("competitor")) {
     kwPromises.push(
       getCompetitorKeywords(domainId, domain, excludeList).then(kws => ({ keywords: kws, source: "competitor_gap" }))
     );
   }
-  if (sources.includes("backlink")) {
+  if (useSources.includes("backlink")) {
     kwPromises.push(
       getBacklinkKeywords(domain, excludeList).then(kws => ({ keywords: kws, source: "backlink_potential" }))
     );
   }
-  if (sources.includes("opportunity")) {
+  if (useSources.includes("opportunity")) {
     kwPromises.push(
       getOpportunityKeywords(domain, excludeList).then(kws => ({ keywords: kws, source: "ahrefs_opportunity" }))
     );
@@ -259,29 +255,66 @@ async function planBatch(
 
   const metricsMap = new Map(ahrefsData.map((d) => [d.keyword.toLowerCase(), d]));
 
-  const allScored = uniqueKeywords
+  const withData = uniqueKeywords
     .map((kw) => {
-      const m = metricsMap.get(kw.toLowerCase()) || null;
+      const m = metricsMap.get(kw.toLowerCase());
+      if (!m || (m.volume === null && m.difficulty === null)) return null;
       return {
         keyword: kw,
         source: allKeywords.get(kw) || "opportunity",
         metrics: m,
-        score: m ? scoreKeyword(m, allKeywords.get(kw) || "opportunity") : 5,
+        score: scoreKeyword(m, allKeywords.get(kw) || "opportunity"),
       };
     })
+    .filter((k): k is NonNullable<typeof k> => k !== null)
     .sort((a, b) => b.score - a.score);
 
-  const withData = allScored.filter((k) => k.metrics && (k.metrics.volume !== null || k.metrics.difficulty !== null));
-  const withoutData = allScored.filter((k) => !k.metrics || (k.metrics.volume === null && k.metrics.difficulty === null));
+  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: ${uniqueKeywords.length} generated, ${withData.length} have Ahrefs data`);
 
-  // Prefer keywords with Ahrefs data; only fill gaps with no-data keywords
-  const scoredKeywords = withData.length >= batchSize
-    ? withData
-    : [...withData, ...withoutData.slice(0, batchSize - withData.length)];
+  return withData;
+}
 
-  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: ${uniqueKeywords.length} keywords, ${withData.length} with Ahrefs data, ${withoutData.length} without, picking top ${batchSize}`);
+const MAX_RETRY_ROUNDS = 4;
 
-  return generateTitlesForKeywords(scoredKeywords, domain, batchSize);
+async function planBatch(
+  domainId: string,
+  domain: DomainContext,
+  batchSize: number,
+  excludeKeywords: Set<string>,
+  batchIndex: number,
+): Promise<PlannedKeyword[]> {
+  const collected: { keyword: string; source: string; metrics: AhrefsKeywordData; score: number }[] = [];
+  const seenKeywords = new Set(excludeKeywords);
+
+  for (let round = 0; round < MAX_RETRY_ROUNDS && collected.length < batchSize; round++) {
+    const sources: string[] = round === 0 && batchIndex === 0
+      ? ["competitor", "backlink", "opportunity"]
+      : ["competitor", "opportunity"];
+
+    const validated = await fetchValidatedKeywords(domainId, domain, seenKeywords, batchIndex, sources);
+
+    for (const kw of validated) {
+      if (seenKeywords.has(kw.keyword.toLowerCase())) continue;
+      seenKeywords.add(kw.keyword.toLowerCase());
+      collected.push(kw);
+    }
+
+    console.log(`[KeywordPlanner] Batch ${batchIndex + 1} round ${round + 1}/${MAX_RETRY_ROUNDS}: ${collected.length}/${batchSize} keywords with data`);
+
+    if (collected.length >= batchSize) break;
+  }
+
+  if (collected.length === 0) {
+    console.warn(`[KeywordPlanner] Batch ${batchIndex + 1}: No keywords with Ahrefs data found after ${MAX_RETRY_ROUNDS} rounds`);
+    return [];
+  }
+
+  collected.sort((a, b) => b.score - a.score);
+  const final = collected.slice(0, batchSize);
+
+  console.log(`[KeywordPlanner] Batch ${batchIndex + 1}: Sending ${final.length} validated keywords to title generation`);
+
+  return generateTitlesForKeywords(final, domain, final.length);
 }
 
 export async function planKeywords(
