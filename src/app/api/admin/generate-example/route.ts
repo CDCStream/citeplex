@@ -96,12 +96,20 @@ export async function POST(req: NextRequest) {
     let coverImageUrl: string | null = null;
 
     try {
-      const [videos, images, webImgs, infographics] = await Promise.allSettled([
+      const MEDIA_TIMEOUT = 60_000;
+      const mediaRace = Promise.allSettled([
         searchYouTubeVideos(keyword, 2),
         generateArticleImages(title, keyword, 3),
         searchWebImages(keyword, 2),
         searchInfographics(keyword, 2),
       ]);
+      const timeoutP = new Promise<"timeout">(res => setTimeout(() => res("timeout"), MEDIA_TIMEOUT));
+      const raceResult = await Promise.race([mediaRace, timeoutP]);
+
+      const empty = { status: "fulfilled" as const, value: [] as never[] };
+      const [videos, images, webImgs, infographics] = raceResult === "timeout"
+        ? (console.warn("[GenerateExample] Media timed out after 60s"), [empty, empty, empty, empty])
+        : raceResult;
 
       const videoResults = videos.status === "fulfilled" ? videos.value : [];
       if (videoResults.length > 0) {

@@ -89,14 +89,22 @@ async function writeArticleForPlan(
   let enrichedContent = generated.content;
   let coverImage: string | null = null;
 
-  // Media: same as manual flow
+  // Media: same as manual flow (capped at 60s)
   try {
-    const [videos, images, webImgs, infographics] = await Promise.allSettled([
+    const MEDIA_TIMEOUT = 60_000;
+    const mediaRace = Promise.allSettled([
       enhancements.youtubeVideos ? searchYouTubeVideos(targetKeyword, 2) : Promise.resolve([]),
       enhancements.includeImages ? generateArticleImages(plan.title, targetKeyword, 3) : Promise.resolve([]),
       enhancements.webImages ? searchWebImages(targetKeyword, 2) : Promise.resolve([]),
       enhancements.webImages ? searchInfographics(targetKeyword, 2) : Promise.resolve([]),
     ]);
+    const timeoutP = new Promise<"timeout">(res => setTimeout(() => res("timeout"), MEDIA_TIMEOUT));
+    const raceResult = await Promise.race([mediaRace, timeoutP]);
+
+    const empty = { status: "fulfilled" as const, value: [] as never[] };
+    const [videos, images, webImgs, infographics] = raceResult === "timeout"
+      ? (console.warn("[DailyArticle] Media timed out after 60s"), [empty, empty, empty, empty])
+      : raceResult;
 
     const videoResults = videos.status === "fulfilled" ? videos.value : [];
     if (videoResults.length > 0) {

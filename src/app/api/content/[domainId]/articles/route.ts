@@ -212,8 +212,9 @@ export async function POST(
         send({ type: "step", step: "writing", status: "done" });
         send({ type: "preview", html: generated.content.slice(0, 2000) });
 
-        // Step 4: Media & Images
+        // Step 4: Media & Images (capped at 60s to avoid Vercel timeout)
         send({ type: "step", step: "media", status: "active", message: "Searching images & videos..." });
+        const MEDIA_TIMEOUT = 60_000;
         const mediaPromises: [
           Promise<Awaited<ReturnType<typeof searchYouTubeVideos>>>,
           Promise<Awaited<ReturnType<typeof generateArticleImages>>>,
@@ -225,7 +226,25 @@ export async function POST(
           enhancements.webImages ? searchWebImages(targetKeyword, 2) : Promise.resolve([]),
           enhancements.webImages ? searchInfographics(targetKeyword, 2) : Promise.resolve([]),
         ];
-        const [videos, images, webImgs, infographics] = await Promise.allSettled(mediaPromises);
+
+        const mediaRace = Promise.allSettled(mediaPromises);
+        const timeoutPromise = new Promise<"timeout">(res => setTimeout(() => res("timeout"), MEDIA_TIMEOUT));
+        const raceResult = await Promise.race([mediaRace, timeoutPromise]);
+
+        let videos: PromiseSettledResult<Awaited<ReturnType<typeof searchYouTubeVideos>>>;
+        let images: PromiseSettledResult<Awaited<ReturnType<typeof generateArticleImages>>>;
+        let webImgs: PromiseSettledResult<Awaited<ReturnType<typeof searchWebImages>>>;
+        let infographics: PromiseSettledResult<Awaited<ReturnType<typeof searchInfographics>>>;
+
+        if (raceResult === "timeout") {
+          console.warn("[Articles] Media step timed out after 60s — saving with partial results");
+          videos = { status: "fulfilled", value: [] };
+          images = { status: "fulfilled", value: [] };
+          webImgs = { status: "fulfilled", value: [] };
+          infographics = { status: "fulfilled", value: [] };
+        } else {
+          [videos, images, webImgs, infographics] = raceResult;
+        }
 
         let enrichedContent = generated.content;
 

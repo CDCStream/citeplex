@@ -51,35 +51,34 @@ export async function generateArticleImages(
   if (!apiKey) return [];
 
   const prompts = buildImagePrompts(title, keyword, count);
-  const results: GeneratedImage[] = [];
   const timestamp = Date.now();
+  const slug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
 
-  for (let i = 0; i < prompts.length; i++) {
-    const p = prompts[i];
-    const isCover = i === 0;
-    let image = await generateSingleImage(apiKey, p.prompt, p.alt);
+  const settled = await Promise.allSettled(
+    prompts.map(async (p, i) => {
+      let image = await generateSingleImage(apiKey, p.prompt, p.alt);
 
-    if (!image && isCover) {
-      console.log("[ImageGen] Cover image failed, retrying with simpler prompt...");
-      image = await generateSingleImage(
-        apiKey,
-        `A clean, professional blog header image with abstract geometric shapes and gradients. Modern digital art style, no text, suitable for a tech blog article. Blue and purple tones.`,
-        p.alt,
-      );
-    }
+      if (!image && i === 0) {
+        console.log("[ImageGen] Cover image failed, retrying with simpler prompt...");
+        image = await generateSingleImage(
+          apiKey,
+          `A clean, professional blog header image with abstract geometric shapes and gradients. Modern digital art style, no text, suitable for a tech blog article. Blue and purple tones.`,
+          p.alt,
+        );
+      }
 
-    if (image) {
-      const slug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+      if (!image) return null;
+
       const filename = `${slug}-${timestamp}-${i}.png`;
       const permanentUrl = await uploadToStorage(image.url, filename);
-      if (permanentUrl) {
-        image.url = permanentUrl;
-      }
-      results.push(image);
-    }
-  }
+      if (permanentUrl) image.url = permanentUrl;
+      return image;
+    })
+  );
 
-  return results;
+  return settled
+    .map(r => r.status === "fulfilled" ? r.value : null)
+    .filter((img): img is GeneratedImage => img !== null);
 }
 
 function buildImagePrompts(
