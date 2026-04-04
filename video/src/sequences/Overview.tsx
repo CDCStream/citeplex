@@ -20,9 +20,9 @@ export const Overview: React.FC = () => {
   const screenVisible = frame >= SCREEN_START;
   const screenEnter = spring({ frame: frame - SCREEN_START - 5, fps, config: { damping: 14, mass: 0.8 } });
   const screenOpacity = interpolate(screenEnter, [0, 1], [0, 1]);
-  const screenRotateY = interpolate(screenEnter, [0, 1], [25, 8]);
-  const screenRotateX = interpolate(screenEnter, [0, 1], [12, 3]);
-  const screenScale = interpolate(screenEnter, [0, 1], [0.5, 0.65]);
+  const screenRotateY = interpolate(screenEnter, [0, 1], [10, 2]);
+  const screenRotateX = interpolate(screenEnter, [0, 1], [5, 1]);
+  const screenScale = interpolate(screenEnter, [0, 1], [0.9, 1.35]);
 
   return (
     <AbsoluteFill style={{ background: "#000" }}>

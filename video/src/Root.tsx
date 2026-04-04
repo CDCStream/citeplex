@@ -14,6 +14,9 @@ import { CTA } from "./sequences/CTA";
 import { UrlInput } from "./sequences/UrlInput";
 import { Prompts } from "./sequences/Prompts";
 import { Overview } from "./sequences/Overview";
+import { GapArticle } from "./sequences/GapArticle";
+import { Calendar } from "./sequences/Calendar";
+import { Finale } from "./sequences/Finale";
 
 const FPS = 30;
 const TRANSITION_FRAMES = 20;
@@ -26,10 +29,13 @@ const CTA_DURATION = 4;
 const URLINPUT_DURATION = 5;
 const PROMPTS_DURATION = 8;
 const OVERVIEW_DURATION = 8;
+const GAPARTICLE_DURATION = 28;
+const CALENDAR_DURATION = 8;
+const FINALE_DURATION = 7;
 
 const TOTAL_FRAMES =
-  (INTRO_DURATION + PROBLEM_DURATION + DASHBOARD_DURATION + FEATURES_DURATION + CTA_DURATION + URLINPUT_DURATION + PROMPTS_DURATION + OVERVIEW_DURATION) * FPS -
-  7 * TRANSITION_FRAMES;
+  (INTRO_DURATION + PROBLEM_DURATION + DASHBOARD_DURATION + FEATURES_DURATION + CTA_DURATION + URLINPUT_DURATION + PROMPTS_DURATION + OVERVIEW_DURATION + GAPARTICLE_DURATION + CALENDAR_DURATION + FINALE_DURATION) * FPS -
+  10 * TRANSITION_FRAMES;
 
 const CiteplexDemo: React.FC = () => {
   return (
@@ -85,6 +91,27 @@ const CiteplexDemo: React.FC = () => {
       />
       <TransitionSeries.Sequence durationInFrames={OVERVIEW_DURATION * FPS}>
         <Overview />
+      </TransitionSeries.Sequence>
+      <TransitionSeries.Transition
+        presentation={fade()}
+        timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
+      />
+      <TransitionSeries.Sequence durationInFrames={GAPARTICLE_DURATION * FPS}>
+        <GapArticle />
+      </TransitionSeries.Sequence>
+      <TransitionSeries.Transition
+        presentation={fade()}
+        timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
+      />
+      <TransitionSeries.Sequence durationInFrames={CALENDAR_DURATION * FPS}>
+        <Calendar />
+      </TransitionSeries.Sequence>
+      <TransitionSeries.Transition
+        presentation={fade()}
+        timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })}
+      />
+      <TransitionSeries.Sequence durationInFrames={FINALE_DURATION * FPS}>
+        <Finale />
       </TransitionSeries.Sequence>
     </TransitionSeries>
   );
@@ -161,6 +188,30 @@ export const RemotionRoot: React.FC = () => {
         id="Overview"
         component={Overview}
         durationInFrames={OVERVIEW_DURATION * FPS}
+        fps={FPS}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Finale"
+        component={Finale}
+        durationInFrames={FINALE_DURATION * FPS}
+        fps={FPS}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="Calendar"
+        component={Calendar}
+        durationInFrames={CALENDAR_DURATION * FPS}
+        fps={FPS}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="GapArticle"
+        component={GapArticle}
+        durationInFrames={GAPARTICLE_DURATION * FPS}
         fps={FPS}
         width={1920}
         height={1080}

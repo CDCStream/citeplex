@@ -81,13 +81,13 @@ export default async function LandingPage() {
             </p>
 
             <div className="mt-6 sm:mt-8 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-2xl shadow-primary/10">
-              <iframe
-                src="https://app.supademo.com/embed/cmn8n50co10xkmbsix4q1as7d?embed_v=2"
-                loading="lazy"
-                title="Citeplex Interactive Demo"
-                allow="clipboard-write"
-                className="w-full aspect-[16/10] sm:aspect-auto sm:h-[500px]"
-                style={{ border: "none" }}
+              <video
+                src="/demo.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full"
               />
             </div>
 

@@ -13,9 +13,9 @@ interface MockBrowserProps {
 export const MockBrowser: React.FC<MockBrowserProps> = ({
   screenshotFile,
   startFrame = 0,
-  rotateY = -15,
-  rotateX = 5,
-  scale = 0.85,
+  rotateY = -2,
+  rotateX = 1,
+  scale = 1.35,
   glowColor = "#a855f7",
 }) => {
   const frame = useCurrentFrame();
