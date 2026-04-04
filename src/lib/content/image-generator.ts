@@ -8,36 +8,36 @@ export interface GeneratedImage {
 
 const BUCKET = "article-images";
 
-async function ensureBucket() {
+export async function ensureImageBucket() {
   const { data } = await supabaseAdmin.storage.getBucket(BUCKET);
   if (!data) {
     await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
   }
 }
 
-async function uploadToStorage(tempUrl: string, filename: string): Promise<string | null> {
+export async function uploadImageToStorage(tempUrl: string, filename: string): Promise<string | null> {
   try {
-    const res = await fetch(tempUrl, { signal: AbortSignal.timeout(30000) });
+    const res = await fetch(tempUrl, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
 
     const buffer = Buffer.from(await res.arrayBuffer());
     const contentType = res.headers.get("content-type") || "image/png";
 
-    await ensureBucket();
+    await ensureImageBucket();
 
     const { error } = await supabaseAdmin.storage
       .from(BUCKET)
       .upload(filename, buffer, { contentType, upsert: true });
 
     if (error) {
-      console.error("[ImageGen] Storage upload error:", error.message);
+      console.error("[ImageStorage] Upload error:", error.message);
       return null;
     }
 
     const { data: urlData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(filename);
     return urlData.publicUrl;
   } catch (err) {
-    console.error("[ImageGen] Upload failed:", (err as Error).message);
+    console.error("[ImageStorage] Upload failed:", (err as Error).message);
     return null;
   }
 }
@@ -70,7 +70,7 @@ export async function generateArticleImages(
       if (!image) return null;
 
       const filename = `${slug}-${timestamp}-${i}.png`;
-      const permanentUrl = await uploadToStorage(image.url, filename);
+      const permanentUrl = await uploadImageToStorage(image.url, filename);
       if (permanentUrl) image.url = permanentUrl;
       return image;
     })

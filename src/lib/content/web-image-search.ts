@@ -1,3 +1,5 @@
+﻿import { uploadImageToStorage } from './image-generator';
+
 export interface WebImage {
   url: string;
   alt: string;
@@ -10,14 +12,14 @@ export interface WebImage {
 async function validateImageUrl(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, {
-      method: "HEAD",
+      method: 'HEAD',
       signal: AbortSignal.timeout(5000),
-      redirect: "follow",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Citeplex/1.0)" },
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Citeplex/1.0)' },
     });
     if (!res.ok) return false;
-    const ct = (res.headers.get("content-type") || "").toLowerCase();
-    return ct.startsWith("image/");
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    return ct.startsWith('image/');
   } catch {
     return false;
   }
@@ -28,20 +30,43 @@ async function filterValidImages(images: WebImage[], count: number): Promise<Web
   return checks.filter(c => c.valid).map(c => c.img).slice(0, count);
 }
 
+async function persistToStorage(images: WebImage[], query: string): Promise<WebImage[]> {
+  const slug = query.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const timestamp = Date.now();
+
+  const settled = await Promise.allSettled(
+    images.map(async (img, i) => {
+      const ext = img.url.match(/\.(jpe?g|png|gif|webp|svg)/i)?.[1] || 'jpg';
+      const filename = `web-${slug}-${timestamp}-${i}.${ext}`;
+      const permanentUrl = await uploadImageToStorage(img.url, filename);
+      if (permanentUrl) {
+        return { ...img, url: permanentUrl };
+      }
+      console.warn(`[WebImage] Storage upload failed for ${img.sourceDomain}, using original URL`);
+      return img;
+    })
+  );
+
+  return settled
+    .map(r => r.status === 'fulfilled' ? r.value : null)
+    .filter((img): img is WebImage => img !== null);
+}
+
 export async function searchWebImages(
   query: string,
   count = 3
 ): Promise<WebImage[]> {
   const extra = 4;
 
-  // Try Serper image search first
   const serperKey = process.env.SERPER_API_KEY;
   if (serperKey) {
     const results = await searchSerperImages(query, count + extra, serperKey);
-    if (results.length > 0) return filterValidImages(results, count);
+    if (results.length > 0) {
+      const valid = await filterValidImages(results, count);
+      return persistToStorage(valid, query);
+    }
   }
 
-  // Fallback to Google Custom Search
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_CX;
   if (!apiKey || !cx) return [];
@@ -49,9 +74,9 @@ export async function searchWebImages(
   try {
     const params = new URLSearchParams({
       key: apiKey, cx, q: query,
-      searchType: "image", num: String(Math.min(count + extra, 10)),
-      imgSize: "large", imgType: "photo", safe: "active",
-      rights: "cc_publicdomain|cc_attribute|cc_sharealike",
+      searchType: 'image', num: String(Math.min(count + extra, 10)),
+      imgSize: 'large', imgType: 'photo', safe: 'active',
+      rights: 'cc_publicdomain|cc_attribute|cc_sharealike',
     });
 
     const res = await fetch(
@@ -64,11 +89,12 @@ export async function searchWebImages(
     const images = (data.items || []).slice(0, count + extra).map(
       (item: { link: string; title: string; displayLink: string; image: { contextLink: string; width: number; height: number } }) => ({
         url: item.link, alt: item.title || query,
-        sourceUrl: item.image?.contextLink || "", sourceDomain: item.displayLink || "",
+        sourceUrl: item.image?.contextLink || '', sourceDomain: item.displayLink || '',
         width: item.image?.width || 0, height: item.image?.height || 0,
       })
     );
-    return filterValidImages(images, count);
+    const valid = await filterValidImages(images, count);
+    return persistToStorage(valid, query);
   } catch {
     return [];
   }
@@ -83,9 +109,9 @@ export async function searchInfographics(
 
 async function searchSerperImages(query: string, count: number, apiKey: string): Promise<WebImage[]> {
   try {
-    const res = await fetch("https://google.serper.dev/images", {
-      method: "POST",
-      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+    const res = await fetch('https://google.serper.dev/images', {
+      method: 'POST',
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ q: query, num: Math.min(count + 2, 10) }),
       signal: AbortSignal.timeout(10000),
     });
@@ -98,8 +124,8 @@ async function searchSerperImages(query: string, count: number, apiKey: string):
     return images.slice(0, count).map((img) => ({
       url: img.imageUrl,
       alt: img.title || query,
-      sourceUrl: img.link || "",
-      sourceDomain: img.source || "",
+      sourceUrl: img.link || '',
+      sourceDomain: img.source || '',
       width: img.imageWidth || 0,
       height: img.imageHeight || 0,
     }));
