@@ -200,13 +200,25 @@ export const WebsiteAnalysisSchema = z.object({
 });
 export type WebsiteAnalysisResponse = z.infer<typeof WebsiteAnalysisSchema>;
 
-// ─── Utility: Convert Zod schema → JSON Schema for OpenAI Structured Outputs ───
+// ─── Utility: Convert Zod schema → JSON Schema ───
 
-export function zodToJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return convertZod(schema);
+type SchemaTarget = "openai" | "gemini" | "anthropic";
+
+/**
+ * Convert Zod schema to JSON Schema.
+ *
+ * OpenAI strict mode: all properties must be in "required", additionalProperties=false
+ * Gemini: does NOT support "additionalProperties"
+ * Anthropic: standard JSON Schema via tool_use
+ */
+export function zodToJsonSchema(
+  schema: z.ZodType,
+  target: SchemaTarget = "openai",
+): Record<string, unknown> {
+  return convertZod(schema, target);
 }
 
-function convertZod(schema: z.ZodType): Record<string, unknown> {
+function convertZod(schema: z.ZodType, target: SchemaTarget): Record<string, unknown> {
   if (schema instanceof z.ZodObject) {
     const shape = schema.shape as Record<string, z.ZodType>;
     const properties: Record<string, unknown> = {};
@@ -214,20 +226,24 @@ function convertZod(schema: z.ZodType): Record<string, unknown> {
 
     for (const [key, value] of Object.entries(shape)) {
       const unwrapped = unwrapDefault(value);
-      properties[key] = convertZod(unwrapped);
-      if (!(value instanceof z.ZodDefault) && !(value instanceof z.ZodOptional)) {
+      properties[key] = convertZod(unwrapped, target);
+      if (target === "openai") {
+        required.push(key);
+      } else if (!(value instanceof z.ZodDefault) && !(value instanceof z.ZodOptional)) {
         required.push(key);
       }
     }
 
     const result: Record<string, unknown> = { type: "object", properties };
     if (required.length > 0) result.required = required;
-    result.additionalProperties = false;
+    if (target !== "gemini") {
+      result.additionalProperties = false;
+    }
     return result;
   }
 
   if (schema instanceof z.ZodArray) {
-    return { type: "array", items: convertZod(schema.element as z.ZodType) };
+    return { type: "array", items: convertZod(schema.element as z.ZodType, target) };
   }
 
   if (schema instanceof z.ZodString) return { type: "string" };
@@ -239,11 +255,11 @@ function convertZod(schema: z.ZodType): Record<string, unknown> {
   }
 
   if (schema instanceof z.ZodDefault) {
-    return convertZod((schema as z.ZodDefault<z.ZodType>)._def.innerType);
+    return convertZod((schema as z.ZodDefault<z.ZodType>)._def.innerType, target);
   }
 
   if (schema instanceof z.ZodOptional) {
-    return convertZod((schema as z.ZodOptional<z.ZodType>)._def.innerType);
+    return convertZod((schema as z.ZodOptional<z.ZodType>)._def.innerType, target);
   }
 
   return { type: "string" };

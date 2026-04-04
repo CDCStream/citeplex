@@ -94,7 +94,7 @@ async function callAnthropic(
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,
-      "anthropic-version": "2025-04-14",
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeout),
@@ -314,7 +314,16 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const expectJson = opts.expectJson ?? hasSchema;
   const errors: string[] = [];
 
-  const jsonSchema = hasSchema ? zodToJsonSchema(opts.schema!) : undefined;
+  // Pre-compute provider-specific schemas
+  const schemaCache = new Map<LLMProvider, Record<string, unknown>>();
+  function getSchemaForProvider(provider: LLMProvider): Record<string, unknown> | undefined {
+    if (!hasSchema) return undefined;
+    if (!schemaCache.has(provider)) {
+      const target = provider === "gemini" ? "gemini" : provider === "anthropic" ? "anthropic" : "openai";
+      schemaCache.set(provider, zodToJsonSchema(opts.schema!, target));
+    }
+    return schemaCache.get(provider);
+  }
 
   // Each fallback gets slightly less time: 100% → 70% → 50%
   const TIMEOUT_DECAY = [1.0, 0.7, 0.5];
@@ -324,6 +333,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
     const fn = PROVIDER_FN[cfg.provider];
     const isLast = i === chain.length - 1;
     const attemptTimeout = Math.round(baseTimeout * (TIMEOUT_DECAY[i] ?? 0.35));
+    const providerSchema = getSchemaForProvider(cfg.provider);
 
     let userPrompt = opts.user;
     if (opts.webSearch && cfg.provider !== "openai") {
@@ -354,7 +364,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
           innerTimeout,
           opts.webSearch,
           expectJson,
-          jsonSchema,
+          providerSchema,
           opts.schemaName,
         );
 
