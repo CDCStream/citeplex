@@ -1,6 +1,6 @@
 "use client";
 
-import type { TextOverlayConfig } from "@remotion/components/ScreenRecordingPlayer";
+import type { TextOverlayConfig } from "@video/components/ScreenRecordingPlayer";
 import { Plus, Trash2 } from "lucide-react";
 
 interface TextOverlayEditorProps {

@@ -21,9 +21,9 @@ const MIME_TYPES: Record<string, string> = {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: { path: string[] } }
 ) {
-  const segments = (await params).path;
+  const segments = params.path;
   const filePath = path.join(VIDEO_PUBLIC, ...segments);
 
   // Security: prevent directory traversal

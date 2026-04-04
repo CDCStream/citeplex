@@ -132,20 +132,37 @@ export const AvatarFullScreen: React.FC<AvatarFullScreenProps> = ({
         pulse={false}
       />
 
-      <Video
-        src={staticFile(scene.src)}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-        volume={scene.volume ?? 1}
-        startFrom={
-          scene.startFrom ? Math.round(scene.startFrom * fps) : undefined
-        }
-      />
+      {scene.src && scene.src.trim().length > 0 ? (
+        <Video
+          src={staticFile(scene.src)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+          volume={scene.volume ?? 1}
+          startFrom={
+            scene.startFrom ? Math.round(scene.startFrom * fps) : undefined
+          }
+        />
+      ) : (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(255,255,255,0.3)",
+            fontSize: 20,
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          No avatar video selected
+        </div>
+      )}
 
       {scene.nameCard && (
         <NameCard

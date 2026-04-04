@@ -47,13 +47,28 @@ export async function sanitizeBlogHtml(
   const input = typeof html === "string" ? html : "";
   if (!input.trim()) return "";
 
+  let result: string;
   try {
-    return sanitize(input, SANITIZE_OPTIONS);
+    result = sanitize(input, SANITIZE_OPTIONS);
   } catch {
-    return input
+    result = input
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
       .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
       .replace(/javascript:/gi, "");
   }
+
+  result = upgradeHttpToHttps(result);
+  return result;
+}
+
+/**
+ * Upgrade internal http:// links to https:// to avoid mixed-content
+ * warnings and Ahrefs "HTTPS page has internal links to HTTP" issues.
+ */
+function upgradeHttpToHttps(html: string): string {
+  return html.replace(
+    /href="http:\/\/(www\.)?citeplex\.io/gi,
+    'href="https://www.citeplex.io',
+  );
 }

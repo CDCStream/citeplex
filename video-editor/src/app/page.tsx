@@ -1,10 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { SceneList } from "@/components/editor/SceneList";
-import { PreviewPanel } from "@/components/editor/PreviewPanel";
 import { PropertyPanel } from "@/components/editor/PropertyPanel";
 import { Timeline } from "@/components/editor/Timeline";
 import { Toolbar } from "@/components/editor/Toolbar";
+
+const PreviewPanel = dynamic(
+  () =>
+    import("@/components/editor/PreviewPanel").then((m) => m.PreviewPanel),
+  { ssr: false, loading: () => <div className="text-text-muted text-sm">Loading preview...</div> }
+);
 
 export default function EditorPage() {
   return (

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEditorStore } from "@/store/editor-store";
+import { RenderDialog } from "./RenderDialog";
 import {
   Film,
   Save,
   Upload,
   RotateCcw,
   Play,
-  Download,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
@@ -20,7 +20,8 @@ export function Toolbar() {
   const setRendering = useEditorStore((s) => s.setRendering);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showRender, setShowRender] = useState(false);
+  const [showRenderDialog, setShowRenderDialog] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const handleSave = useCallback(() => {
     const json = JSON.stringify(config, null, 2);
@@ -55,6 +56,9 @@ export function Toolbar() {
   const handleRender = useCallback(async () => {
     if (isRendering) return;
     setRendering(true);
+    setDownloadUrl(null);
+    setShowRenderDialog(true);
+
     const store = useEditorStore.getState();
     store.clearRenderLogs();
 
@@ -91,6 +95,9 @@ export function Toolbar() {
                 if (parsed.done) {
                   useEditorStore.getState().addRenderLog("Render complete!");
                 }
+                if (parsed.downloadUrl) {
+                  setDownloadUrl(parsed.downloadUrl);
+                }
                 if (parsed.error) {
                   useEditorStore.getState().addRenderLog(`Error: ${parsed.error}`);
                 }
@@ -111,92 +118,100 @@ export function Toolbar() {
   }, [isRendering, setRendering]);
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border bg-surface px-4">
-      <div className="flex items-center gap-3">
-        <Film className="h-5 w-5 text-primary" />
-        <span className="font-semibold text-sm">Citeplex Video Creator</span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {/* Format toggle */}
-        <div className="flex rounded-md border border-border overflow-hidden text-xs">
-          <button
-            onClick={() => updateGlobal({ format: "youtube" })}
-            className={`px-3 py-1.5 transition-colors ${
-              config.format === "youtube"
-                ? "bg-primary text-white"
-                : "bg-surface-2 text-text-muted hover:bg-surface-3"
-            }`}
-          >
-            YouTube 16:9
-          </button>
-          <button
-            onClick={() => updateGlobal({ format: "shorts" })}
-            className={`px-3 py-1.5 transition-colors ${
-              config.format === "shorts"
-                ? "bg-primary text-white"
-                : "bg-surface-2 text-text-muted hover:bg-surface-3"
-            }`}
-          >
-            Shorts 9:16
-          </button>
+    <>
+      <header className="flex h-12 items-center justify-between border-b border-border bg-surface px-4">
+        <div className="flex items-center gap-3">
+          <Film className="h-5 w-5 text-primary" />
+          <span className="font-semibold text-sm">Citeplex Video Creator</span>
         </div>
 
-        <div className="w-px h-6 bg-border mx-1" />
+        <div className="flex items-center gap-2">
+          {/* Format toggle */}
+          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+            <button
+              onClick={() => updateGlobal({ format: "youtube" })}
+              className={`px-3 py-1.5 transition-colors ${
+                config.format === "youtube"
+                  ? "bg-primary text-white"
+                  : "bg-surface-2 text-text-muted hover:bg-surface-3"
+              }`}
+            >
+              YouTube 16:9
+            </button>
+            <button
+              onClick={() => updateGlobal({ format: "shorts" })}
+              className={`px-3 py-1.5 transition-colors ${
+                config.format === "shorts"
+                  ? "bg-primary text-white"
+                  : "bg-surface-2 text-text-muted hover:bg-surface-3"
+              }`}
+            >
+              Shorts 9:16
+            </button>
+          </div>
 
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
-          title="Load project"
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Load
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleLoad}
-          className="hidden"
-        />
+          <div className="w-px h-6 bg-border mx-1" />
 
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
-          title="Save project"
-        >
-          <Save className="h-3.5 w-3.5" />
-          Save
-        </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
+            title="Load project"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Load
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleLoad}
+            className="hidden"
+          />
 
-        <button
-          onClick={resetConfig}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
-          title="Reset to default"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-        </button>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
+            title="Save project"
+          >
+            <Save className="h-3.5 w-3.5" />
+            Save
+          </button>
 
-        <div className="w-px h-6 bg-border mx-1" />
+          <button
+            onClick={resetConfig}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-text-muted hover:bg-surface-2 transition-colors"
+            title="Reset to default"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
 
-        <button
-          onClick={handleRender}
-          disabled={isRendering}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
-        >
-          {isRendering ? (
-            <>
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              Rendering...
-            </>
-          ) : (
-            <>
-              <Play className="h-3.5 w-3.5" />
-              Render
-            </>
-          )}
-        </button>
-      </div>
-    </header>
+          <div className="w-px h-6 bg-border mx-1" />
+
+          <button
+            onClick={handleRender}
+            disabled={isRendering}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
+          >
+            {isRendering ? (
+              <>
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Rendering...
+              </>
+            ) : (
+              <>
+                <Play className="h-3.5 w-3.5" />
+                Render
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      <RenderDialog
+        open={showRenderDialog}
+        onClose={() => setShowRenderDialog(false)}
+        downloadUrl={downloadUrl}
+      />
+    </>
   );
 }

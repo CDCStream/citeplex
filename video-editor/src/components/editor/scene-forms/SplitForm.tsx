@@ -1,6 +1,6 @@
 "use client";
 
-import type { SplitScene } from "@remotion/videos/types";
+import type { SplitScene } from "@video/videos/types";
 import { FieldGroup } from "../PropertyPanel";
 import { AssetPicker } from "../AssetPicker";
 import { CursorEditor } from "./CursorEditor";

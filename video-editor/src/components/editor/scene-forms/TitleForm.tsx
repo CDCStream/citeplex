@@ -1,6 +1,6 @@
 "use client";
 
-import type { TitleScene } from "@remotion/videos/types";
+import type { TitleScene } from "@video/videos/types";
 import { FieldGroup } from "../PropertyPanel";
 
 const BG_VARIANTS = ["default", "warm", "cool", "danger"] as const;

@@ -64,15 +64,33 @@ export const SplitView: React.FC<SplitViewProps> = ({ scene }) => {
               : `translateY(${interpolate(slideIn, [0, 1], [-40, 0])}px)`,
           }}
         >
-          <Video
-            src={staticFile(scene.avatarSrc)}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-            volume={scene.avatarVolume ?? 1}
-          />
+          {scene.avatarSrc && scene.avatarSrc.trim().length > 0 ? (
+            <Video
+              src={staticFile(scene.avatarSrc)}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+              volume={scene.avatarVolume ?? 1}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#1a1a2e",
+                color: "rgba(255,255,255,0.3)",
+                fontSize: 16,
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              No avatar video
+            </div>
+          )}
         </div>
 
         {/* Divider */}

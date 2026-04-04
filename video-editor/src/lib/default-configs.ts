@@ -5,7 +5,7 @@ import type {
   ScreenScene,
   AvatarScene,
   SplitScene,
-} from "@remotion/videos/types";
+} from "@video/videos/types";
 
 export function createTitleScene(overrides?: Partial<TitleScene>): TitleScene {
   return {

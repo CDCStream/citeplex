@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { VideoConfig, SceneConfig } from "@remotion/videos/types";
+import type { VideoConfig, SceneConfig } from "@video/videos/types";
 import { defaultVideoConfig, createSceneByType } from "@/lib/default-configs";
 
 interface EditorState {

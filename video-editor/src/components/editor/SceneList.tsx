@@ -1,7 +1,7 @@
 "use client";
 
 import { useEditorStore } from "@/store/editor-store";
-import type { SceneConfig } from "@remotion/videos/types";
+import type { SceneConfig } from "@video/videos/types";
 import {
   Plus,
   Type,

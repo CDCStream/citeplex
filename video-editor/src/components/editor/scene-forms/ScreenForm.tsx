@@ -1,6 +1,6 @@
 "use client";
 
-import type { ScreenScene } from "@remotion/videos/types";
+import type { ScreenScene } from "@video/videos/types";
 import { FieldGroup } from "../PropertyPanel";
 import { AssetPicker } from "../AssetPicker";
 import { CursorEditor } from "./CursorEditor";

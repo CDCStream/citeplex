@@ -1,8 +1,8 @@
 "use client";
 
 import { useEditorStore } from "@/store/editor-store";
-import { getTotalDuration } from "@remotion/videos/types";
-import type { SceneConfig } from "@remotion/videos/types";
+import { getTotalDuration } from "@video/videos/types";
+import type { SceneConfig } from "@video/videos/types";
 import { useCallback, useRef, useState } from "react";
 
 const SCENE_COLORS: Record<SceneConfig["type"], string> = {

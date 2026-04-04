@@ -1,6 +1,6 @@
 "use client";
 
-import type { CursorKeyframe } from "@remotion/components/AnimatedCursor";
+import type { CursorKeyframe } from "@video/components/AnimatedCursor";
 import { Plus, Trash2 } from "lucide-react";
 
 interface CursorEditorProps {

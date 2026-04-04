@@ -1,6 +1,6 @@
 "use client";
 
-import type { ZoomKeyframe } from "@remotion/components/ZoomEffect";
+import type { ZoomKeyframe } from "@video/components/ZoomEffect";
 import { Plus, Trash2 } from "lucide-react";
 
 interface ZoomEditorProps {

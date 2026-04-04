@@ -68,12 +68,18 @@ ${content}`,
       return { pagesFound: pages.length, linksInserted: 0, fixedContent: null };
     }
 
-    const internalLinkCount = (response.match(new RegExp(`href="${escapeRegex(brandUrl)}`, "gi")) || []).length;
+    // Ensure all internal links use https://
+    const fixed = response.trim().replace(
+      /href="http:\/\//gi,
+      'href="https://',
+    );
+
+    const internalLinkCount = (fixed.match(new RegExp(`href="${escapeRegex(brandUrl)}`, "gi")) || []).length;
 
     return {
       pagesFound: pages.length,
       linksInserted: internalLinkCount,
-      fixedContent: response.trim(),
+      fixedContent: fixed,
     };
   } catch (err) {
     console.error("[InternalLinker] Failed:", (err as Error).message);

@@ -172,16 +172,36 @@ export const ScreenRecordingPlayer: React.FC<ScreenRecordingPlayerProps> = ({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  const hasVideo = src && src.trim().length > 0;
+
   const videoContent = (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <ZoomEffect keyframes={zoom}>
-        <Video
-          src={staticFile(src)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          volume={volume}
-          playbackRate={playbackRate}
-          startFrom={Math.round(startFrom * fps)}
-        />
+        {hasVideo ? (
+          <Video
+            src={staticFile(src)}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            volume={volume}
+            playbackRate={playbackRate}
+            startFrom={Math.round(startFrom * fps)}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#1a1a2e",
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 18,
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            No video selected
+          </div>
+        )}
         {cursor.length > 0 && <AnimatedCursor keyframes={cursor} />}
       </ZoomEffect>
 

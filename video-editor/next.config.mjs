@@ -7,9 +7,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   transpilePackages: ["remotion", "@remotion/player", "@remotion/transitions"],
   webpack(config) {
+    const editorNodeModules = path.resolve(__dirname, "node_modules");
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@remotion": path.resolve(__dirname, "../video/src"),
+      "@video": path.resolve(__dirname, "../video/src"),
+      "remotion": path.resolve(editorNodeModules, "remotion"),
+      "@remotion/player": path.resolve(editorNodeModules, "@remotion/player"),
+      "@remotion/transitions": path.resolve(editorNodeModules, "@remotion/transitions"),
     };
     return config;
   },

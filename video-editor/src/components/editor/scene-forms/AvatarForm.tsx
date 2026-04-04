@@ -1,6 +1,6 @@
 "use client";
 
-import type { AvatarScene } from "@remotion/videos/types";
+import type { AvatarScene } from "@video/videos/types";
 import { FieldGroup } from "../PropertyPanel";
 import { AssetPicker } from "../AssetPicker";
 import { TextOverlayEditor } from "./TextOverlayEditor";

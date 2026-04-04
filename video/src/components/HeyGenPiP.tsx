@@ -44,6 +44,8 @@ export const HeyGenPiP: React.FC<HeyGenPiPProps> = ({
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
+  if (!src || src.trim().length === 0) return null;
+
   const effectiveExit = exitFrame ?? durationInFrames;
   const enterDuration = 15;
   const exitDuration = 12;
