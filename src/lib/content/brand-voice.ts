@@ -1,5 +1,6 @@
 import { callLLM } from "@/lib/llm/client";
 import { safeJsonParse } from "./safe-json-parse";
+import { BrandVoiceSchema } from "@/lib/llm/schemas";
 
 export interface BrandVoiceProfile {
   tone: string;
@@ -21,23 +22,22 @@ export async function analyzeBrandVoice(
 
   const text = await callLLM({
     chain: "fast",
-    expectJson: true,
     system: `You are a writing style analyst. Analyze the provided content samples and extract a detailed brand voice profile.
-Return ONLY valid JSON with this structure:
-{
-  "tone": "description of the overall tone (e.g. professional yet approachable, casual and witty, authoritative and formal)",
-  "style": "writing style characteristics (e.g. uses short paragraphs, heavy on lists, storytelling approach)",
-  "vocabulary": "vocabulary level and preferences (e.g. simple everyday language, technical jargon, mix of both)",
-  "sentenceStructure": "typical sentence patterns (e.g. short punchy sentences, long detailed explanations, varied mix)",
-  "personality": "brand personality that comes through (e.g. helpful expert, friendly mentor, no-nonsense professional)",
-  "doList": ["5-7 specific things this brand does in their writing"],
-  "dontList": ["5-7 things this brand avoids in their writing"],
-  "sampleExcerpt": "a 2-3 sentence example that captures this voice perfectly"
-}`,
+Include:
+- tone: description of the overall tone
+- style: writing style characteristics
+- vocabulary: vocabulary level and preferences
+- sentenceStructure: typical sentence patterns
+- personality: brand personality that comes through
+- doList: 5-7 specific things this brand does in their writing
+- dontList: 5-7 things this brand avoids in their writing
+- sampleExcerpt: a 2-3 sentence example that captures this voice perfectly`,
     user: `Analyze the writing style and brand voice from these content samples:\n\n${combined}`,
     maxTokens: 1500,
     temperature: 0.3,
     timeout: 30000,
+    schema: BrandVoiceSchema,
+    schemaName: "brand_voice",
   });
 
   const parsed = safeJsonParse<BrandVoiceProfile>(text, "BrandVoice", true);

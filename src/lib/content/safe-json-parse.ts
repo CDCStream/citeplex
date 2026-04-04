@@ -142,3 +142,22 @@ export function safeJsonParse<T = unknown>(
   if (required) throw new Error(msg);
   return null;
 }
+
+/**
+ * Extracts an array from a parsed LLM response that may be:
+ *  - a direct array: [...]
+ *  - an object wrapping an array: { "sections": [...] }, { "keywords": [...] }, etc.
+ *
+ * OpenAI's json_object mode always returns a root object, never a bare array,
+ * so LLM responses like {"keywords":["a","b"]} need unwrapping.
+ */
+export function extractArray<T = unknown>(parsed: unknown): T[] {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const obj = parsed as Record<string, unknown>;
+    const vals = Object.values(obj);
+    const firstArray = vals.find(v => Array.isArray(v));
+    if (firstArray) return firstArray as T[];
+  }
+  return [];
+}

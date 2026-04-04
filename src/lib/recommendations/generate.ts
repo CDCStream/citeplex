@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { callLLM } from "@/lib/llm/client";
-import { safeJsonParse } from "@/lib/content/safe-json-parse";
+import { safeJsonParse, extractArray } from "@/lib/content/safe-json-parse";
+import { RecommendationsSchema } from "@/lib/llm/schemas";
 
 type Priority = "high" | "medium" | "low";
 
@@ -75,8 +76,7 @@ export async function generateRecommendations(domainId: string): Promise<number>
   try {
     const content = await callLLM({
       chain: "fast",
-      expectJson: true,
-      system: "You are an AI Search Visibility expert. Respond ONLY with a valid JSON array, no other text.",
+      system: "You are an AI Search Visibility expert.",
       user: `Analyze these scan results and provide 3-5 specific, actionable recommendations.
 
 Brand: ${domain.brand_name}
@@ -90,7 +90,7 @@ ${mentionedPrompts.join("\n") || "None"}
 Prompts where brand was NOT mentioned:
 ${missedPrompts.join("\n") || "None — brand appeared everywhere!"}
 
-Provide exactly 3-5 recommendations as a JSON array. Each item must have:
+Provide exactly 3-5 recommendations. Each item must have:
 - "title": short action title (max 60 chars)
 - "description": specific, actionable explanation with concrete steps (2-3 sentences)
 - "priority": "high", "medium", or "low"
@@ -98,17 +98,18 @@ Provide exactly 3-5 recommendations as a JSON array. Each item must have:
 Focus on:
 1. Content gaps — what topics to create content about
 2. Technical SEO — structured data, citations, authority signals
-3. AI-specific optimization — how to get cited by AI engines
-
-Respond ONLY with a valid JSON array, no other text.`,
+3. AI-specific optimization — how to get cited by AI engines`,
       maxTokens: 1000,
       temperature: 0.7,
       timeout: 30000,
+      schema: RecommendationsSchema,
+      schemaName: "recommendations",
     });
 
-    const recommendations = safeJsonParse<RawRecommendation[]>(content, "Recommendations");
+    const parsed = safeJsonParse<unknown>(content, "Recommendations");
+    const recommendations = extractArray<RawRecommendation>(parsed);
 
-    if (!Array.isArray(recommendations)) return 0;
+    if (recommendations.length === 0) return 0;
 
     await supabaseAdmin
       .from("recommendations")

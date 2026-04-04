@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { callLLM } from "@/lib/llm/client";
-import { safeJsonParse } from "@/lib/content/safe-json-parse";
+import { safeJsonParse, extractArray } from "@/lib/content/safe-json-parse";
+import { TopicSuggestionsSchema } from "@/lib/llm/schemas";
 
 export async function POST(
   req: NextRequest,
@@ -51,7 +52,6 @@ export async function POST(
       chain: "fast",
       expectJson: true,
       system: `You are an SEO content strategist. Generate 8 article topic suggestions for a brand.
-Return ONLY valid JSON array: [{"title":"...","keyword":"...","type":"guide|how-to|listicle|comparison|explainer|round-up"}]
 - Each title should be specific and actionable
 - Keywords should be realistic search terms
 - Mix different article types
@@ -66,9 +66,12 @@ ${existingTitles ? `Already planned: ${existingTitles}` : ""}
 Generate 8 article topic suggestions.`,
       temperature: 0.8,
       maxTokens: 1500,
+      schema: TopicSuggestionsSchema,
+      schemaName: "topic_suggestions",
     });
 
-    const suggestions = safeJsonParse<unknown[]>(text, "TopicSuggestions") ?? [];
+    const parsed = safeJsonParse<unknown>(text, "TopicSuggestions");
+    const suggestions = extractArray<unknown>(parsed);
 
     return NextResponse.json({ suggestions });
   } catch (err) {

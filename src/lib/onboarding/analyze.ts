@@ -1,5 +1,6 @@
 import { callLLM } from "@/lib/llm/client";
-import { safeJsonParse } from "@/lib/content/safe-json-parse";
+import { safeJsonParse, extractArray } from "@/lib/content/safe-json-parse";
+import { PromptGenerationSchema, CompetitorDiscoverySchema, WebsiteAnalysisSchema } from "@/lib/llm/schemas";
 
 const ANALYZE_CHAIN = [
   { provider: "openai" as const, model: "gpt-5.4" },
@@ -247,7 +248,7 @@ Only return the JSON, nothing else.`;
 
   let response = "";
   try {
-    response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, expectJson: true });
+    response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, schema: WebsiteAnalysisSchema, schemaName: "website_analysis" });
   } catch (err) {
     console.error(`[Analyze] LLM call failed for ${url}:`, (err as Error).message);
     return buildFallback(meta, brandHint, tldCountry);
@@ -353,7 +354,7 @@ RULES:
 - If you cannot find info, use domain name "${brandHint}" as brandName and leave description/industry minimal
 - Only return the JSON, nothing else.`;
 
-    const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, expectJson: true });
+    const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, schema: WebsiteAnalysisSchema, schemaName: "website_analysis" });
     const result = safeJsonParse<WebsiteAnalysis>(response, "OnboardingFallback", true)!;
     if (!result.brandName) result.brandName = brandHint;
     if (!result.primaryCountry) result.primaryCountry = tldCountry || "US";
@@ -426,14 +427,15 @@ EXAMPLES OF GOOD vs BAD (for an SEO tool brand):
 ✗ "best project management software" — wrong category entirely
 ✗ "how to start a business" — too generic, not relevant
 
-Return a JSON array:
-[{"text": "the prompt text in ${langName}", "category": "best|howto|comparison|recommendation|problem"}]
+Return a JSON object:
+{"prompts": [{"text": "the prompt text in ${langName}", "category": "best|howto|comparison|recommendation|problem"}]}
 
-Only return the JSON array, nothing else.`;
+Only return the JSON object, nothing else.`;
 
-  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, expectJson: true });
-  const prompts = safeJsonParse<GeneratedPrompt[]>(response, "PromptGeneration");
-  if (!Array.isArray(prompts)) return [];
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, timeout: 30000, schema: PromptGenerationSchema, schemaName: "prompt_generation" });
+  const parsed = safeJsonParse<unknown>(response, "PromptGeneration");
+  const prompts = extractArray<GeneratedPrompt>(parsed);
+  if (prompts.length === 0) return [];
 
   const brandLower = brandName.toLowerCase();
   const descWords = extractKeywords(description + " " + industry);
@@ -537,12 +539,12 @@ Industry: ${industry}
 
 Find 5 direct competitors for this brand. They should be real companies that offer similar products/services.
 
-Return a JSON array:
-[{"brandName": "Competitor Name", "url": "https://competitor.com"}]
+Return a JSON object:
+{"competitors": [{"brandName": "Competitor Name", "url": "https://competitor.com"}]}
 
-Only return the JSON array, nothing else. Do NOT include ${brandName} in the list.`;
+Only return the JSON object, nothing else. Do NOT include ${brandName} in the list.`;
 
-  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, expectJson: true });
-  const competitors = safeJsonParse<{ brandName: string; url: string }[]>(response, "CompetitorDiscovery");
-  return Array.isArray(competitors) ? competitors.slice(0, 5) : [];
+  const response = await callLLM({ chain: ANALYZE_CHAIN, system: systemPrompt, user: userPrompt, webSearch: true, timeout: 30000, schema: CompetitorDiscoverySchema, schemaName: "competitor_discovery" });
+  const parsed = safeJsonParse<unknown>(response, "CompetitorDiscovery");
+  return extractArray<FoundCompetitor>(parsed).slice(0, 5);
 }

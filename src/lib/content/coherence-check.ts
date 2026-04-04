@@ -1,5 +1,6 @@
 import { callLLM } from "@/lib/llm/client";
 import { safeJsonParse } from "./safe-json-parse";
+import { CoherenceCheckSchema } from "@/lib/llm/schemas";
 
 export interface CoherenceResult {
   isCoherent: boolean;
@@ -19,7 +20,6 @@ export async function checkCoherence(
   try {
     const text = await callLLM({
       chain: "fast",
-      expectJson: true,
       system: `You are a content quality reviewer. Analyze the article for context coherence — every section must logically flow from the previous one, stay on topic, and build toward the article's thesis.
 
 Check for:
@@ -29,20 +29,14 @@ Check for:
 4. Factual consistency — contradictions within the article
 5. Language consistency — all content must be in ${language}
 
-Return ONLY valid JSON:
-{
-  "isCoherent": true/false,
-  "score": 0-100,
-  "issues": ["list of specific issues found, empty if none"],
-  "needsFix": true/false
-}
-
 If needsFix is true, you will be asked to provide a fixed version in a follow-up.
 Set isCoherent to true and score >= 80 if the article is publication-ready.`,
       user: `Review this article for coherence:\n\nTitle: ${title}\nKeyword: ${keyword}\nLanguage: ${language}\n\n${truncated}`,
       maxTokens: 2048,
       temperature: 0.2,
       timeout: 15000,
+      schema: CoherenceCheckSchema,
+      schemaName: "coherence_check",
     });
 
     const result = safeJsonParse<{ isCoherent?: boolean; needsFix?: boolean; score?: number; issues?: string[] }>(text, "CoherenceCheck");

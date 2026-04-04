@@ -1,5 +1,6 @@
 import { callLLM } from "@/lib/llm/client";
 import { safeJsonParse } from "./safe-json-parse";
+import { FactCheckClaimsSchema } from "@/lib/llm/schemas";
 
 export interface FactCheckResult {
   claimsChecked: number;
@@ -21,8 +22,7 @@ export async function factCheckAndCite(
     // Step 1: Extract claims that need verification
     const claimsResponse = await callLLM({
       chain: "fast",
-      expectJson: true,
-      system: `You are a fact-checking editor. Analyze the HTML article and identify factual claims that should be cited. Return ONLY valid JSON.
+      system: `You are a fact-checking editor. Analyze the HTML article and identify factual claims that should be cited.
 
 Focus on:
 - Statistics and percentages (e.g. "73% of marketers...")
@@ -38,22 +38,12 @@ Do NOT flag:
 - The article's own recommendations`,
       user: `Extract all factual claims from this article about "${keyword}" that should be verified and cited.
 
-${content.slice(0, 12000)}
-
-Return JSON:
-{
-  "claims": [
-    {
-      "claim": "the exact text of the claim",
-      "context": "the HTML paragraph or sentence containing it",
-      "type": "statistic|research|industry_data|expert_quote|historical|comparison",
-      "suggestedSource": "what kind of source would verify this (e.g. 'Gartner report', 'Google official blog')"
-    }
-  ]
-}`,
+${content.slice(0, 12000)}`,
       maxTokens: 2048,
       temperature: 0.2,
       timeout: 15000,
+      schema: FactCheckClaimsSchema,
+      schemaName: "fact_check_claims",
     });
 
     let claims: { claim: string; context: string; type: string; suggestedSource: string }[] = [];

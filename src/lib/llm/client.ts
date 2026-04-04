@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { safeJsonParse } from "@/lib/content/safe-json-parse";
+import { zodToJsonSchema } from "./schemas";
 
 type LLMProvider = "openai" | "anthropic" | "gemini";
 
@@ -18,6 +20,13 @@ export interface CallLLMOptions {
   /** When true, validate the response is parseable JSON. On parse failure
    *  the same provider is retried once before falling back to the next. */
   expectJson?: boolean;
+  /** Zod schema for structured output. Implies expectJson=true.
+   *  OpenAI: enforces via json_schema response_format (100% guaranteed).
+   *  Gemini: uses responseSchema.
+   *  All providers: validates response with schema.safeParse(). */
+  schema?: z.ZodType;
+  /** Name for the schema (used in OpenAI structured outputs). Defaults to "response". */
+  schemaName?: string;
 }
 
 const FALLBACK_CHAINS: Record<string, LLMConfig[]> = {
@@ -51,24 +60,29 @@ async function callAnthropic(
   maxTokens: number,
   temperature: number,
   timeout: number,
+  _webSearch?: boolean,
+  jsonMode?: boolean,
 ): Promise<string> {
   const key = getKey("anthropic");
   if (!key) throw new Error("ANTHROPIC_API_KEY not set");
 
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: maxTokens,
+    temperature,
+    system,
+    messages: [{ role: "user", content: user }],
+  };
+
+  const start = Date.now();
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,
-      "anthropic-version": "2023-06-01",
+      "anthropic-version": "2025-04-14",
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      temperature,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(timeout),
   });
 
@@ -78,12 +92,21 @@ async function callAnthropic(
   }
 
   const data = await res.json();
-  return (
-    data.content
-      ?.filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("") ?? ""
-  );
+  const elapsed = Date.now() - start;
+  const stopReason = data.stop_reason;
+  console.log(`[LLM] Anthropic ${model} responded in ${(elapsed / 1000).toFixed(1)}s (stop_reason: ${stopReason})`);
+
+  // If Anthropic returned thinking blocks, extract text blocks only
+  const text = data.content
+    ?.filter((b: { type: string }) => b.type === "text")
+    .map((b: { text: string }) => b.text)
+    .join("") ?? "";
+
+  if (jsonMode && !text.trim()) {
+    throw new Error(`Anthropic ${model} returned empty text content`);
+  }
+
+  return text;
 }
 
 async function callOpenAI(
@@ -95,6 +118,8 @@ async function callOpenAI(
   timeout: number,
   webSearch?: boolean,
   jsonMode?: boolean,
+  jsonSchema?: Record<string, unknown>,
+  schemaName?: string,
 ): Promise<string> {
   const key = getKey("openai");
   if (!key) throw new Error("OPENAI_API_KEY not set");
@@ -110,7 +135,18 @@ async function callOpenAI(
       ],
     };
     if (webSearch) body.tools = [{ type: "web_search_preview" }];
-    if (jsonMode) body.text = { format: { type: "json_object" } };
+    if (jsonSchema) {
+      body.text = {
+        format: {
+          type: "json_schema",
+          name: schemaName || "response",
+          strict: true,
+          schema: jsonSchema,
+        },
+      };
+    } else if (jsonMode) {
+      body.text = { format: { type: "json_object" } };
+    }
 
     const res = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -147,7 +183,14 @@ async function callOpenAI(
     max_tokens: maxTokens,
     temperature,
   };
-  if (jsonMode) reqBody.response_format = { type: "json_object" };
+  if (jsonSchema) {
+    reqBody.response_format = {
+      type: "json_schema",
+      json_schema: { name: schemaName || "response", strict: true, schema: jsonSchema },
+    };
+  } else if (jsonMode) {
+    reqBody.response_format = { type: "json_object" };
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -177,6 +220,7 @@ async function callGemini(
   timeout: number,
   _webSearch?: boolean,
   jsonMode?: boolean,
+  jsonSchema?: Record<string, unknown>,
 ): Promise<string> {
   const key = getKey("gemini");
   if (!key) throw new Error("GOOGLE_GEMINI_API_KEY not set");
@@ -185,7 +229,12 @@ async function callGemini(
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ parts: [{ text: user }] }],
   };
-  if (jsonMode) {
+  if (jsonSchema) {
+    body.generationConfig = {
+      responseMimeType: "application/json",
+      responseSchema: jsonSchema,
+    };
+  } else if (jsonMode) {
     body.generationConfig = { responseMimeType: "application/json" };
   }
 
@@ -216,6 +265,7 @@ type ProviderFn = (
   model: string, system: string, user: string,
   maxTokens: number, temperature: number, timeout: number,
   webSearch?: boolean, jsonMode?: boolean,
+  jsonSchema?: Record<string, unknown>, schemaName?: string,
 ) => Promise<string>;
 
 const PROVIDER_FN: Record<LLMProvider, ProviderFn> = {
@@ -225,24 +275,26 @@ const PROVIDER_FN: Record<LLMProvider, ProviderFn> = {
 };
 
 /**
- * Centralized LLM call with automatic fallback + optional JSON validation.
+ * Centralized LLM call with automatic fallback + optional JSON/schema validation.
  *
- * @param opts.chain - "fast" / "strong" (both Sonnet → GPT-5.4 → Gemini 2.5 Flash),
- *                     or a custom LLMConfig array.
- * @param opts.expectJson - If true, validates response is parseable JSON.
- *                          On parse failure, retries the same provider once
- *                          before falling back to the next provider.
+ * When `schema` is provided (Zod):
+ *  - OpenAI: uses json_schema structured output (100% guaranteed schema match)
+ *  - Gemini: uses responseSchema
+ *  - All: validates with schema.safeParse() and includes validation errors in retry prompt
  */
 export async function callLLM(opts: CallLLMOptions): Promise<string> {
   const chain = typeof opts.chain === "string" ? FALLBACK_CHAINS[opts.chain] : opts.chain;
   const maxTokens = opts.maxTokens ?? 4096;
   const temperature = opts.temperature ?? 0.7;
-  const baseTimeout = opts.timeout ?? 60_000;
-  const expectJson = opts.expectJson ?? false;
+  const baseTimeout = opts.timeout ?? 90_000;
+  const hasSchema = !!opts.schema;
+  const expectJson = opts.expectJson ?? hasSchema;
   const errors: string[] = [];
 
-  // Each fallback gets slightly less time: 100% → 80% → 60%
-  const TIMEOUT_DECAY = [1.0, 0.8, 0.6];
+  const jsonSchema = hasSchema ? zodToJsonSchema(opts.schema!) : undefined;
+
+  // Each fallback gets slightly less time: 100% → 70% → 50%
+  const TIMEOUT_DECAY = [1.0, 0.7, 0.5];
 
   for (let i = 0; i < chain.length; i++) {
     const cfg = chain[i];
@@ -255,7 +307,7 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
       userPrompt += "\n\n(Note: web search is not available, use your knowledge.)";
     }
 
-    // With expectJson, each provider gets up to 2 attempts (initial + JSON retry)
+    // With expectJson/schema, each provider gets up to 2 attempts (initial + retry)
     const maxInner = expectJson ? 2 : 1;
 
     for (let attempt = 0; attempt < maxInner; attempt++) {
@@ -265,8 +317,8 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
       let currentSystem = opts.system;
       let currentUser = userPrompt;
       if (isRetry) {
-        currentSystem += "\n\nCRITICAL: Your previous response was not valid JSON. You MUST return ONLY valid JSON, no markdown, no explanation, no code fences.";
-        currentUser += "\n\nREMINDER: Return ONLY valid JSON. No markdown fences, no extra text.";
+        currentSystem += "\n\nCRITICAL: Your previous response was not valid JSON or did not match the required schema. You MUST return ONLY valid JSON matching the exact structure requested.";
+        currentUser += "\n\nREMINDER: Return ONLY valid JSON matching the schema. No markdown fences, no extra text.";
       }
 
       try {
@@ -279,6 +331,8 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
           innerTimeout,
           opts.webSearch,
           expectJson,
+          jsonSchema,
+          opts.schemaName,
         );
 
         if (expectJson) {
@@ -287,8 +341,22 @@ export async function callLLM(opts: CallLLMOptions): Promise<string> {
             const msg = `${cfg.provider}/${cfg.model}: response not valid JSON (${result.length} chars)`;
             errors.push(msg);
             console.warn(`[LLM] ${msg}${isRetry ? " (retry also failed)" : ", retrying same provider"}`);
-            if (isRetry) break; // move to next provider
-            continue; // retry same provider
+            if (isRetry) break;
+            continue;
+          }
+
+          if (hasSchema) {
+            const validation = opts.schema!.safeParse(testParse);
+            if (!validation.success) {
+              const zodErrors = validation.error.issues.map((e) => `${String(e.path.join("."))}: ${e.message}`).join(", ");
+              const msg = `${cfg.provider}/${cfg.model}: JSON valid but schema mismatch: ${zodErrors}`;
+              errors.push(msg);
+              console.warn(`[LLM] ${msg}${isRetry ? " (retry also failed)" : ", retrying same provider"}`);
+              if (isRetry) break;
+              currentUser += `\n\nSCHEMA ERRORS: ${zodErrors}`;
+              continue;
+            }
+            console.log(`[LLM] Schema validation passed for ${cfg.provider}/${cfg.model}`);
           }
         }
 

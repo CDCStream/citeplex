@@ -3,6 +3,12 @@ import { withRetry } from "@/lib/llm/with-retry";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { findAndScrapeTopArticles, type TopArticle } from "./top-articles";
 import { safeJsonParse } from "./safe-json-parse";
+import {
+  GapCandidatesSchema,
+  GapFinalSelectionSchema,
+  KeywordListSchema,
+  GapOutlineSchema,
+} from "@/lib/llm/schemas";
 
 export interface SecondaryKeyword {
   keyword: string;
@@ -72,8 +78,9 @@ export async function analyzeGapAndPlan(
   const candidateResponse = await callLLM({
     chain: "strong",
     timeout: 60_000,
-    expectJson: true,
-    system: "You are an expert SEO strategist. Return ONLY valid JSON, nothing else.",
+    schema: GapCandidatesSchema,
+    schemaName: "gap_candidates",
+    system: "You are an expert SEO strategist.",
     user: `A brand is NOT being mentioned by ANY AI engine for this prompt:
 "${prompt}"
 
@@ -150,8 +157,9 @@ Return JSON:
   const finalResponse = await callLLM({
     chain: "strong",
     timeout: 60_000,
-    expectJson: true,
-    system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis. Return ONLY valid JSON.",
+    schema: GapFinalSelectionSchema,
+    schemaName: "gap_final_selection",
+    system: "You are an expert SEO strategist specializing in AI visibility and content gap analysis.",
     user: `Based on the Ahrefs data below, pick the BEST target keyword for writing a gap article.
 
 ## Original AI Prompt (brand is NOT mentioned here):
@@ -301,8 +309,7 @@ async function extractSecondaryKeywords(
   try {
     const response = await callLLM({
       chain: "fast",
-      expectJson: true,
-      system: "You are an SEO keyword researcher. Return ONLY valid JSON.",
+      system: "You are an SEO keyword researcher.",
       user: `Analyze these top-ranking articles for "${primaryKeyword}" and extract 15-20 secondary/LSI keywords that appear frequently across multiple articles.
 
 ${articleSummaries}
@@ -311,13 +318,12 @@ Rules:
 - Do NOT include the primary keyword "${primaryKeyword}"
 - Focus on semantically related terms, not just synonyms
 - Include both short-tail and long-tail variations
-- Prioritize keywords that appear in headings across multiple articles
-
-Return JSON:
-{ "keywords": ["keyword1", "keyword2", ...] }`,
+- Prioritize keywords that appear in headings across multiple articles`,
       maxTokens: 1024,
       temperature: 0.3,
       timeout: 60000,
+      schema: KeywordListSchema,
+      schemaName: "secondary_keywords",
     });
 
     const parsed = safeJsonParse<Record<string, unknown>>(response, "SecondaryKeywords");
@@ -466,8 +472,9 @@ Return JSON (ONLY headings and levels, NO points):
     const response = await withRetry(
       () => callLLM({
         chain: "strong",
-        expectJson: true,
-        system: "You are an expert content strategist. Return ONLY valid JSON. Keep response compact — no extra whitespace.",
+        schema: GapOutlineSchema,
+        schemaName: "gap_outline",
+        system: "You are an expert content strategist. Keep response compact — no extra whitespace.",
         user: outlinePrompt,
         maxTokens: 2048,
         temperature: 0.7,

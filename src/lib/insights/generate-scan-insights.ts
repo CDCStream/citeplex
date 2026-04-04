@@ -3,6 +3,7 @@ import { extractSources } from "./extract-sources";
 import { getLanguageName } from "@/lib/languages";
 import { callLLM } from "@/lib/llm/client";
 import { safeJsonParse } from "@/lib/content/safe-json-parse";
+import { ScanInsightSchema } from "@/lib/llm/schemas";
 
 const INSIGHT_BATCH_SIZE = 5;
 const LOOKBACK_HOURS = 48;
@@ -132,7 +133,7 @@ ${sources.length > 0 ? sources.map((s) => `- ${s}`).join("\n") : "(no sources de
 
 Only return valid JSON, nothing else.`;
 
-          const response = await callLLM({ chain: "fast", expectJson: true, system: "You are an AI search visibility analyst. Return ONLY valid JSON.", user: llmPrompt, maxTokens: 2048, timeout: 60000 });
+          const response = await callLLM({ chain: "fast", system: "You are an AI search visibility analyst.", user: llmPrompt, maxTokens: 2048, timeout: 60000, schema: ScanInsightSchema, schemaName: "scan_insight" });
 
           const insight = safeJsonParse<Record<string, unknown>>(response, "ScanInsight")
             ?? { whyMentioned: response.slice(0, 500), mentionContext: "unknown", recommendations: [] };

@@ -1,8 +1,9 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { fetchKeywordMetrics, type AhrefsKeywordData } from "@/lib/ahrefs/client";
 import { callLLM } from "@/lib/llm/client";
-import { safeJsonParse } from "./safe-json-parse";
+import { safeJsonParse, extractArray } from "./safe-json-parse";
 import { getDailyArticleLimit, getBatchConfig } from "@/lib/plans";
+import { KeywordListSchema, TitleGenerationSchema } from "@/lib/llm/schemas";
 
 interface DomainContext {
   id: string;
@@ -36,8 +37,7 @@ async function getCompetitorKeywords(domainId: string, domain: DomainContext, ex
 
   const response = await callLLM({
     chain: "fast",
-    expectJson: true,
-    system: "You are an SEO strategist. Generate keyword ideas based on competitor analysis. Return ONLY a JSON array of keyword strings.",
+    system: "You are an SEO strategist. Generate keyword ideas based on competitor analysis.",
     user: `Our brand: ${domain.brand_name}
 Description: ${domain.description}
 Industry: ${domain.industry}
@@ -51,21 +51,22 @@ Generate 30 keyword ideas that our competitors likely rank for but we might not.
 4. Problem-solving keywords in our shared industry
 5. IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume in Ahrefs
 
-Return ONLY a JSON array of keyword strings, e.g. ["keyword 1", "keyword 2", ...]`,
+Return a JSON object with a "keywords" array.`,
     maxTokens: 8192,
     timeout: 60000,
+    schema: KeywordListSchema,
+    schemaName: "keyword_list",
   });
 
-  const parsed = safeJsonParse<string[]>(response, "CompetitorKeywords", true);
-  return Array.isArray(parsed) ? parsed : [];
+  const parsed = safeJsonParse<unknown>(response, "CompetitorKeywords", true);
+  return extractArray<string>(parsed);
 }
 
 async function getBacklinkKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
   const currentYear = new Date().getFullYear();
   const response = await callLLM({
     chain: "fast",
-    expectJson: true,
-    system: "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks. Return ONLY a JSON array of keyword strings.",
+    system: "You are a link-building SEO strategist. Generate keywords for content that attracts backlinks.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
@@ -79,20 +80,21 @@ Generate 15 keyword ideas for articles that would naturally attract backlinks:
 5. "Benchmark/report" keywords that people cite
 6. IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume
 
-Return ONLY a JSON array of keyword strings.`,
+Return a JSON object with a "keywords" array.`,
     maxTokens: 8192,
     timeout: 60000,
+    schema: KeywordListSchema,
+    schemaName: "keyword_list",
   });
 
-  const parsed = safeJsonParse<string[]>(response, "BacklinkKeywords", true);
-  return Array.isArray(parsed) ? parsed : [];
+  const parsed = safeJsonParse<unknown>(response, "BacklinkKeywords", true);
+  return extractArray<string>(parsed);
 }
 
 async function getOpportunityKeywords(domain: DomainContext, excludeContext: string = ""): Promise<string[]> {
   const response = await callLLM({
     chain: "fast",
-    expectJson: true,
-    system: "You are an SEO content strategist. Generate keyword ideas for organic traffic growth. Return ONLY a JSON array of keyword strings.",
+    system: "You are an SEO content strategist. Generate keyword ideas for organic traffic growth.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
@@ -111,13 +113,15 @@ Focus on keywords that are:
 - Likely to convert visitors into customers
 - IMPORTANT: Prefer SHORT, POPULAR keywords (1-3 words) that have high search volume in Ahrefs
 
-Return ONLY a JSON array of keyword strings.`,
+Return a JSON object with a "keywords" array.`,
     maxTokens: 8192,
     timeout: 60000,
+    schema: KeywordListSchema,
+    schemaName: "keyword_list",
   });
 
-  const parsed = safeJsonParse<string[]>(response, "OpportunityKeywords", true);
-  return Array.isArray(parsed) ? parsed : [];
+  const parsed = safeJsonParse<unknown>(response, "OpportunityKeywords", true);
+  return extractArray<string>(parsed);
 }
 
 function scoreKeyword(kw: AhrefsKeywordData, source: string): number {
@@ -163,8 +167,7 @@ async function generateTitlesForKeywords(
 
   const response = await callLLM({
     chain: "fast",
-    expectJson: true,
-    system: "You are an SEO content strategist. Create article titles for the given keywords. Return ONLY valid JSON.",
+    system: "You are an SEO content strategist. Create article titles for the given keywords.",
     user: `Brand: ${domain.brand_name}
 Industry: ${domain.industry}
 Description: ${domain.description}
@@ -176,21 +179,15 @@ For each keyword, create an optimized article title and choose the best article 
 
 IMPORTANT: ALWAYS prefer keywords that have actual volume and difficulty data (not "?"). NEVER select a keyword with volume="?" AND difficulty="?" if there are keywords with real data available.
 
-Return a JSON array:
-[{
-  "keyword": "the keyword",
-  "title": "SEO-optimized article title (60-70 chars)",
-  "articleType": "guide|how-to|listicle|comparison|explainer|round-up",
-  "reasoning": "1 sentence why this keyword is valuable for this brand"
-}]
-
-Select the top ${count} keywords that would be most impactful. Return ONLY the JSON.`,
+Select the top ${count} keywords that would be most impactful.`,
     maxTokens: 8192,
     timeout: 60000,
+    schema: TitleGenerationSchema,
+    schemaName: "title_generation",
   });
 
-  const parsed = safeJsonParse<string[]>(response, "TitleGeneration", true);
-  const items = Array.isArray(parsed) ? parsed : [];
+  const parsed = safeJsonParse<unknown>(response, "TitleGeneration", true);
+  const items = extractArray<unknown>(parsed);
 
   return items.slice(0, count).map((item: unknown) => {
     const i = item as { keyword: string; title: string; articleType: string; reasoning: string };

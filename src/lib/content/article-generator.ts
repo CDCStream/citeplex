@@ -1,6 +1,11 @@
 import { callLLM } from "@/lib/llm/client";
 import { withRetry } from "@/lib/llm/with-retry";
-import { safeJsonParse } from "./safe-json-parse";
+import { safeJsonParse, extractArray } from "./safe-json-parse";
+import {
+  OutlineResponseSchema,
+  ResearchSchema,
+  ArticleMetaSchema,
+} from "@/lib/llm/schemas";
 
 export interface ResearchData {
   keyPoints: string[];
@@ -53,7 +58,7 @@ Target Keyword: ${keyword}
 Brand: ${brandName}
 Industry: ${industry}${competitorInsight}`;
 
-  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048, expectJson: true });
+  const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 2048, schema: ResearchSchema, schemaName: "research" });
   const parsed = safeJsonParse<ReturnType<typeof defaultResearch>>(text, "Research");
   return parsed ?? defaultResearch();
 }
@@ -77,6 +82,7 @@ export interface OutlineSection {
   points: string[];
 }
 
+
 export async function generateOutline(
   title: string,
   keyword: string,
@@ -85,7 +91,7 @@ export async function generateOutline(
   language = "English"
 ): Promise<OutlineSection[]> {
   const systemPrompt = `You are an SEO content strategist. Generate an article outline optimized for AI search engines.
-Return ONLY valid JSON array: [{"heading":"...","level":2,"points":["key point 1","key point 2"]}]
+Return ONLY valid JSON object: {"sections":[{"heading":"...","level":2,"points":["key point 1","key point 2"]}]}
 - Include an introduction (H2), 4-8 main sections (H2/H3), and a conclusion (H2)
 - Include an FAQ section at the end with 4-6 questions
 - Optimize headings for the target keyword
@@ -100,10 +106,11 @@ Language: ${language}`;
 
   return withRetry(
     async () => {
-      const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000, expectJson: true });
+      const text = await callLLM({ chain: "strong", system: systemPrompt, user: userPrompt, temperature: 0.5, maxTokens: 3000, schema: OutlineResponseSchema, schemaName: "outline" });
       console.log(`[Outline] Raw LLM response length: ${text.length} chars`);
-      const parsed = safeJsonParse<OutlineSection[]>(text, "Outline", true);
-      const sections = Array.isArray(parsed) ? parsed.filter(s => s?.heading && s?.level) : [];
+      const parsed = safeJsonParse<unknown>(text, "Outline", true);
+      const rawSections = extractArray<OutlineSection>(parsed);
+      const sections = rawSections.filter(s => s?.heading && s?.level);
       if (sections.length === 0) {
         throw new Error("Outline parsed but produced 0 valid sections");
       }
@@ -288,7 +295,7 @@ Write these sections now in ${ctx.language}. Output ONLY the HTML for these sect
       user,
       temperature: 0.7,
       maxTokens: 4096,
-      timeout: 60_000,
+      timeout: 75_000,
     }),
     {
       label: `writeSection-${chunk.chunkIndex + 1}`,
@@ -332,7 +339,8 @@ Return JSON:
         temperature: 0.3,
         maxTokens: 1500,
         timeout: 30_000,
-        expectJson: true,
+        schema: ArticleMetaSchema,
+        schemaName: "article_meta",
       });
 
       const parsed = safeJsonParse<{ metaDescription?: string; tags?: string[]; faq?: { question: string; answer: string }[] }>(text, "ArticleMeta");
