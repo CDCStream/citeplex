@@ -2,12 +2,12 @@ import React from "react";
 import { AbsoluteFill, Img, staticFile, useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
 
 const AI_ENGINES = [
-  { file: "engines/ChatGPT-Logo.png", name: "ChatGPT" },
+  { file: "engines/chatgpt-white.webp", name: "ChatGPT" },
   { file: "engines/gemini-logo.png", name: "Gemini" },
   { file: "engines/claude-logo.png", name: "Claude" },
   { file: "engines/perplexity-logo.png", name: "Perplexity" },
   { file: "engines/deepseek-logo.png", name: "DeepSeek" },
-  { file: "engines/grok-logo.png", name: "Grok" },
+  { file: "engines/grok-white.png", name: "Grok" },
   { file: "engines/mistral-logo.png", name: "Mistral" },
 ];
 
